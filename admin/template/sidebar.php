@@ -249,14 +249,6 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
                     <div class="submenu collapse <?= $isInPagesSubmenu ? 'show' : '' ?>" id="settingsSubmenu_pages">
-                        <a href="/admin/pages/parent_list.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'parent_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-grid"></i>
-                            <span>Управление каталогом</span>
-                        </a>
-                        <a href="/admin/pages/add_parent.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'add_parent.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить каталог</span>
-                        </a>
                         <a href="/admin/pages/pages_list.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'pages_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-hdd-stack"></i>
                             <span>Управление страницами</span>

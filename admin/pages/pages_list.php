@@ -43,15 +43,11 @@ header('Content-Type: text/html; charset=utf-8');
 // НАСТРОЙКИ (меняются в одном месте)
 // =============================================================================
 
-// 1) Имя таблицы страницы: можно быстро переключать (parent / parent2 / и т.д.)
-$parentTable = 'pages';
+// Название таблицы 
+$catalogTable = 'pages';
 
-// 2) Фильтр related_table (какой "контекст" показываем в этом списке)
-$RELATED_TABLE_FILTER = 'pages';
-
-// 3) Фильтр related_table ТОЛЬКО для поиска/отображения родительской категории
-//    (когда вводите search_parent и когда вытаскиваем parent_name).
-$parentRelatedTable = 'parent';
+// related_table — “тип”/контекст текущих редактируемых страницы
+$relatedTable = 'pages';
 
 // =============================================================================
 // Подключаем системные компоненты
@@ -227,29 +223,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                     if ($isTrash) {
                         // Полное удаление из корзины
                         foreach ($userIds as $userId) {
-                            $stmt = $pdo->prepare("DELETE FROM {$parentTable} WHERE id = ? AND status = 0 AND related_table = ? AND users_id = ?");
-                            $stmt->execute([$userId, $RELATED_TABLE_FILTER, $currentUserId]);
+                            $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND related_table = ? AND users_id = ?");
+                            $stmt->execute([$userId, $relatedTable, $currentUserId]);
                         }
                         $successMessages[] = 'Страницы успешно удалены';
                     } else {
                         // Перемещение в корзину
-                        $stmt = $pdo->prepare("UPDATE {$parentTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                        $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
+                        $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
+                        $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
                         $successMessages[] = 'Страницы перемещены в корзину';
                     }
                     break;
 
                 case 'restore':
                     // Восстановление из корзины
-                    $stmt = $pdo->prepare("UPDATE {$parentTable} SET status = 1 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                    $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
+                    $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 1 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
+                    $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
                     $successMessages[] = 'Страницы восстановлены';
                     break;
 
                 case 'trash':
                     // Добавление в корзину
-                    $stmt = $pdo->prepare("UPDATE {$parentTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                    $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
+                    $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
+                    $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
                     $successMessages[] = 'Страницы перемещены в корзину';
                     break;
 
@@ -261,11 +257,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
             // Логирование действий
             $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $adminId = $user['id'] ?? 'unknown';
-            logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$parentTable} IDs: " . implode(',', $userIds) . " — related_table={$RELATED_TABLE_FILTER} — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
+            logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — related_table={$relatedTable} — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
 
         } catch (PDOException $e) {
             $errors[] = 'Ошибка при выполнении операции';
-            logEvent("Ошибка БД при массовом действии '$action' ({$parentTable}): " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+            logEvent("Ошибка БД при массовом действии '$action' ({$catalogTable}): " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
         }
     } else {
         $errors[] = 'Не выбраны страницы для действия.';
@@ -284,7 +280,7 @@ try {
             (data ->> '$.image') AS image,
             created_at,
             author
-        FROM {$parentTable}
+        FROM {$catalogTable}
         WHERE status = :status
           AND related_table = :related_table
           AND users_id = :users_id
@@ -292,7 +288,7 @@ try {
 
     $countQuery = "
         SELECT COUNT(*)
-        FROM {$parentTable}
+        FROM {$catalogTable}
         WHERE status = :status
           AND related_table = :related_table
           AND users_id = :users_id
@@ -300,7 +296,7 @@ try {
 
     $params = [
         ':status' => $isTrash ? 0 : 1,
-        ':related_table' => $RELATED_TABLE_FILTER,
+        ':related_table' => $relatedTable,
         ':users_id' => $currentUserId,
     ];
 
@@ -311,13 +307,13 @@ try {
         $params[':search'] = "%{$search}%";
     }
 
-    // Поиск по родительской категории (родитель проверяем по $parentRelatedTable И users_id)
+    // Поиск по родительской категории (родитель проверяем по $relatedTable И users_id)
     if ($search_parent !== '') {
         // Используем уникальные имена параметров для подзапроса
         $query .= " AND EXISTS (
                         SELECT 1
-                        FROM {$parentTable} p
-                        WHERE p.id = {$parentTable}.author
+                        FROM {$catalogTable} p
+                        WHERE p.id = {$catalogTable}.author
                            AND p.status = 1
                            AND p.related_table = :parent_related_table_search
                            AND p.users_id = :users_id_search
@@ -325,8 +321,8 @@ try {
                     )";
         $countQuery .= " AND EXISTS (
                             SELECT 1
-                            FROM {$parentTable} p
-                            WHERE p.id = {$parentTable}.author
+                            FROM {$catalogTable} p
+                            WHERE p.id = {$catalogTable}.author
                               AND p.status = 1
                               AND p.related_table = :parent_related_table_search
                               AND p.users_id = :users_id_search
@@ -334,7 +330,7 @@ try {
                         )";
     
         // Уникальные параметры для подзапроса
-        $params[':parent_related_table_search'] = $parentRelatedTable;
+        $params[':parent_related_table_search'] = $relatedTable;
         $params[':users_id_search'] = $currentUserId;
         $params[':search_parent_search'] = "%{$search_parent}%";
     }
@@ -381,13 +377,13 @@ try {
                 id, 
                 naime, 
                 url 
-            FROM {$parentTable} 
+            FROM {$catalogTable} 
             WHERE related_table = ? 
               AND users_id = ? 
               AND id IN ($ph) 
               AND status = 1
         ");
-        $pStmt->execute(array_merge([$parentRelatedTable, $currentUserId], $parentIds));
+        $pStmt->execute(array_merge([$relatedTable, $currentUserId], $parentIds));
 
         while ($row = $pStmt->fetch(PDO::FETCH_ASSOC)) {
             $parentMap[(int)$row['id']] = [
@@ -418,7 +414,7 @@ try {
 
 } catch (PDOException $e) {
     $errors[] = 'Ошибка при загрузке данных каталога';
-    logEvent("Ошибка базы данных при загрузке списка {$parentTable}: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+    logEvent("Ошибка базы данных при загрузке списка {$catalogTable}: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
 }
 
 // =============================================================================
@@ -473,8 +469,8 @@ register_shutdown_function(function() {
 
             <?php if (!$isTrash): ?>
                 <?php
-                    $trashCountStmt = $pdo->prepare("SELECT COUNT(*) FROM {$parentTable} WHERE related_table = ? AND status = 0 AND users_id = ?");
-                    $trashCountStmt->execute([$RELATED_TABLE_FILTER, $currentUserId]);
+                    $trashCountStmt = $pdo->prepare("SELECT COUNT(*) FROM {$catalogTable} WHERE related_table = ? AND status = 0 AND users_id = ?");
+                    $trashCountStmt->execute([$relatedTable, $currentUserId]);
                     $trashCount = (int)$trashCountStmt->fetchColumn();
                 ?>
                 <?php if ($trashCount > 0): ?>
@@ -498,7 +494,7 @@ register_shutdown_function(function() {
                     <div class="col-md-7">
                         <form method="GET" class="d-flex mb-3">
                             <input type="hidden" name="folder" value="parent">
-                            <input type="hidden" name="file" value="parent_list">
+                            <input type="hidden" name="file" value="pages_list">
                             <?php if ($isTrash): ?>
                                 <input type="hidden" name="trash" value="1">
                             <?php endif; ?>

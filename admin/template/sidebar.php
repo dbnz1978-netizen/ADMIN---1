@@ -62,6 +62,14 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_pages_admin'] ?? 
 } elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_pages_users'] ?? false) === true) {
     $pagesMenu = true;
 }
+
+// Проверка прав доступа к новостям
+$newsMenu = false;
+if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? false) === true) {
+    $newsMenu = true;
+} elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_news_users'] ?? false) === true) {
+    $newsMenu = true;
+}
 ?>
 
 <!-- Боковое меню -->
@@ -250,6 +258,42 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_pages_admin'] ?? 
                         <a href="/admin/pages/add_pages.php" class="nav-link <?= $currentScript === 'add_pages.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить страницу</span>
+                        </a>
+                    </div>
+                </li>
+            <?php endif; ?>
+
+            <?php if ($newsMenu): ?>
+                <?php
+                // Определяем, находится ли пользователь внутри подменю "Новости"
+                $currentScript = basename($_SERVER['SCRIPT_NAME']);
+                $isInSettingsSubmenu = in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
+                ?>
+                <li class="nav-item">
+                    <a href="#settingsSubmenu_news" 
+                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       data-bs-toggle="submenu" 
+                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                        <i class="bi bi-newspaper"></i>
+                        <span>Новости</span>
+                        <i class="bi bi-chevron-down ms-auto"></i>
+                    </a>
+                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_news">
+                        <a href="/admin/news/category_list.php" class="nav-link <?= $currentScript === 'category_list.php' ? 'active' : '' ?>">
+                            <i class="bi bi-grid"></i>
+                            <span>Управление каталогом</span>
+                        </a>
+                        <a href="/admin/news/add_category.php" class="nav-link <?= $currentScript === 'add_category.php' ? 'active' : '' ?>">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>Добавить каталог</span>
+                        </a>
+                        <a href="/admin/news/record_list.php" class="nav-link <?= $currentScript === 'record_list.php' ? 'active' : '' ?>">
+                            <i class="bi bi-hdd-stack"></i>
+                            <span>Управление новостями</span>
+                        </a>
+                        <a href="/admin/news/add_record.php" class="nav-link <?= $currentScript === 'add_record.php' ? 'active' : '' ?>">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>Добавить новость</span>
                         </a>
                     </div>
                 </li>

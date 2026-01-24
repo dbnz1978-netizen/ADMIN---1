@@ -41,7 +41,7 @@ header('Content-Type: text/html; charset=utf-8');
 // =============================================================================
 
 // Название таблицы (можно глобально поменять)
-$catalogTable = 'record';                 // например: 'catalog2', 'catalog', 'record'
+$catalogTable = 'news';                 // например: 'catalog2', 'catalog', 'record'
 
 // related_table — "тип"/контекст текущих редактируемых записей
 $relatedTable = 'category';              // например: 'record'

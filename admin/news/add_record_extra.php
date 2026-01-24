@@ -32,10 +32,10 @@ header('Content-Type: text/html; charset=utf-8');
 // =============================================================================
 // НАСТРОЙКИ (меняются в одном месте)
 // =============================================================================
-$catalogTable = 'record_extra'; // таблица record_extra
+$catalogTable = 'news_extra'; // таблица record_extra
 
 // Имя таблицы для проверки author (меняется в настройках)
-$authorCheckTable = 'record';
+$authorCheckTable = 'news';
 
 // Ограничение на количество изображений
 $maxDigits = 50; 

@@ -41,10 +41,10 @@ header('Content-Type: text/html; charset=utf-8');
 // =============================================================================
 
 // Имя таблицы record_extra
-$catalogTable = 'record_extra';
+$catalogTable = 'news_extra';
 
 // Имя таблицы для проверки author (Привязка записи к родительской таблице)
-$authorCheckTable = 'record';
+$authorCheckTable = 'news';
 
 // =============================================================================
 // Подключаем системные компоненты

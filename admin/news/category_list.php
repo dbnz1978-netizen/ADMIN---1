@@ -44,7 +44,7 @@ header('Content-Type: text/html; charset=utf-8');
 // =============================================================================
 
 // 1) Имя таблицы каталога: можно быстро переключать (catalog / catalog2 / и т.д.)
-$catalogTable = 'record';
+$catalogTable = 'news';
 
 // 2) Фильтр related_table (какой "контекст" показываем в этом списке)
 $RELATED_TABLE_FILTER = 'category';

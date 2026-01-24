@@ -105,23 +105,24 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Пользователи"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['accounts_list.php', 'add_account.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInAccountSubmenu = strpos($currentPath, '/admin/user/') !== false && in_array($currentScript, ['accounts_list.php', 'add_account.php']);
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_account" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInAccountSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInAccountSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-people"></i>
                         <span>Пользователи</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_account">
-                        <a href="/admin/user/accounts_list.php" class="nav-link <?= $currentScript === 'accounts_list.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInAccountSubmenu ? 'show' : '' ?>" id="settingsSubmenu_account">
+                        <a href="/admin/user/accounts_list.php" class="nav-link <?= strpos($currentPath, '/admin/user/') !== false && $currentScript === 'accounts_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-card-list"></i>
                             <span>Список</span>
                         </a>
-                        <a href="/admin/user/add_account.php" class="nav-link <?= $currentScript === 'add_account.php' ? 'active' : '' ?>">
+                        <a href="/admin/user/add_account.php" class="nav-link <?= strpos($currentPath, '/admin/user/') !== false && $currentScript === 'add_account.php' ? 'active' : '' ?>">
                             <i class="bi bi-person-plus"></i>
                             <span>Добавить</span>
                         </a>
@@ -131,23 +132,25 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Настройки"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['user_settings.php', 'gpt.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInUserSettingsSubmenu = (strpos($currentPath, '/admin/user/') !== false && $currentScript === 'user_settings.php') || 
+                                          (strpos($currentPath, '/admin/app/') !== false && $currentScript === 'gpt.php');
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_user" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInUserSettingsSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInUserSettingsSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-gear"></i>
                         <span>Настройки</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_user">
-                        <a href="/admin/user/user_settings.php" class="nav-link <?= $currentScript === 'user_settings.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInUserSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_user">
+                        <a href="/admin/user/user_settings.php" class="nav-link <?= strpos($currentPath, '/admin/user/') !== false && $currentScript === 'user_settings.php' ? 'active' : '' ?>">
                             <i class="bi bi-people"></i>
                             <span>Пользователи</span>
                         </a>
-                        <a href="/admin/app/gpt.php" class="nav-link <?= $currentScript === 'gpt.php' ? 'active' : '' ?>">
+                        <a href="/admin/app/gpt.php" class="nav-link <?= strpos($currentPath, '/admin/app/') !== false && $currentScript === 'gpt.php' ? 'active' : '' ?>">
                             <i class="bi bi-lightbulb"></i>
                             <span>GPT</span>
                         </a>
@@ -159,31 +162,32 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Магазин"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['catalog_list.php', 'add_catalog.php', 'product_list.php', 'add_product.php', 'shop_extra_list.php', 'add_shop_extra.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInShopSubmenu = strpos($currentPath, '/admin/shop/') !== false && in_array($currentScript, ['catalog_list.php', 'add_catalog.php', 'product_list.php', 'add_product.php', 'shop_extra_list.php', 'add_shop_extra.php']);
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_shop" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInShopSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInShopSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-cart"></i>
                         <span>Магазин</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_shop">
-                        <a href="/admin/shop/catalog_list.php" class="nav-link <?= $currentScript === 'catalog_list.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInShopSubmenu ? 'show' : '' ?>" id="settingsSubmenu_shop">
+                        <a href="/admin/shop/catalog_list.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'catalog_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-grid"></i>
                             <span>Управление каталогом</span>
                         </a>
-                        <a href="/admin/shop/add_catalog.php" class="nav-link <?= $currentScript === 'add_catalog.php' ? 'active' : '' ?>">
+                        <a href="/admin/shop/add_catalog.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'add_catalog.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить каталог</span>
                         </a>
-                        <a href="/admin/shop/product_list.php" class="nav-link <?= $currentScript === 'product_list.php' ? 'active' : '' ?>">
+                        <a href="/admin/shop/product_list.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'product_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-hdd-stack"></i>
                             <span>Управление товаром</span>
                         </a>
-                        <a href="/admin/shop/add_product.php" class="nav-link <?= $currentScript === 'add_product.php' ? 'active' : '' ?>">
+                        <a href="/admin/shop/add_product.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'add_product.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить товар</span>
                         </a>
@@ -195,31 +199,32 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Записи"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInRecordSubmenu = strpos($currentPath, '/admin/record/') !== false && in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_record" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInRecordSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInRecordSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-grid"></i>
                         <span>Записи</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_record">
-                        <a href="/admin/record/category_list.php" class="nav-link <?= $currentScript === 'category_list.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInRecordSubmenu ? 'show' : '' ?>" id="settingsSubmenu_record">
+                        <a href="/admin/record/category_list.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'category_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-grid"></i>
                             <span>Управление каталогом</span>
                         </a>
-                        <a href="/admin/record/add_category.php" class="nav-link <?= $currentScript === 'add_category.php' ? 'active' : '' ?>">
+                        <a href="/admin/record/add_category.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'add_category.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить каталог</span>
                         </a>
-                        <a href="/admin/record/record_list.php" class="nav-link <?= $currentScript === 'record_list.php' ? 'active' : '' ?>">
+                        <a href="/admin/record/record_list.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'record_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-hdd-stack"></i>
                             <span>Управление записями</span>
                         </a>
-                        <a href="/admin/record/add_record.php" class="nav-link <?= $currentScript === 'add_record.php' ? 'active' : '' ?>">
+                        <a href="/admin/record/add_record.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'add_record.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить запись</span>
                         </a>
@@ -231,31 +236,32 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Страницы"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['parent_list.php', 'add_parent.php', 'pages_list.php', 'add_pages.php', 'pages_extra_list.php', 'add_pages_extra.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInPagesSubmenu = strpos($currentPath, '/admin/pages/') !== false && in_array($currentScript, ['parent_list.php', 'add_parent.php', 'pages_list.php', 'add_pages.php', 'pages_extra_list.php', 'add_pages_extra.php']);
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_pages" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInPagesSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInPagesSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-file-earmark-text"></i>
                         <span>Страницы</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_pages">
-                        <a href="/admin/pages/parent_list.php" class="nav-link <?= $currentScript === 'parent_list.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInPagesSubmenu ? 'show' : '' ?>" id="settingsSubmenu_pages">
+                        <a href="/admin/pages/parent_list.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'parent_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-grid"></i>
                             <span>Управление каталогом</span>
                         </a>
-                        <a href="/admin/pages/add_parent.php" class="nav-link <?= $currentScript === 'add_parent.php' ? 'active' : '' ?>">
+                        <a href="/admin/pages/add_parent.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'add_parent.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить каталог</span>
                         </a>
-                        <a href="/admin/pages/pages_list.php" class="nav-link <?= $currentScript === 'pages_list.php' ? 'active' : '' ?>">
+                        <a href="/admin/pages/pages_list.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'pages_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-hdd-stack"></i>
                             <span>Управление страницами</span>
                         </a>
-                        <a href="/admin/pages/add_pages.php" class="nav-link <?= $currentScript === 'add_pages.php' ? 'active' : '' ?>">
+                        <a href="/admin/pages/add_pages.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'add_pages.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить страницу</span>
                         </a>
@@ -267,31 +273,32 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Новости"
                 $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $isInSettingsSubmenu = in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
+                $currentPath = $_SERVER['SCRIPT_NAME'];
+                $isInNewsSubmenu = strpos($currentPath, '/admin/news/') !== false && in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
                 ?>
                 <li class="nav-item">
                     <a href="#settingsSubmenu_news" 
-                       class="nav-link <?= $isInSettingsSubmenu ? '' : 'collapsed' ?>"
+                       class="nav-link <?= $isInNewsSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInSettingsSubmenu ? 'true' : 'false' ?>">
+                       aria-expanded="<?= $isInNewsSubmenu ? 'true' : 'false' ?>">
                         <i class="bi bi-newspaper"></i>
                         <span>Новости</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInSettingsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_news">
-                        <a href="/admin/news/category_list.php" class="nav-link <?= $currentScript === 'category_list.php' ? 'active' : '' ?>">
+                    <div class="submenu collapse <?= $isInNewsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_news">
+                        <a href="/admin/news/category_list.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'category_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-grid"></i>
                             <span>Управление каталогом</span>
                         </a>
-                        <a href="/admin/news/add_category.php" class="nav-link <?= $currentScript === 'add_category.php' ? 'active' : '' ?>">
+                        <a href="/admin/news/add_category.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'add_category.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить каталог</span>
                         </a>
-                        <a href="/admin/news/record_list.php" class="nav-link <?= $currentScript === 'record_list.php' ? 'active' : '' ?>">
+                        <a href="/admin/news/record_list.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'record_list.php' ? 'active' : '' ?>">
                             <i class="bi bi-hdd-stack"></i>
                             <span>Управление новостями</span>
                         </a>
-                        <a href="/admin/news/add_record.php" class="nav-link <?= $currentScript === 'add_record.php' ? 'active' : '' ?>">
+                        <a href="/admin/news/add_record.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'add_record.php' ? 'active' : '' ?>">
                             <i class="bi bi-plus-circle"></i>
                             <span>Добавить новость</span>
                         </a>

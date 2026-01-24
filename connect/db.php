@@ -3,7 +3,11 @@
  * Файл: /connect/db.php - Singleton PDO с Persistent Connections
  */
 
+<<<<<<< HEAD
 // Запрещаем прямой доступ.
+=======
+// Запрещаем прямой доступ..
+>>>>>>> 46f4561316277a08524a288f5c977223381e03bd
 if (!defined('APP_ACCESS')) {
     http_response_code(403);
     exit('Доступ запрещён');

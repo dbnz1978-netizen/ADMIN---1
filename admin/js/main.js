@@ -34,6 +34,9 @@ import { initCustomModal } from './modal.js';
 // Модуль выбора изображений в галерее
 import { storeSectionId, handleSelectButtonClick } from './gallery-selector.js';
 
+// Модуль выбора цвета
+import '/admin/js/color-picker.js';
+
 // === ГЛОБАЛЬНЫЙ ДОСТУП (опционально) ==================================
 // Если нужно — можно сделать функции доступными глобально, например:
 window.initCaptchaSlider = initCaptchaSlider;

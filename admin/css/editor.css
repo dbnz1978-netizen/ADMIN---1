@@ -87,6 +87,62 @@
   border-radius: 4px;
 }
 
+/* Стили для универсального элемента выбора цвета */
+.color-picker-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.color-display {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background: var(--input-bg);
+}
+
+.color-display::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: currentColor;
+}
+
+.color-input-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.color-input-hidden {
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.color-code {
+  font-family: monospace;
+  font-size: 0.9em;
+  color: var(--text-color);
+  min-width: 80px;
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+}
+
 /* Стили для textarea с прокруткой */
 textarea.form-control {
   /* Всегда показывать вертикальный скроллбар при переполнении */

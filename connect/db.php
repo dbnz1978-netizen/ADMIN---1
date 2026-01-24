@@ -1,6 +1,6 @@
 <?php
 /**
- * Файл: /connect/db.php - Singleton PDO с Persistent Connections
+ * Файл: /connect/db.php - Singleton PDO с Persistent Connections 
  */
 
 // Запрещаем прямой доступ

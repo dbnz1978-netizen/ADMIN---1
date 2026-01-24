@@ -1,0 +1,49 @@
+/* ===== Поиск родительской категории ===== */
+.parent-search-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+}
+
+#parent_suggest.parent-suggest-box {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + .25rem);
+
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    z-index: 1050;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: .5rem;
+
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+}
+
+#parent_suggest .parent-suggest-item {
+    padding: .5rem .75rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+    background: var(--card-bg);
+}
+#parent_suggest .parent-suggest-item:last-child { border-bottom: none; }
+
+#parent_suggest .parent-suggest-item:hover {
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--card-bg));
+}
+
+#parent_suggest .parent-suggest-muted {
+    color: var(--muted-color);
+    font-size: .875rem;
+}
+
+@supports not (background: color-mix(in srgb, red 10%, white)) {
+    #parent_suggest .parent-suggest-item:hover {
+        background: var(--input-bg);
+    }
+}

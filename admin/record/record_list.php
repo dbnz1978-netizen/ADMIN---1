@@ -43,15 +43,12 @@ header('Content-Type: text/html; charset=utf-8');
 // НАСТРОЙКИ (меняются в одном месте)
 // =============================================================================
 
-// 1) Имя таблицы страницы: можно быстро переключать (catalog / catalog2 / и т.д.)
-$catalogTable = 'record';
-
-// 2) Фильтр related_table (какой "контекст" показываем в этом списке)
-$RELATED_TABLE_FILTER = 'record';
+// Load module-specific configuration
+require_once __DIR__ . '/../config/module_config.php';
 
 // 3) Фильтр related_table ТОЛЬКО для поиска/отображения родительской категории
 //    (когда вводите search_catalog и когда вытаскиваем catalog_name).
-$catalogRelatedTable = 'category';
+$catalogRelatedTable = $parentRelatedTable;
 
 // =============================================================================
 // Подключаем системные компоненты
@@ -231,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                             $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND related_table = ? AND users_id = ?");
                             $stmt->execute([$userId, $RELATED_TABLE_FILTER, $currentUserId]);
                         }
-                        $successMessages[] = 'Записи успешно удалены';
+                        $successMessages[] = $successMessagesConfig['deleted'];
                     } else {
                         // Перемещение в корзину
                         $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");

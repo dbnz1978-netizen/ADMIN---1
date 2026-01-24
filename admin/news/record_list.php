@@ -43,15 +43,12 @@ header('Content-Type: text/html; charset=utf-8');
 // НАСТРОЙКИ (меняются в одном месте)
 // =============================================================================
 
-// 1) Имя таблицы страницы: можно быстро переключать (catalog / catalog2 / и т.д.)
-$catalogTable = 'news';
-
-// 2) Фильтр related_table (какой "контекст" показываем в этом списке)
-$RELATED_TABLE_FILTER = 'news';
+// Load module-specific configuration
+require_once __DIR__ . '/../config/module_config.php';
 
 // 3) Фильтр related_table ТОЛЬКО для поиска/отображения родительской категории
 //    (когда вводите search_catalog и когда вытаскиваем catalog_name).
-$catalogRelatedTable = 'category';
+$catalogRelatedTable = $parentRelatedTable;
 
 // =============================================================================
 // Подключаем системные компоненты
@@ -231,12 +228,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                             $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND related_table = ? AND users_id = ?");
                             $stmt->execute([$userId, $RELATED_TABLE_FILTER, $currentUserId]);
                         }
-                        $successMessages[] = 'Новости успешно удалены';
+                        $successMessages[] = $successMessagesConfig['deleted'];
                     } else {
                         // Перемещение в корзину
                         $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
                         $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
-                        $successMessages[] = 'Новости перемещены в корзину';
+                        $successMessages[] = $successMessagesConfig['moved_to_trash'];
                     }
                     break;
 
@@ -244,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                     // Восстановление из корзины
                     $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 1 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
                     $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
-                    $successMessages[] = 'Новости восстановлены';
+                    $successMessages[] = $successMessagesConfig['restored'];
                     break;
 
                 case 'trash':
@@ -426,7 +423,7 @@ try {
 // Подготовка шаблона
 // =============================================================================
 $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg');
-$titlemeta = 'Новости';
+
 
 // Закрываем соединение при завершении скрипта
 register_shutdown_function(function() {
@@ -468,13 +465,13 @@ register_shutdown_function(function() {
                 <div class="col-lg-6">
                     <h3 class="card-title d-flex align-items-center gap-2 mb-0">
                         <i class="bi bi-hdd-stack"></i>
-                        <?= $isTrash ? 'Корзина' : 'Управление новостями' ?>
+                        <?= $isTrash ? 'Корзина' : $manageTitle ?>
                     </h3>
                 </div>
                 <div class="col-lg-6 text-end">
                     <a href="add_record.php"
                         class="btn btn-outline-primary" 
-                        title="Добавить новую новость">
+                        title="<?= $addButtonTitle ?>">
                         <i class="bi bi-plus-circle"></i> Добавить
                     </a>
                 </div>

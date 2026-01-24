@@ -40,14 +40,11 @@ header('Content-Type: text/html; charset=utf-8');
 // Настройки (меняются в одном месте)
 // =============================================================================
 
-// Название таблицы (можно глобально поменять)
-$catalogTable = 'pages';                 // например: 'catalog2', 'catalog', 'pages'
+// Название таблицы 
+$catalogTable = 'pages';
 
 // related_table — “тип”/контекст текущих редактируемых страницы
-$relatedTable = 'pages';              // например: 'pages'
-
-// related_table — фильтр ТОЛЬКО для выбора родительской страницы (parent_search и проверка parent_id)
-$parentRelatedTable = 'parent';           // например: 'pages' (или 'parent', 'catalog', и т.д.)
+$relatedTable = 'pages';
 
 // Ограничение на количество изображений
 $maxDigits = 5; 
@@ -137,7 +134,7 @@ try {
     }
 
 } catch (Exception $e) {
-    logEvent("Ошибка инициализации pages_list.php: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+    logEvent("Ошибка инициализации add_pages.php: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
     // Закрываем соединение при завершении скрипта
     register_shutdown_function(function() {
         if (isset($pdo)) {
@@ -224,10 +221,10 @@ if ($isEditMode && $itemId) {
             // $defaultH1 = (string)($dataArr['meta']['h1'] ?? '');
             // ---------------------------------------------------------------
 
-            // Подгружаем имя родителя (для UI) — ВАЖНО: родитель ищется по $parentRelatedTable + users_id
+            // Подгружаем имя родителя (для UI) — ВАЖНО: родитель ищется по $relatedTable + users_id
             if ($defaultParentId > 0) {
                 $stmtP = $pdo->prepare("SELECT naime, url FROM {$catalogTable} WHERE id = ? AND related_table = ? AND users_id = ? LIMIT 1");
-                $stmtP->execute([$defaultParentId, $parentRelatedTable, $currentUserId]);
+                $stmtP->execute([$defaultParentId, $relatedTable, $currentUserId]);
                 $pRow = $stmtP->fetch(PDO::FETCH_ASSOC);
 
                 if ($pRow && isset($pRow['naime'])) {
@@ -261,7 +258,7 @@ if ($isEditMode && $itemId) {
 
 // =============================================================================
 // AJAX: поиск родительских категорий (+ фильтр users_id)
-// GET pages_list.php?action=parent_search&q=...&exclude_id=...
+// GET add_pages.php?action=parent_search&q=...&exclude_id=...
 // Ответ: {error:false, items:[{id,naime,url},...]}
 // =============================================================================
 if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
@@ -308,7 +305,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
     try {
         $like = '%' . $q . '%';
 
-        // ВАЖНО: поиск родителя идёт по related_table = $parentRelatedTable + users_id
+        // ВАЖНО: поиск родителя идёт по related_table = $relatedTable + users_id
         if ($excludeId > 0) {
             $stmt = $pdo->prepare("
                 SELECT id, naime, url
@@ -320,7 +317,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
                 ORDER BY id DESC
                 LIMIT 6
             ");
-            $stmt->execute([$parentRelatedTable, $currentUserId, $like, $like, $excludeId]);
+            $stmt->execute([$relatedTable, $currentUserId, $like, $like, $excludeId]);
         } else {
             $stmt = $pdo->prepare("
                 SELECT id, naime, url
@@ -331,7 +328,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
                 ORDER BY id DESC
                 LIMIT 6
             ");
-            $stmt->execute([$parentRelatedTable, $currentUserId, $like, $like]);
+            $stmt->execute([$relatedTable, $currentUserId, $like, $like]);
         }
 
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -447,14 +444,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // ---------------------------------------------------------------
         // 3) Проверка родителя (+ users_id)
-        // ВАЖНО: родитель должен существовать в related_table = $parentRelatedTable + users_id
+        // ВАЖНО: родитель должен существовать в related_table = $relatedTable + users_id
         // ---------------------------------------------------------------
         if ($parent_id > 0) {
             if ($isEditMode && $itemId && $parent_id === $itemId) {
                 $errors[] = 'Нельзя выбрать текущую категорию как родительскую';
             } else {
                 $stmt = $pdo->prepare("SELECT id FROM {$catalogTable} WHERE id = ? AND related_table = ? AND users_id = ? LIMIT 1");
-                $stmt->execute([$parent_id, $parentRelatedTable, $currentUserId]);
+                $stmt->execute([$parent_id, $relatedTable, $currentUserId]);
 
                 if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
                     $errors[] = 'Выбранная родительская категория не найдена';

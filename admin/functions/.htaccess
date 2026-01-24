@@ -1,0 +1,5 @@
+# Запретить прямой доступ ко всем .php файлам
+<Files "*.php">
+    Order Deny,Allow
+    Deny from all
+</Files>

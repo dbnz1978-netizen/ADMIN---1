@@ -1,0 +1,36 @@
+/* ===== ГЛАВНЫЙ CSS ФАЙЛ - ИМПОРТ ВСЕХ КОМПОНЕНТОВ ===== */
+/* Переменные */
+@import 'variables.css';
+
+/* Базовые стили */
+@import 'base.css';
+
+/* Компоненты макета */
+@import 'layout.css';
+
+/* UI компоненты */
+@import 'components.css';
+
+/* Стили аутентификации */
+@import 'auth.css';
+
+/* Стили форм */
+@import 'forms.css';
+
+/* Стили Drag & Drop */
+@import 'drag-drop.css';
+
+/* Темная тема */
+@import 'dark-theme.css';
+
+/* Адаптивный дизайн */
+@import 'responsive.css';
+
+/* Капча для авторизации */
+@import 'captcha.css';
+
+/* Модальное окно условий использования */
+@import 'modal.css';
+
+/* Стили для таблицы */
+@import 'table.css';

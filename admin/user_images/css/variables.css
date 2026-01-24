@@ -1,0 +1,66 @@
+/* ===== CSS VARIABLES - ЕДИНАЯ СИСТЕМА ТЕМ ===== */
+:root {
+    /* Layout */
+    --sidebar-width: 280px;
+    --header-height: 60px;
+    
+    /* Основные цвета - СВЕТЛАЯ ТЕМА */
+    --primary-color: #4a6cf7;
+    --primary-dark: #3a5ce5;
+    --bg-color: #f8f9fa;
+    --text-color: #333;
+    --sidebar-bg: #fff;
+    --border-color: #e9ecef;
+    --card-bg: #fff;
+    --input-bg: #fff;
+    --table-bg: #fff;
+    --table-border: #dee2e6;
+    
+    /* Цвета состояний */
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    
+    /* Дополнительные цвета */
+    --muted-color: #6c757d;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    
+    /* Индикатор загрузки */
+    --dot-color-start: #0d6efd;
+    --dot-color-end: #6f42c1;
+    --loading-text-color: #6c757d;
+    --overlay-bg: transparent;
+}
+
+/* ===== ТЕМНАЯ ТЕМА ===== */
+[data-theme="dark"] {
+    --primary-color: #5d7bf7;
+    --primary-dark: #4a6cf7;
+    --bg-color: #1a1d29;
+    --text-color: #e4e6eb;
+    --sidebar-bg: #242526;
+    --border-color: #3a3b3c;
+    --card-bg: #242526;
+    --input-bg: #2d2e30;
+    --table-bg: #242526;
+    --table-border: #3a3b3c;
+    
+    /* Цвета состояний для темной темы */
+    --success-color: #00a67d;
+    --warning-color: #ffb300;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    
+    /* Дополнительные цвета для темной темы */
+    --muted-color: #b0b3b8;
+    --light-color: #2d2e30;
+    --dark-color: #f8f9fa;
+    
+    /* Индикатор загрузки для темной темы */
+    --dot-color-start: #7d9bf9;
+    --dot-color-end: #b18bf9;
+    --loading-text-color: #c8cacc;
+    --overlay-bg: rgba(26, 29, 41, 0.9);
+}

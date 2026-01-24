@@ -1,0 +1,129 @@
+  /* Стили панели инструментов редактора*/
+  .editor-toolbar {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem 0.375rem 0 0;
+    padding: 0.75rem 1rem !important;
+    gap: 0.5rem;
+  }
+  .editor-toolbar .btn {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .editor-content {
+    min-height: 250px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    background: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 0 0 0.375rem 0.375rem;
+    overflow: auto;
+  }
+  .editor-content:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+  }
+
+  /* Стили таблицы — ТОЛЬКО внутри редактора */
+  .editor-content table {
+    border: 1px solid var(--table-border) !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin: 1rem 0 !important;
+    background: var(--table-bg) !important;
+  }
+  .editor-content table td,
+  .editor-content table th {
+    border: 1px solid var(--table-border) !important;
+    padding: 8px !important;
+    min-width: 50px !important;
+    height: 32px !important;
+    vertical-align: top !important;
+  }
+  .editor-content table td:empty::before {
+    content: "\00a0";
+  }
+
+  /* Стиль для input[type="color"] */
+  input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+  }
+  input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 4px;
+  }
+
+/* Стили панели выбора цвета — поддержка светлой/тёмной темы */
+.color-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.color-panel .btn {
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+.color-panel .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.color-panel .btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* Стиль для поля выбора цвета */
+.color-panel input[type="color"] {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+/* Стили для textarea с прокруткой */
+textarea.form-control {
+  /* Всегда показывать вертикальный скроллбар при переполнении */
+  overflow-y: auto !important;
+  
+  /* Минимальная высота для удобства */
+  min-height: 150px !important;
+  
+  /* Максимальная высота (по желанию) */
+  max-height: 400px !important;
+  
+  /* Скроллбар — стиль по умолчанию (браузерный) */
+}
+
+/* Кастомный скроллбар для WebKit (Chrome, Edge, Safari) */
+textarea.form-control::-webkit-scrollbar {
+  width: 10px;
+}
+
+textarea.form-control::-webkit-scrollbar-track {
+  background: var(--input-bg);
+  border-radius: 5px;
+}
+
+textarea.form-control::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 5px;
+}
+
+textarea.form-control::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* Для Firefox — используем стандартные свойства */
+@supports (-moz-appearance: none) {
+  textarea.form-control {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--input-bg);
+  }
+}

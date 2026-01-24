@@ -1,0 +1,353 @@
+/**
+ * ====================================================
+ * СТИЛИ ДЛЯ ГАЛЕРЕИ ИЗОБРАЖЕНИЙ С ПЕРЕТАСКИВАНИЕМ
+ * ====================================================
+ * 
+ * ОСНОВНЫЕ КОМПОНЕНТЫ:
+ * - .selected-images-section - основная секция галереи
+ * - .selected-images-count - счетчик изображений
+ * - .selected-images-preview - контейнер для превью изображений
+ * - .selected-image-item - элемент отдельного изображения
+ * - .selected-image-remove - кнопка удаления изображения
+ * - .drop-placeholder - placeholder для зоны перетаскивания
+ * 
+ * АНИМАЦИИ:
+ * - pulse - пульсация для placeholder
+ * - expandPlaceholder - появление placeholder
+ * - removeAnimation - анимация удаления
+ * - slideIn - анимация появления нового элемента
+ */
+
+/* Стили для иконки-заглушки когда нет изображений */
+.no-images-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 40px 20px;
+    text-align: center;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    transition: all 0.3s ease;
+}
+
+.no-images-placeholder:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(93, 123, 247, 0.05);
+}
+
+.no-images-placeholder i {
+    opacity: 0.5;
+    margin-bottom: 15px;
+}
+
+.no-images-placeholder p {
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.no-images-placeholder small {
+    font-size: 0.875em;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .no-images-placeholder {
+        padding: 30px 15px;
+    }
+    
+    .no-images-placeholder i {
+        font-size: 2.5rem;
+    }
+}
+
+/* Анимация появления placeholder */
+@keyframes fadeInPlaceholder {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.no-images-placeholder {
+    animation: fadeInPlaceholder 0.5s ease-out;
+}
+
+/* Основная секция галереи */
+.selected-images-section {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-bg);
+}
+
+/* Счетчик изображений */
+.selected-images-count {
+    margin-bottom: 15px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Контейнер для превью изображений */
+.selected-images-preview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    transition: gap 0.3s ease;
+}
+
+/* Увеличение расстояния при активном перетаскивании */
+.selected-images-preview.dragging-active {
+    gap: 15px;
+}
+
+/* Элемент отдельного изображения */
+.selected-image-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: move;
+    background-color: var(--input-bg);
+}
+
+/* Эффект при наведении на изображение */
+.selected-image-item:hover {
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+/* Стили для перетаскиваемого элемента */
+.selected-image-item.dragging {
+    opacity: 0.4;
+    transform: scale(0.9) rotate(2deg);
+    box-shadow: 0 0 15px rgba(93, 123, 247, 0.6);
+    z-index: 100;
+}
+
+/* Стили для элемента при удалении */
+.selected-image-item.removing {
+    animation: removeAnimation 0.4s ease forwards;
+    pointer-events: none;
+}
+
+/* Стили для нового элемента */
+.selected-image-item.new-item {
+    animation: slideIn 0.4s ease-out;
+}
+
+/* Изображение внутри элемента */
+.selected-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    transition: transform 0.3s ease;
+}
+
+/* Кнопка удаления изображения */
+.selected-image-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(220, 53, 69, 0.8);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+    z-index: 10;
+}
+
+/* Показ кнопки удаления при наведении на изображение */
+.selected-image-item:hover .selected-image-remove {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Эффект при наведении на кнопку удаления */
+.selected-image-remove:hover {
+    background-color: var(--danger-color);
+    transform: scale(1.2);
+}
+
+/* Стили для активной зоны перетаскивания */
+.drop-zone {
+    background-color: rgba(93, 123, 247, 0.1);
+    border: 2px dashed var(--primary-color);
+}
+
+/* Placeholder для зоны перетаскивания */
+.drop-placeholder {
+    border: 2px dashed var(--primary-color);
+    border-radius: 8px;
+    background: rgba(93, 123, 247, 0.15);
+    animation: pulse 0.7s infinite;
+    transition: all 0.3s ease;
+    transform-origin: center;
+}
+
+/* Анимация появления placeholder */
+.drop-placeholder.expanding {
+    animation: expandPlaceholder 0.3s ease-out;
+}
+
+/* Плавное перемещение соседних элементов */
+.selected-image-item.shifting {
+    transition: transform 0.3s ease;
+}
+
+/* Сообщение когда нет изображений */
+.no-images-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted-color);
+    font-style: italic;
+}
+
+.no-images-message i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+    display: block;
+}
+
+/* Анимация пульсации для placeholder */
+@keyframes pulse {
+    0%   { 
+        opacity: .3; 
+        transform: scale(0.95); 
+    }
+    50%  { 
+        opacity: .8; 
+        transform: scale(1.02); 
+    }
+    100% { 
+        opacity: .3; 
+        transform: scale(0.95); 
+    }
+}
+
+/* Анимация появления placeholder */
+@keyframes expandPlaceholder {
+    0%   { 
+        transform: scale(0.8); 
+        opacity: 0; 
+    }
+    70%  { 
+        transform: scale(1.05); 
+        opacity: 0.8; 
+    }
+    100% { 
+        transform: scale(1); 
+        opacity: 1; 
+    }
+}
+
+/* Анимация удаления элемента */
+@keyframes removeAnimation {
+    0%   { 
+        transform: scale(1) rotate(0deg); 
+        opacity: 1; 
+    }
+    25%  { 
+        transform: scale(1.1) rotate(-5deg); 
+        opacity: 0.8; 
+    }
+    50%  { 
+        transform: scale(0.9) rotate(5deg); 
+        opacity: 0.5; 
+    }
+    100% { 
+        transform: scale(0) rotate(-10deg); 
+        opacity: 0; 
+    }
+}
+
+/* Анимация появления нового элемента */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ ТЕМНОЙ ТЕМЫ ===== */
+[data-theme="dark"] .selected-images-section {
+    background-color: var(--card-bg);
+}
+
+[data-theme="dark"] .selected-image-item {
+    background-color: var(--input-bg);
+}
+
+[data-theme="dark"] .drop-zone {
+    background-color: rgba(93, 123, 247, 0.15);
+}
+
+[data-theme="dark"] .drop-placeholder {
+    background: rgba(93, 123, 247, 0.2);
+}
+
+[data-theme="dark"] .no-images-message {
+    color: var(--muted-color);
+}
+
+/* Улучшенные стили для перетаскивания в темной теме */
+[data-theme="dark"] .selected-image-item.dragging {
+    box-shadow: 0 0 20px rgba(93, 123, 247, 0.8);
+}
+
+[data-theme="dark"] .selected-image-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(93, 123, 247, 0.3);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .selected-image-item {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .selected-images-preview {
+        gap: 8px;
+    }
+    
+    .selected-images-preview.dragging-active {
+        gap: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .selected-image-item {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .selected-images-section {
+        padding: 10px;
+        margin: 15px 0;
+    }
+}

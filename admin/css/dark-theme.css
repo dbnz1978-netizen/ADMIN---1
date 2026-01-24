@@ -1,0 +1,243 @@
+/* ===== DARK THEME OVERRIDES ===== */
+[data-theme="dark"] .nav-link {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .nav-link:hover,
+[data-theme="dark"] .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .theme-toggle {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .theme-label {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .submenu {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .list-group-item {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(93, 123, 247, 0.25);
+}
+
+[data-theme="dark"] .form-section {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .table th {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .progress {
+    background-color: var(--light-color);
+}
+
+[data-theme="dark"] .breadcrumb-custom .breadcrumb-item a {
+    color: #a8b8ff;
+}
+
+[data-theme="dark"] .breadcrumb-custom .breadcrumb-item a:hover {
+    color: #8ba0ff;
+}
+
+[data-theme="dark"] .breadcrumb-custom .breadcrumb-item.active a {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .breadcrumb-current {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .auth-subtitle,
+[data-theme="dark"] .auth-footer-text,
+[data-theme="dark"] .success-text,
+[data-theme="dark"] .step-text,
+[data-theme="dark"] .strength-text,
+[data-theme="dark"] .auth-divider span {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .col-example {
+    background-color: rgba(93, 123, 247, 0.1);
+    border-color: rgba(93, 123, 247, 0.3);
+}
+
+[data-theme="dark"] .file-limit-warning {
+    background: rgba(255, 179, 0, 0.15);
+    border-color: rgba(255, 179, 0, 0.3);
+}
+
+[data-theme="dark"] .upload-success {
+    background: rgba(0, 166, 125, 0.15);
+    border-color: rgba(0, 166, 125, 0.3);
+}
+
+/* Alert backgrounds for dark theme */
+[data-theme="dark"] .alert-primary {
+    background-color: rgba(93, 123, 247, 0.15);
+}
+
+[data-theme="dark"] .alert-success {
+    background-color: rgba(0, 166, 125, 0.15);
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: rgba(255, 179, 0, 0.15);
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+}
+
+/* Modal dark theme */
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-body,
+[data-theme="dark"] .modal-footer {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* Полная поддержка тёмной темы для пагинации Bootstrap */
+
+/* Явное переопределение для совместимости со старыми версиями Bootstrap */
+[data-theme="dark"] .page-link {
+    color: var(--muted-color);
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    /* Убираем стандартную Bootstrap тень */
+    box-shadow: none;
+}
+
+[data-theme="dark"] .page-link:hover {
+    color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .page-link:focus {
+    color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(93, 123, 247, 0.25);
+}
+
+[data-theme="dark"] .page-item.active .page-link {
+    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    /* Сохраняем чёткость в тёмной теме */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Для disabled состояния */
+[data-theme="dark"] .page-item.disabled .page-link {
+    color: var(--muted-color);
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Улучшенное состояние hover для активного элемента */
+[data-theme="dark"] .page-item.active .page-link:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* Плавные переходы для всех состояний */
+[data-theme="dark"] .page-link {
+    transition: all 0.2s ease;
+}
+
+/* Дополнительно: адаптация под mobile-first */
+@media (max-width: 576px) {
+    [data-theme="dark"] .pagination {
+        --bs-pagination-padding-x: 0.5rem;
+        --bs-pagination-padding-y: 0.25rem;
+        --bs-pagination-font-size: 0.875rem;
+    }
+    
+    [data-theme="dark"] .pagination .page-link {
+        min-width: 2.2rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Tabs dark theme */
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: var(--muted-color);
+}
+
+
+
+
+
+
+/* ===== DARK THEME: OUTLINE BUTTONS IN TABLE ROWS ===== */
+[data-theme="dark"] .btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+[data-theme="dark"] .btn-outline-primary:hover,
+[data-theme="dark"] .btn-outline-primary:focus {
+    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .btn-outline-danger {
+    color: var(--danger-color);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+[data-theme="dark"] .btn-outline-danger:hover,
+[data-theme="dark"] .btn-outline-danger:focus {
+    color: #fff;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Улучшенные состояния для интерактивности */
+[data-theme="dark"] .btn-outline-primary:active,
+[data-theme="dark"] .btn-outline-danger:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* Состояние disabled (если понадобится) */
+[data-theme="dark"] .btn-outline-primary:disabled,
+[data-theme="dark"] .btn-outline-danger:disabled {
+    color: var(--muted-color);
+    border-color: var(--border-color);
+    background-color: transparent;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Адаптация иконок Bootstrap Icons под тёмную тему (на случай, если нужно) */
+[data-theme="dark"] .btn-outline-primary .bi,
+[data-theme="dark"] .btn-outline-danger .bi {
+    /* Иконки остаются белыми при hover, как и текст */
+    transition: color 0.15s ease;
+}

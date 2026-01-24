@@ -1,0 +1,256 @@
+/* ===== FORM STYLES ===== */
+.form-control {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 14px;
+    color: var(--text-color);
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    background-color: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-color);
+    box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--muted-color);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.form-section {
+    background-color: rgba(0, 0, 0, 0.02);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+/* File Input */
+.form-control[type="file"] {
+    padding: 11px 18px;
+    border: 2px dashed var(--border-color);
+    background: var(--input-bg);
+    border-radius: 8px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.form-control[type="file"]:hover {
+    border-color: var(--primary-color);
+    background: var(--input-bg);
+}
+
+.form-control[type="file"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+    outline: none;
+}
+
+.form-control[type="file"]::file-selector-button {
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-right: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    font-size: 14px;
+    font-family: inherit;
+    background-color: var(--warning-color);
+    color: #333333;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+    background: var(--input-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(74, 108, 247, 0.3);
+}
+
+/* ===== NUMBER INPUT STYLES ===== */
+/* Скрываем стандартные стрелки у числовых полей */
+.form-control[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+}
+
+.form-control[type="number"]::-webkit-outer-spin-button,
+.form-control[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Password Strength */
+.password-strength {
+    margin-top: 8px;
+}
+
+.strength-bar {
+    height: 4px;
+    background-color: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.strength-fill {
+    height: 100%;
+    width: 0%;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.strength-weak .strength-fill {
+    background-color: var(--danger-color);
+    width: 33%;
+}
+
+.strength-medium .strength-fill {
+    background-color: var(--warning-color);
+    width: 66%;
+}
+
+.strength-strong .strength-fill {
+    background-color: var(--success-color);
+    width: 100%;
+}
+
+.strength-text {
+    font-size: 12px;
+    color: var(--muted-color);
+}
+
+/* Password Toggle */
+.password-toggle {
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted-color);
+    cursor: pointer;
+    z-index: 5;
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
+}
+
+.input-group {
+    position: relative;
+}
+
+/* Form validation */
+.is-invalid {
+    border-color: var(--danger-color) !important;
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: var(--danger-color);
+}
+
+.is-invalid ~ .invalid-feedback {
+    display: block;
+}
+
+/* Custom controls */
+.custom-control-input:checked~.custom-control-label::before {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Checkbox and Radio */
+.form-check-input {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-check-label {
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+/* Select Dropdown */
+.form-select {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 14px;
+    color: var(--text-color);
+    transition: all 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 16px;
+    padding-right: 45px;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    background-color: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-color);
+    box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+    outline: none;
+}
+
+.form-select:hover {
+    border-color: var(--primary-color);
+}
+
+/* Стили для disabled состояния */
+.form-select:disabled {
+    background-color: var(--light-color);
+    border-color: var(--border-color);
+    color: var(--muted-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Стили для option элементов */
+.form-select option {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    padding: 10px;
+}
+
+.form-select option:checked {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.form-select option:hover {
+    background-color: var(--light-color);
+}
+
+/* Стили для темной темы (уже заданы через переменные, но можно добавить специфичные) */
+[data-theme="dark"] .form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b0b3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* Стили для невалидного состояния */
+.form-select.is-invalid {
+    border-color: var(--danger-color);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23dc3545' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}

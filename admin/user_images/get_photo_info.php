@@ -33,7 +33,7 @@ error_reporting(E_ALL);
 define('APP_ACCESS', true);
 
 // Устанавливаем кодировку
-header('Content-Type: application/json');
+header('Content-Type: text/html; charset=utf-8');
 
 // === Подключение зависимостей ===
 require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';             // База данных
@@ -61,7 +61,7 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 
 
 // Проверяем метод запроса
-if ($_SERVER['REQUEST_TYPE'] ?? $_SERVER['REQUEST_METHOD'] !== 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405); // Method Not Allowed
     echo 'Метод запроса должен быть POST';
     // Закрываем соединение при завершении скрипта
@@ -145,20 +145,36 @@ try {
     } elseif (isset($fileVersions['original']) && is_array($fileVersions['original']) && isset($fileVersions['original']['path'])) {
         $mediumImagePath = $fileVersions['original']['path'];
     }
+
+    // Проверяем существование файла и устанавливаем заглушку при необходимости
+    $uploadBaseUrl = '/uploads/';
+    $fullImagePath = $mediumImagePath;
+    if ($mediumImagePath) {
+        $fullImagePath = $uploadBaseUrl . ltrim($mediumImagePath, '/');
+        $physicalPath = $_SERVER['DOCUMENT_ROOT'] . $fullImagePath;
+        
+        if (!file_exists($physicalPath) || !is_file($physicalPath)) {
+            // Файл не существует, используем заглушку
+            $fullImagePath = '../user_images/img/no_pictures.svg';
+        }
+    } else {
+        // Если вообще нет пути к изображению, используем заглушку
+        $fullImagePath = '../user_images/img/no_pictures.svg';
+    }
     
     // Экранируем все значения для безопасного вывода
     $photoIdValue = escape($photo['id']);
     $titleValue = escape($photo['title']);
     $descriptionValue = escape($photo['description']);
     $altTextValue = escape($photo['alt_text']);
-    $mediumImagePathSafe = escape($mediumImagePath);
+    $fullImagePathSafe = escape($fullImagePath);
     
     // Формируем HTML-ответ
     $html = <<<HTML
     <div class="modal-body">
         <div class="mb-4">
             <div class="mb-4">
-                <img src="/uploads/{$mediumImagePathSafe}" alt="{$altTextValue}" class="img-fluid w-100 shadow-sm" style="max-height: 60vh; object-fit: contain;">
+                <img src="{$fullImagePathSafe}" alt="{$altTextValue}" class="img-fluid w-100 shadow-sm" style="max-height: 60vh; object-fit: contain;">
             </div>
             <div>
                 <h5 class="modal-title">SEO-оптимизация картинок</h5>

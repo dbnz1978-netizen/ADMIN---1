@@ -48,6 +48,21 @@ $moduleConfig = [
             'moved_to_trash' => 'Записи перемещены в корзину',
             'restored' => 'Записи восстановлены'
         ]
+    ],
+    'pages' => [
+        'catalogTable' => 'pages',
+        'relatedTable' => 'pages',
+        'parentRelatedTable' => 'pages',
+        'title' => 'Страницы',
+        'singularTitle' => 'Страница',
+        'pluralTitle' => 'Страницы',
+        'addButtonTitle' => 'Добавить новую страницу',
+        'manageTitle' => 'Управление страницами',
+        'successMessages' => [
+            'deleted' => 'Страницы успешно удалены',
+            'moved_to_trash' => 'Страницы перемещены в корзину',
+            'restored' => 'Страницы восстановлены'
+        ]
     ]
 ];
 

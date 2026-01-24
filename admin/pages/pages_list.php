@@ -43,11 +43,12 @@ header('Content-Type: text/html; charset=utf-8');
 // НАСТРОЙКИ (меняются в одном месте)
 // =============================================================================
 
-// Название таблицы 
-$catalogTable = 'pages';
+// Load module-specific configuration
+require_once __DIR__ . '/../config/module_config.php';
 
-// related_table — “тип”/контекст текущих редактируемых страницы
-$relatedTable = 'pages';
+// 3) Фильтр related_table ТОЛЬКО для поиска/отображения родительской категории
+//    (когда вводите search_catalog и когда вытаскиваем catalog_name).
+$catalogRelatedTable = $parentRelatedTable;
 
 // =============================================================================
 // Подключаем системные компоненты
@@ -224,28 +225,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                         // Полное удаление из корзины
                         foreach ($userIds as $userId) {
                             $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND related_table = ? AND users_id = ?");
-                            $stmt->execute([$userId, $relatedTable, $currentUserId]);
+                            $stmt->execute([$userId, $RELATED_TABLE_FILTER, $currentUserId]);
                         }
-                        $successMessages[] = 'Страницы успешно удалены';
+                        $successMessages[] = $successMessagesConfig['deleted'];
                     } else {
                         // Перемещение в корзину
                         $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                        $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
-                        $successMessages[] = 'Страницы перемещены в корзину';
+                        $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
+                        $successMessages[] = $successMessagesConfig['moved_to_trash'];
                     }
                     break;
 
                 case 'restore':
                     // Восстановление из корзины
                     $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 1 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                    $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
-                    $successMessages[] = 'Страницы восстановлены';
+                    $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
+                    $successMessages[] = $successMessagesConfig['restored'];
                     break;
 
                 case 'trash':
                     // Добавление в корзину
                     $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE related_table = ? AND id IN ($placeholders) AND users_id = ?");
-                    $stmt->execute(array_merge([$relatedTable], $userIds, [$currentUserId]));
+                    $stmt->execute(array_merge([$RELATED_TABLE_FILTER], $userIds, [$currentUserId]));
                     $successMessages[] = 'Страницы перемещены в корзину';
                     break;
 
@@ -257,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
             // Логирование действий
             $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
             $adminId = $user['id'] ?? 'unknown';
-            logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — related_table={$relatedTable} — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
+            logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — related_table={$RELATED_TABLE_FILTER} — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
 
         } catch (PDOException $e) {
             $errors[] = 'Ошибка при выполнении операции';
@@ -296,7 +297,7 @@ try {
 
     $params = [
         ':status' => $isTrash ? 0 : 1,
-        ':related_table' => $relatedTable,
+        ':related_table' => $RELATED_TABLE_FILTER,
         ':users_id' => $currentUserId,
     ];
 
@@ -307,7 +308,7 @@ try {
         $params[':search'] = "%{$search}%";
     }
 
-    // Поиск по родительской категории (родитель проверяем по $relatedTable И users_id)
+    // Поиск по родительской категории (родитель проверяем по $catalogRelatedTable И users_id)
     if ($search_parent !== '') {
         // Используем уникальные имена параметров для подзапроса
         $query .= " AND EXISTS (
@@ -330,7 +331,7 @@ try {
                         )";
     
         // Уникальные параметры для подзапроса
-        $params[':parent_related_table_search'] = $relatedTable;
+        $params[':parent_related_table_search'] = $catalogRelatedTable;
         $params[':users_id_search'] = $currentUserId;
         $params[':search_parent_search'] = "%{$search_parent}%";
     }
@@ -383,7 +384,7 @@ try {
               AND id IN ($ph) 
               AND status = 1
         ");
-        $pStmt->execute(array_merge([$relatedTable, $currentUserId], $parentIds));
+        $pStmt->execute(array_merge([$catalogRelatedTable, $currentUserId], $parentIds));
 
         while ($row = $pStmt->fetch(PDO::FETCH_ASSOC)) {
             $parentMap[(int)$row['id']] = [
@@ -421,7 +422,6 @@ try {
 // Подготовка шаблона
 // =============================================================================
 $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg');
-$titlemeta = 'Управление страницами';
 
 // Закрываем соединение при завершении скрипта
 register_shutdown_function(function() {
@@ -459,10 +459,21 @@ register_shutdown_function(function() {
         <?php require_once __DIR__ . '/../template/header.php'; ?>
 
         <div class="content-card table-card">
-            <h3 class="card-title">
-                <i class="bi bi-grid"></i>
-                <?= $isTrash ? escape('Корзина') : escape('Страницы') ?>
-            </h3>
+            <div class="row align-items-center mb-4">
+                <div class="col-lg-6">
+                    <h3 class="card-title d-flex align-items-center gap-2 mb-0">
+                        <i class="bi bi-hdd-stack"></i>
+                        <?= $isTrash ? 'Корзина' : $manageTitle ?>
+                    </h3>
+                </div>
+                <div class="col-lg-6 text-end">
+                    <a href="add_pages.php"
+                        class="btn btn-outline-primary" 
+                        title="<?= $addButtonTitle ?>">
+                        <i class="bi bi-plus-circle"></i> Добавить
+                    </a>
+                </div>
+            </div>
 
             <!-- Сообщения об ошибках/успехе -->
             <?php displayAlerts($successMessages, $errors); ?>
@@ -470,31 +481,25 @@ register_shutdown_function(function() {
             <?php if (!$isTrash): ?>
                 <?php
                     $trashCountStmt = $pdo->prepare("SELECT COUNT(*) FROM {$catalogTable} WHERE related_table = ? AND status = 0 AND users_id = ?");
-                    $trashCountStmt->execute([$relatedTable, $currentUserId]);
+                    $trashCountStmt->execute([$RELATED_TABLE_FILTER, $currentUserId]);
                     $trashCount = (int)$trashCountStmt->fetchColumn();
                 ?>
                 <?php if ($trashCount > 0): ?>
-                    <a href="?folder=parent&amp;file=pages_list&amp;trash=1" class="btn btn-outline-danger mb-3">
+                    <a href="?trash=1" class="btn btn-outline-danger mb-3">
                         <i class="bi bi-trash"></i> Корзина
                         <span class="badge bg-danger"><?= escape((string)$trashCount) ?></span>
                     </a>
                 <?php endif; ?>
             <?php else: ?>
-                <a href="?folder=parent&amp;file=pages_list" class="btn btn-outline-primary mb-3">
-                    <i class="bi bi-arrow-left"></i> Назад к страницам
+                <a href="pages_list.php" class="btn btn-outline-primary mb-3">
+                    <i class="bi bi-arrow-left"></i> Выйти из корзины
                 </a>
             <?php endif; ?>
-
-            <a href="add_pages.php" class="btn btn-primary ms-2 mb-3">
-                <i class="bi bi-plus-circle"></i> Добавить
-            </a>
 
             <div class="table-controls mb-3">
                 <div class="row align-items-center">
                     <div class="col-md-7">
                         <form method="GET" class="d-flex mb-3">
-                            <input type="hidden" name="folder" value="parent">
-                            <input type="hidden" name="file" value="pages_list">
                             <?php if ($isTrash): ?>
                                 <input type="hidden" name="trash" value="1">
                             <?php endif; ?>
@@ -517,7 +522,7 @@ register_shutdown_function(function() {
                                 </button>
 
                                 <?php if ($search !== '' || $search_parent !== ''): ?>
-                                    <a href="?folder=parent&amp;file=pages_list<?= $isTrash ? '&amp;trash=1' : '' ?>"
+                                    <a href="<?= $isTrash ? '?trash=1' : 'pages_list.php' ?>"
                                        class="btn btn-outline-danger d-flex align-items-center justify-content-center"
                                        title="Сбросить поиск">
                                         <i class="bi bi-x"></i>
@@ -611,8 +616,6 @@ register_shutdown_function(function() {
                                     <?php if (!empty($row['parent_name'])): ?>
                                         <?php
                                         $parentLink = '?' . http_build_query(array_filter([
-                                            'folder' => $_GET['folder'] ?? 'parent',
-                                            'file'   => $_GET['file'] ?? 'pages_list',
                                             'trash'  => $isTrash ? '1' : null,
                                             'search' => null,
                                             'search_parent' => $row['parent_name'],
@@ -630,7 +633,7 @@ register_shutdown_function(function() {
                                 <td class="text-center">
                                     <?php if (!empty($row['full_url'])): ?>
                                         <div class="d-flex flex-column gap-1 justify-content-center">
-                                            <a href="/<?= escape($row['full_url']) ?>"
+                                            <a href="/<?= escape($catalogRelatedTable) ?>/<?= escape($row['full_url']) ?>"
                                                target="_blank"
                                                rel="noopener noreferrer"
                                                class="btn btn-sm btn-link p-0 border-0 text-decoration-none fw-bold"

@@ -552,6 +552,18 @@
                                 </div>
                             </div>
                             
+                            <h5 class="mt-4">Выбор цвета</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Цвет фона</label>
+                                    <div id="colorPicker1" class="color-picker-init" data-initial-color="#4a6cf7"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Цвет текста</label>
+                                    <div id="colorPicker2" class="color-picker-init" data-initial-color="#333333"></div>
+                                </div>
+                            </div>
+                            
                             <button type="submit" class="btn btn-primary mt-3">Сохранить изменения</button>
                             <button type="reset" class="btn btn-outline-secondary mt-3">Сбросить</button>
                         </div>

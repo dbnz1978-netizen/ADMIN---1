@@ -186,8 +186,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Обработка настройки "Удалять таблицы при удалении"
-        if (isset($_POST['delete_tables_on_uninstall'])) {
-            $deleteTables = $_POST['delete_tables_on_uninstall'] === '1';
+        // Проверяем, что это форма настроек (не enable/disable), проверив наличие csrf_token без action
+        if (!isset($_POST['action'])) {
+            // Если checkbox отмечен, $_POST['delete_tables_on_uninstall'] будет равен '1'
+            // Если checkbox не отмечен, $_POST['delete_tables_on_uninstall'] не будет установлен
+            $deleteTables = isset($_POST['delete_tables_on_uninstall']) && $_POST['delete_tables_on_uninstall'] === '1';
             $result = updatePluginDeleteTablesOption($pdo, $pluginName, $deleteTables);
             
             if ($result['success']) {

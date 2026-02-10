@@ -186,8 +186,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Обработка настройки "Удалять таблицы при удалении"
-        if (isset($_POST['delete_tables_on_uninstall'])) {
-            $deleteTables = $_POST['delete_tables_on_uninstall'] === '1';
+        // Проверяем, что это форма настроек по наличию идентификатора settings_form
+        // (CSRF-токен уже проверен выше на строке 158)
+        if (isset($_POST['settings_form'])) {
+            // Если checkbox отмечен, $_POST['delete_tables_on_uninstall'] будет равен '1'
+            // Если checkbox не отмечен, $_POST['delete_tables_on_uninstall'] не будет установлен
+            $deleteTables = isset($_POST['delete_tables_on_uninstall']) && $_POST['delete_tables_on_uninstall'] === '1';
             $result = updatePluginDeleteTablesOption($pdo, $pluginName, $deleteTables);
             
             if ($result['success']) {
@@ -401,6 +405,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                     <div class="card-body">
                         <form method="POST">
                             <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="settings_form" value="1">
                             
                             <!-- Удалять таблицы при удалении -->
                             <div class="row mb-3">

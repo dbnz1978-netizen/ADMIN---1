@@ -366,15 +366,6 @@ $formImage = $_POST['image'] ?? $image;
 
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
-                    <div class="row align-items-center mb-5">
-                        <div class="col-md-12">
-                            <!-- Sorting -->
-                            <label class="form-label">Sorting (порядок сортировки)</label>
-                            <input type="number" class="form-control" name="sorting"
-                                   value="<?= escape((string)$formSorting) ?>" step="1" min="0">
-                        </div>
-                    </div>
-
                     <!-- Заголовок дополнительного контента -->
                     <div class="mb-5">
                         <h3 class="card-title">
@@ -385,6 +376,15 @@ $formImage = $_POST['image'] ?? $image;
                                value="<?= escape($formTitle) ?>" 
                                placeholder="Введите заголовок" required>
                         <div class="form-text">Обязательное поле</div>
+                    </div>
+
+                    <div class="row align-items-center mb-5">
+                        <div class="col-md-12">
+                            <!-- Sorting -->
+                            <label class="form-label">Sorting (порядок сортировки)</label>
+                            <input type="number" class="form-control" name="sorting"
+                                   value="<?= escape((string)$formSorting) ?>" step="1" min="0">
+                        </div>
                     </div>
 
                     <!-- Изображение -->

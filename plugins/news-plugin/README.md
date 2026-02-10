@@ -80,6 +80,7 @@
 - id (BIGINT UNSIGNED, PRIMARY KEY)
 - users_id (BIGINT UNSIGNED, FK → users.id)
 - news_id (BIGINT UNSIGNED, FK → news_articles.id)
+- title (VARCHAR 255)
 - content (LONGTEXT)
 - image (VARCHAR 255, NULL)
 - sorting (INT, DEFAULT 0)

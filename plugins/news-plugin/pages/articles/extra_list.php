@@ -258,7 +258,7 @@ try {
     $query = "
         SELECT
             id,
-            title,
+            SUBSTRING(content, 1, 100) AS title,
             image,
             content,
             created_at,
@@ -285,8 +285,8 @@ try {
 
     // Поиск по названию
     if ($search !== '') {
-        $query .= " AND title LIKE :search";
-        $countQuery .= " AND title LIKE :search";
+        $query .= " AND content LIKE :search";
+        $countQuery .= " AND content LIKE :search";
         $params[':search'] = "%{$search}%";
     }
 

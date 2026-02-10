@@ -551,7 +551,7 @@ function uploadPlugin($pdo, $uploadedFile)
         }
         
         // Проверка на подозрительные файлы
-        $dangerousExtensions = ['php5', 'phtml', 'exe', 'sh', 'bat', 'cmd', 'com', 'scr', 'vbs', 'js', 'jar', 'ps1', 'msi', 'app', 'deb', 'rpm'];
+        $dangerousExtensions = ['php5', 'phtml', 'exe', 'sh', 'bat', 'cmd', 'com', 'scr', 'vbs', 'jar', 'ps1', 'msi', 'app', 'deb', 'rpm'];
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $filename = $zip->getNameIndex($i);
             $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));

@@ -367,15 +367,11 @@ $formImage = $_POST['image'] ?? $image;
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
                     <!-- Заголовок дополнительного контента -->
-                    <div class="mb-5">
-                        <h3 class="card-title">
-                            <i class="bi bi-fonts"></i>
-                            Заголовок дополнительного контента
-                        </h3>
+                    <div class="mb-3">
+                        <label class="form-label">Название<span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="title" 
                                value="<?= escape($formTitle) ?>" 
                                placeholder="Введите заголовок" required>
-                        <div class="form-text">Обязательное поле</div>
                     </div>
 
                     <div class="row align-items-center mb-5">

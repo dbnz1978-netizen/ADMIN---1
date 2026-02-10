@@ -135,6 +135,7 @@ $defaultSorting = 0;
 $defaultStatus = 1;
 
 // Данные из колонок
+$title = '';
 $content = '';
 $image = '';
 
@@ -151,6 +152,9 @@ if ($isEditMode && $itemId) {
         if ($item) {
             $defaultSorting = (int)($item['sorting'] ?? 0);
             $defaultStatus = (int)($item['status'] ?? 1);
+
+            // Заголовок — хранится в колонке title
+            $title = sanitizeHtml((string)($item['title'] ?? ''));
 
             // Контент (HTML) — хранится в колонке content
             $content = sanitizeHtmlFromEditor((string)($item['content'] ?? ''));
@@ -192,6 +196,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $status = isset($_POST['status']) ? 1 : 0;
+
+        // Заголовок дополнительного контента
+        $titlePost = sanitizeHtml(trim($_POST['title'] ?? ''));
+        if (empty($titlePost)) {
+            $errors[] = 'Заголовок дополнительного контента обязателен для заполнения.';
+        }
 
         // HTML контент
         $contentPost = sanitizeHtmlFromEditor($_POST['content'] ?? '');
@@ -235,11 +245,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // UPDATE с проверкой users_id
                     $stmt = $pdo->prepare("
                         UPDATE {$catalogTable}
-                        SET content = ?, image = ?, sorting = ?, status = ?
+                        SET title = ?, content = ?, image = ?, sorting = ?, status = ?
                         WHERE id = ? AND news_id = ? AND users_id = ?
                         LIMIT 1
                     ");
                     $stmt->execute([
+                        $titlePost,
                         $contentPost,
                         $imagePost,
                         $sorting,
@@ -257,12 +268,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // INSERT с автоматическим заполнением users_id
                     $stmt = $pdo->prepare("
                         INSERT INTO {$catalogTable}
-                            (news_id, content, image, sorting, status, users_id, created_at)
+                            (news_id, title, content, image, sorting, status, users_id, created_at)
                         VALUES
-                            (?, ?, ?, ?, ?, ?, NOW())
+                            (?, ?, ?, ?, ?, ?, ?, NOW())
                     ");
                     $stmt->execute([
                         $newsIdFromGet,
+                        $titlePost,
                         $contentPost,
                         $imagePost,
                         $sorting,
@@ -292,6 +304,7 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
 // Для повторного заполнения формы после ошибок
 $formSorting = isset($_POST['sorting']) ? (int)$_POST['sorting'] : (int)$defaultSorting;
 $formStatus = isset($_POST['status']) ? 1 : (int)$defaultStatus;
+$formTitle = isset($_POST['title']) ? sanitizeHtml($_POST['title']) : $title;
 $formContent = isset($_POST['content']) ? sanitizeHtmlFromEditor($_POST['content']) : $content;
 $formImage = $_POST['image'] ?? $image;
 ?>
@@ -360,6 +373,18 @@ $formImage = $_POST['image'] ?? $image;
                             <input type="number" class="form-control" name="sorting"
                                    value="<?= escape((string)$formSorting) ?>" step="1" min="0">
                         </div>
+                    </div>
+
+                    <!-- Заголовок дополнительного контента -->
+                    <div class="mb-5">
+                        <h3 class="card-title">
+                            <i class="bi bi-fonts"></i>
+                            Заголовок дополнительного контента
+                        </h3>
+                        <input type="text" class="form-control" name="title" 
+                               value="<?= escape($formTitle) ?>" 
+                               placeholder="Введите заголовок" required>
+                        <div class="form-text">Обязательное поле</div>
                     </div>
 
                     <!-- Изображение -->

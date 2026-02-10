@@ -250,6 +250,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
 // ПОЛУЧЕНИЕ ДАННЫХ ИЗ ТАБЛИЦЫ news_extra_content (с фильтром users_id И news_id)
 // =============================================================================
 
+// Инициализация переменных с значениями по умолчанию
+$users = [];
+$totalPages = 0;
+
 try {
     $query = "
         SELECT

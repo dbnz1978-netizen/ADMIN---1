@@ -259,7 +259,7 @@ try {
     $query = "
         SELECT
             id,
-            SUBSTRING(content, 1, {$titleMaxLength}) AS title,
+            SUBSTRING(content, 1, " . (int)$titleMaxLength . ") AS title,
             image,
             content,
             created_at,

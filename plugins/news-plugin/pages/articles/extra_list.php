@@ -52,7 +52,6 @@ $titlemeta = 'Новости';                      // Название заго
 $titlemetah3 = 'Дополнительный контент';     // Название заголовка H2 для раздела
 $catalogTable = 'news_extra_content';        // Название таблицы (подключение у записи)
 $authorCheckTable = 'news_articles';         // Привязка записи к родительской таблице
-$titleMaxLength = 100;                       // Максимальная длина заголовка (для SUBSTRING)
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -259,7 +258,7 @@ try {
     $query = "
         SELECT
             id,
-            SUBSTRING(content, 1, " . (int)$titleMaxLength . ") AS title,
+            title,
             image,
             content,
             created_at,
@@ -286,8 +285,8 @@ try {
 
     // Поиск по названию
     if ($search !== '') {
-        $query .= " AND content LIKE :search";
-        $countQuery .= " AND content LIKE :search";
+        $query .= " AND title LIKE :search";
+        $countQuery .= " AND title LIKE :search";
         $params[':search'] = "%{$search}%";
     }
 

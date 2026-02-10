@@ -187,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Обработка настройки "Удалять таблицы при удалении"
         // Проверяем, что это форма настроек по наличию идентификатора settings_form
+        // (CSRF-токен уже проверен выше на строке 158)
         if (isset($_POST['settings_form'])) {
             // Если checkbox отмечен, $_POST['delete_tables_on_uninstall'] будет равен '1'
             // Если checkbox не отмечен, $_POST['delete_tables_on_uninstall'] не будет установлен

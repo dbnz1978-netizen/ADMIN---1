@@ -154,7 +154,7 @@ if ($isEditMode && $itemId) {
             $defaultStatus = (int)($item['status'] ?? 1);
 
             // Заголовок — хранится в колонке title
-            $title = sanitizeHtml((string)($item['title'] ?? ''));
+            $title = trim((string)($item['title'] ?? ''));
 
             // Контент (HTML) — хранится в колонке content
             $content = sanitizeHtmlFromEditor((string)($item['content'] ?? ''));
@@ -198,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = isset($_POST['status']) ? 1 : 0;
 
         // Заголовок дополнительного контента
-        $titlePost = sanitizeHtml(trim($_POST['title'] ?? ''));
+        $titlePost = trim($_POST['title'] ?? '');
         if (empty($titlePost)) {
             $errors[] = 'Заголовок дополнительного контента обязателен для заполнения.';
         }
@@ -304,7 +304,7 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
 // Для повторного заполнения формы после ошибок
 $formSorting = isset($_POST['sorting']) ? (int)$_POST['sorting'] : (int)$defaultSorting;
 $formStatus = isset($_POST['status']) ? 1 : (int)$defaultStatus;
-$formTitle = isset($_POST['title']) ? sanitizeHtml($_POST['title']) : $title;
+$formTitle = isset($_POST['title']) ? trim($_POST['title']) : $title;
 $formContent = isset($_POST['content']) ? sanitizeHtmlFromEditor($_POST['content']) : $content;
 $formImage = $_POST['image'] ?? $image;
 ?>

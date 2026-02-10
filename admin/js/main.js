@@ -16,6 +16,9 @@ import { initThemeSwitcher } from './theme-switcher.js';
 // Универсальный валидатор форм с поддержкой live-валидации, кастомных правил
 import { initFormValidation } from './required-fields-validator.js';
 
+// Блокировка повторной отправки форм + спинер на кнопках
+import { initSubmitButtonProtection } from './submit-button-protection.js';
+
 // Универсальная реализация капчи с перетаскиванием
 import { initCaptchaSlider } from './captcha-slider.js';
 
@@ -36,6 +39,9 @@ import { storeSectionId, handleSelectButtonClick } from './gallery-selector.js';
 
 // Модуль выбора цвета
 import '/admin/js/color-picker.js';
+
+// Универсальные уведомления (авто-закрытие alerts)
+import './universal-alerts.js';
 
 // === ГЛОБАЛЬНЫЙ ДОСТУП (опционально) ==================================
 // Если нужно — можно сделать функции доступными глобально, например:
@@ -60,6 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // errorClass: 'border-danger',
     // validClass: 'border-success'
   });
+
+  // 3.1 Защита от повторной отправки форм
+  initSubmitButtonProtection();
 
   // 4. Капча — инициализируем, если есть элементы на странице
   const captchaInstance = initCaptchaSlider({

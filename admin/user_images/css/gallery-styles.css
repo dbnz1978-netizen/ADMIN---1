@@ -1,4 +1,6 @@
 /**
+ * Файл: css/gallery-styles.css
+ * 
  * ====================================================
  * СТИЛИ ДЛЯ ГАЛЕРЕИ ИЗОБРАЖЕНИЙ С ПЕРЕТАСКИВАНИЕМ
  * ====================================================
@@ -10,6 +12,7 @@
  * - .selected-image-item - элемент отдельного изображения
  * - .selected-image-remove - кнопка удаления изображения
  * - .drop-placeholder - placeholder для зоны перетаскивания
+ * - .media-upload-square - элемент для загрузки медиа-файлов
  * 
  * АНИМАЦИИ:
  * - pulse - пульсация для placeholder
@@ -81,11 +84,11 @@
 
 /* Основная секция галереи */
 .selected-images-section {
-    margin: 20px 0;
+    margin: 0px 0;
     padding: 15px;
-    border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: var(--card-bg);
+    width: 100%;
 }
 
 /* Счетчик изображений */
@@ -101,6 +104,7 @@
     flex-wrap: wrap;
     gap: 10px;
     transition: gap 0.3s ease;
+    width: 100%;
 }
 
 /* Увеличение расстояния при активном перетаскивании */
@@ -330,9 +334,15 @@
         width: 80px;
         height: 80px;
     }
+
+    .media-upload-square {
+        width: 80px;
+        height: 80px;
+    }
     
     .selected-images-preview {
         gap: 8px;
+        width: 100%;
     }
     
     .selected-images-preview.dragging-active {
@@ -345,9 +355,90 @@
         width: 70px;
         height: 70px;
     }
+
+    .media-upload-square {
+        width: 70px;
+        height: 70px;
+    }
     
     .selected-images-section {
         padding: 10px;
         margin: 15px 0;
     }
+}
+
+/* Стили для загрузки медиа-файлов */
+.media-upload-square {
+    width: 100px;
+    height: 100px;
+    border: 2px dashed var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: var(--input-bg);
+    border-radius: 8px;
+}
+
+.media-upload-square:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(93, 123, 247, 0.1);
+}
+
+.media-upload-square i {
+    font-size: 2rem;
+    color: var(--muted-color);
+    pointer-events: none;
+}
+
+.media-upload-square:hover i {
+    color: var(--primary-color);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .media-upload-square {
+        width: 80px;
+        height: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    .media-upload-square {
+        width: 70px;
+        height: 70px;
+    }
+}
+
+/* Стили для текста ограничения загрузки */
+.upload-limit-text {
+    margin-top: 5px;
+    font-size: 0.75rem;
+    text-align: center;
+    color: var(--muted-color);
+}
+
+/* ===== СТИЛИ ДЛЯ ТЕМНОЙ ТЕМЫ - ЗАГРУЗКА МЕДИА ===== */
+[data-theme="dark"] .media-upload-square {
+    border-color: var(--border-color);
+    background-color: var(--input-bg);
+}
+
+[data-theme="dark"] .media-upload-square:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(93, 123, 247, 0.15);
+}
+
+[data-theme="dark"] .media-upload-square i {
+    color: var(--muted-color);
+}
+
+[data-theme="dark"] .media-upload-square:hover i {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .upload-limit-text {
+    color: var(--muted-color);
 }

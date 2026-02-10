@@ -1,89 +1,88 @@
 <?php
-/**
- * Файл: /admin/user_images/get_photo_info.php
- *
- * Обработчик AJAX-запроса для получения информации о фотографии из таблицы `media_files`.
- * Используется в интерфейсе админки для отображения данных выбранной фотографии
- * в модальном окне редактирования (SEO-оптимизация: заголовок, описание, alt-текст).
- *
- * Принимает:
- *   - `photoId` (int): ID записи в таблице `media_files`
- *
- * Возвращает:
- *   - HTML-разметку модального окна с превью изображения и формой редактирования метаданных.
- *   - При ошибке — HTML-блок с уведомлением об ошибке (с использованием Bootstrap-классов).
- *
- * Безопасность:
- *   - Все пользовательские данные экранируются с помощью `htmlspecialchars`.
- *   - Используется подготовленный запрос к БД.
- *
- * Требования:
- *   - Должен вызываться методом POST.
- *   - Файл должен находиться в корне проекта или корректно подключать `/connect/db.php`.
- */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/** 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-*/
+/**
+ * Название файла:      get_photo_info.php
+ * Назначение:          Обработчик AJAX-запроса для получения информации о фотографии
+ *                      из таблицы `media_files`. Используется в интерфейсе админки для
+ *                      отображения данных выбранной фотографии в модальном окне редактирования
+ *                      (SEO-оптимизация: заголовок, описание, alt-текст).
+ *                      Поддерживает форматы: JPEG, PNG, GIF, WebP, AVIF, JPEG XL
+ * Автор:               User
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
+ */
 
 // Запретить прямой доступ ко всем .php файлам
 define('APP_ACCESS', true);
 
-// Устанавливаем кодировку
-header('Content-Type: text/html; charset=utf-8');
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// === Подключение зависимостей ===
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';             // База данных
-require_once __DIR__ . '/../functions/auth_check.php';                  // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                    // Система логирования
-require_once __DIR__ . '/../functions/sanitization.php';                // Валидация экранирование 
+$config = [
+    'display_errors'   => false,  // Включение отображения ошибок (true/false)
+    'set_encoding'     => true,   // Включение кодировки UTF-8
+    'db_connect'       => true,   // Подключение к базе данных
+    'auth_check'       => true,   // Подключение функций авторизации
+    'file_log'         => true,   // Подключение системы логирования
+    'sanitization'     => true,   // Подключение валидации/экранирования
+    'csrf_token'       => true,   // Генерация и проверка CSRF-токена
+];
 
-// Получаем настройки администратора
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
+
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
-    // Ошибка: admin не найден / ошибка БД / некорректный JSON
+    // Ошибка: администратор не найден / ошибка БД / некорректный JSON
     header("Location: ../logout.php");
     exit;
 }
 
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
+
 // Включаем/отключаем логирование. Глобальные константы.
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
-define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);  // Логировать успешные события true/false
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);  // Логировать ошибки true/false
 
+// ========================================
+// ПРОВЕРКА МЕТОДА ЗАПРОСА
+// ========================================
 
-// Проверяем метод запроса
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405); // Method Not Allowed
+    http_response_code(405);  // Method Not Allowed
     echo 'Метод запроса должен быть POST';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
+// ========================================
+// ПРОВЕРКА CSRF-ТОКЕНА
+// ========================================
+
+$csrfTokenSession = $_SESSION['csrf_token'] ?? '';
+$csrfTokenRequest = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+if (empty($csrfTokenSession) || empty($csrfTokenRequest) || !hash_equals($csrfTokenSession, $csrfTokenRequest)) {
+    http_response_code(403);
+    echo '<div class="alert alert-danger">Недействительный CSRF-токен. Обновите страницу.</div>';
+    exit;
+}
+
+// ========================================
+// ВАЛИДАЦИЯ ВХОДНЫХ ПАРАМЕТРОВ
+// ========================================
+
 // Проверяем наличие обязательных параметров
 if (!isset($_POST['photoId']) || empty($_POST['photoId'])) {
-    $error_message = 'Photo ID is required';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    echo '<div class="alert alert-danger">' . escape($error_message) . '</div>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
+    $errorMessage = 'Photo ID is required';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    echo '<div class="alert alert-danger">' . escape($errorMessage) . '</div>';
     exit;
 }
 
@@ -91,45 +90,41 @@ $photoId = intval($_POST['photoId']);
 
 // Дополнительная защита: убеждаемся, что $photoId положительный
 if ($photoId <= 0) {
-    $error_message = 'Invalid Photo ID (must be positive integer)';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
+    $errorMessage = 'Invalid Photo ID (must be positive integer)';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
     echo '<div class="alert alert-danger">Некорректный ID фотографии</div>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
+// ========================================
+// ПОЛУЧЕНИЕ ИНФОРМАЦИИ О ФОТОГРАФИИ ИЗ БД
+// ========================================
 
 try {
-    // Получаем информацию о фотографии из БД
+    // Получаем информацию о фотографии из базы данных
     $stmt = $pdo->prepare("SELECT * FROM `media_files` WHERE `id` = ?");
     $stmt->execute([$photoId]);
     $photo = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$photo) {
-        $error_message = 'Photo not found (ID: ' . $photoId . ')';
-        logEvent($error_message, LOG_ERROR_ENABLED, 'error');
+        $errorMessage = 'Photo not found (ID: ' . $photoId . ')';
+        logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
         echo '<div class="alert alert-danger">Фотография не найдена</div>';
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
         exit;
     }
+    
+    // ========================================
+    // ОБРАБОТКА JSON-ДАННЫХ ФАЙЛА
+    // ========================================
     
     // Декодируем JSON-поле file_versions
     $fileVersions = json_decode($photo['file_versions'], true);
     
     // Проверка корректности JSON
     if ($fileVersions === null && json_last_error() !== JSON_ERROR_NONE) {
-        $error_message = 'JSON decode error for file_versions (Photo ID: ' . $photoId . ') - ' . json_last_error_msg();
-        logEvent($error_message, LOG_ERROR_ENABLED, 'error');
+        $errorMessage = 'JSON decode error for file_versions (Photo ID: ' . $photoId . ') - '
+            . json_last_error_msg();
+        logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
         $fileVersions = [];
     }
     
@@ -138,20 +133,34 @@ try {
         $fileVersions = [];
     }
     
+    // ========================================
+    // ОПРЕДЕЛЕНИЕ ПУТИ К ИЗОБРАЖЕНИЮ
+    // ========================================
+    
     // Определяем путь к изображению для превью: сначала small, затем original
     $mediumImagePath = '';
-    if (isset($fileVersions['small']) && is_array($fileVersions['small']) && isset($fileVersions['small']['path'])) {
+    if (isset($fileVersions['small'])
+        && is_array($fileVersions['small'])
+        && isset($fileVersions['small']['path'])
+    ) {
         $mediumImagePath = $fileVersions['small']['path'];
-    } elseif (isset($fileVersions['original']) && is_array($fileVersions['original']) && isset($fileVersions['original']['path'])) {
+    } elseif (isset($fileVersions['original'])
+        && is_array($fileVersions['original'])
+        && isset($fileVersions['original']['path'])
+    ) {
         $mediumImagePath = $fileVersions['original']['path'];
     }
 
+    // ========================================
+    // ПРОВЕРКА СУЩЕСТВОВАНИЯ ФАЙЛА
+    // ========================================
+    
     // Проверяем существование файла и устанавливаем заглушку при необходимости
-    $uploadBaseUrl = '/uploads/';
-    $fullImagePath = $mediumImagePath;
+    $uploadBaseUrl  = '/uploads/';
+    $fullImagePath  = $mediumImagePath;
     if ($mediumImagePath) {
-        $fullImagePath = $uploadBaseUrl . ltrim($mediumImagePath, '/');
-        $physicalPath = $_SERVER['DOCUMENT_ROOT'] . $fullImagePath;
+        $fullImagePath  = $uploadBaseUrl . ltrim($mediumImagePath, '/');
+        $physicalPath   = $_SERVER['DOCUMENT_ROOT'] . $fullImagePath;
         
         if (!file_exists($physicalPath) || !is_file($physicalPath)) {
             // Файл не существует, используем заглушку
@@ -162,19 +171,25 @@ try {
         $fullImagePath = '../user_images/img/no_pictures.svg';
     }
     
-    // Экранируем все значения для безопасного вывода
-    $photoIdValue = escape($photo['id']);
-    $titleValue = escape($photo['title']);
-    $descriptionValue = escape($photo['description']);
-    $altTextValue = escape($photo['alt_text']);
-    $fullImagePathSafe = escape($fullImagePath);
+    // ========================================
+    // ЭКРАНИРОВАНИЕ ДАННЫХ ДЛЯ БЕЗОПАСНОГО ВЫВОДА
+    // ========================================
     
-    // Формируем HTML-ответ
+    $photoIdValue       = escape($photo['id']);
+    $titleValue         = escape($photo['title']);
+    $descriptionValue   = escape($photo['description']);
+    $altTextValue       = escape($photo['alt_text']);
+    $fullImagePathSafe  = escape($fullImagePath);
+    
+    // ========================================
+    // ФОРМИРОВАНИЕ HTML-ОТВЕТА
+    // ========================================
+    
     $html = <<<HTML
     <div class="modal-body">
         <div class="mb-4">
             <div class="mb-4">
-                <img src="{$fullImagePathSafe}" alt="{$altTextValue}" class="img-fluid w-100 shadow-sm" style="max-height: 60vh; object-fit: contain;">
+                <img src="{$fullImagePathSafe}" alt="{$altTextValue}" class="img-fluid w-100 shadow-sm" style="max-height: 60vh; object-fit: contain; border-radius: 6px;">
             </div>
             <div>
                 <h5 class="modal-title">SEO-оптимизация картинок</h5>
@@ -208,15 +223,7 @@ HTML;
     echo $html;
     
 } catch (Exception $e) {
-    $error_message = 'Database error: ' . $e->getMessage() . ' (Photo ID: ' . $photoId . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    echo '<div class="alert alert-danger">Ошибка базы данных: ' . escapeHtml($e->getMessage()) . '</div>';
+    $errorMessage = 'Database error: ' . $e->getMessage() . ' (Photo ID: ' . $photoId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    echo '<div class="alert alert-danger">Ошибка базы данных: ' . escape($e->getMessage()) . '</div>';
 }
-
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
-?>

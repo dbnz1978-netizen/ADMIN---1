@@ -89,11 +89,11 @@ export function selectAll(sectionId) {
  * @param {string} sectionId — идентификатор секции (например, 'section_123')
  * @param {number|string} itemId — идентификатор элемента (например, 456)
  */
-export function updateDeleteButtonVisibility(sectionId, itemId) {
+export function updateDeleteButtonVisibility(sectionId, itemId, evt) {
 
     // Проверка: если клик был по кнопке с классом 'btn-icon' (например, info-кнопка), прерываем выполнение
-    // event передаётся из onclick, если вызов обновить (см. ниже — нужно модифицировать HTML)
-    if (event && event.target?.closest('.photoInfo')) {
+    const clickEvent = evt || window.event;
+    if (clickEvent && clickEvent.target?.closest('.photoInfo')) {
         return;
     }
 
@@ -116,9 +116,6 @@ export function updateDeleteButtonVisibility(sectionId, itemId) {
 
     // Считаем количество focused-элементов в этой галерее
     const focusedCount = gallery.querySelectorAll('.gallery-item.focused').length;
-
-    // Выводим в консоль (по требованию)
-    console.log(`Section "${sectionId}": ${focusedCount} items focused`);
 
     // Найдём кнопку удаления, привязанную к этой секции
     // Допустим, кнопка имеет id="delete-btn-{sectionId}"

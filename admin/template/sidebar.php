@@ -1,14 +1,26 @@
 <?php
+
 /**
- * Файл: /admin/template/sidebar.php
- *
- * Боковое меню
+ * Название файла:      sidebar.php
+ * Назначение:          Боковое меню навигации админ-панели.
+ *                      Отображает основные разделы, подменю и информацию о пользователе.
+ *                      Поддерживает адаптивную навигацию и темную/светлую тему.
+ *                      
+ *                      Особенности:
+ *                      - Динамическое формирование меню в зависимости от роли пользователя
+ *                      - Поддержка подменю для разделов "Пользователи" и "Настройки"
+ *                      - Отображение аватара пользователя для светлой/тёмной темы
+ *                      - Защита от прямого доступа через проверку константы APP_ACCESS
+ *                      - Интеграция с системой логирования и валидации
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-//ini_set('display_errors', 1);
-//ini_set('display_startup_errors', 1);
-//error_reporting(E_ALL);
+// ========================================
+// ПРОВЕРКА ДОСТУПА
+// ========================================
 
 // Разрешить доступ только через include, но не напрямую
 if (!defined('APP_ACCESS')) {
@@ -16,75 +28,111 @@ if (!defined('APP_ACCESS')) {
     exit('Прямой доступ запрещён');
 }
 
-// === Подключение зависимостей ===
-require_once __DIR__ . '/../functions/sanitization.php'; // Валидация экранирование 
+
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
+
+$config = [
+    'display_errors'   => false,   // Включение отображения ошибок (true/false)
+    'set_encoding'     => true,    // Включение кодировки UTF-8
+    'sanitization'     => true,    // Подключение валидации/экранирования
+    'plugin_manager'   => true,    // Подключение менеджера плагинов
+];
+
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
+
 
 // Извлекаем основные данные пользователя
 $defaultFirstName = $currentData['first_name'] ?? '';
-$selectedImages = $currentData['profile_images'] ?? '';
+$selectedImages   = $currentData['profile_images'] ?? '';
+
+// ========================================
+// НАСТРОЙКА ЛОГОТИПА САЙДБАРА
+// ========================================
+
+// Логотип для светлой/темной темы
+$adminUserId      = getAdminUserId($pdo);
+$logoPaths        = getThemeLogoPaths($pdo, $adminData['profile_logo'] ?? '', 'thumbnail', $adminUserId);
+$sidebarLogoLight = $logoPaths['light'] ?? '';
+$sidebarLogoDark  = $logoPaths['dark'] ?? '';
+
+if (empty($sidebarLogoLight) && empty($sidebarLogoDark)) {
+    $sidebarLogoLight = '/admin/img/avatar.svg';
+    $sidebarLogoDark  = $sidebarLogoLight;
+} elseif (empty($sidebarLogoDark)) {
+    $sidebarLogoDark = $sidebarLogoLight;
+}
+
+// ========================================
+// НАСТРОЙКА АВАТАРА ПОЛЬЗОВАТЕЛЯ
+// ========================================
 
 // Извлекаем настройки для пользователей
-$allow_photo_upload = $adminData['allow_photo_upload'] ?? false; // Разрешить загрузку фотографий для главного admin
+$allowPhotoUpload = $adminData['allow_photo_upload'] ?? false;  // Разрешить загрузку фотографий для главного admin
 
 // Всегда разрешить загрузку фотографий для главного admin
 if ($userDataAdmin['author'] == 'admin') {
-    $allow_photo_upload = true;
+    $allowPhotoUpload = true;
 }
 
-if ($allow_photo_upload === true) {
-    // Получает первое изображения из строки ID (например, "123,456")
-    $user_avatar = getFileVersionFromList($pdo, $selectedImages, 'thumbnail', '../img/avatar.svg');
-} else { 
-    // значение по умолчанию
-    $user_avatar = '../img/avatar.svg';
+$defaultAvatar = '/admin/img/avatar.svg';
+
+if ($allowPhotoUpload === true) {
+    // Получает первое и второе изображения из строки ID для светлой/тёмной темы
+    $avatarPaths      = getThemeLogoPaths($pdo, $selectedImages, 'thumbnail');
+    $userAvatarLight  = $avatarPaths['light'] ?? '';
+    $userAvatarDark   = $avatarPaths['dark'] ?? '';
+} else {
+    $userAvatarLight = '';
+    $userAvatarDark  = '';
 }
 
-// Проверка прав доступа к магазину
-$showShopMenu = false;
-if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_shop_admin'] ?? false) === true) {
-    $showShopMenu = true;
-} elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_shop_users'] ?? false) === true) {
-    $showShopMenu = true;
+if (empty($userAvatarLight) && empty($userAvatarDark)) {
+    $userAvatarLight = $defaultAvatar;
+    $userAvatarDark  = $defaultAvatar;
+} elseif (empty($userAvatarLight)) {
+    $userAvatarLight = $userAvatarDark;
+} elseif (empty($userAvatarDark)) {
+    $userAvatarDark = $userAvatarLight;
 }
 
-// Проверка прав доступа к записям
-$recordMenu = false;
-if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_catalog_admin'] ?? false) === true) {
-    $recordMenu = true;
-} elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_catalog_users'] ?? false) === true) {
-    $recordMenu = true;
+// ========================================
+// ГЕНЕРАЦИЯ CSRF-ТОКЕНА
+// ========================================
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// Проверка прав доступа к страницам
-$pagesMenu = false;
-if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_pages_admin'] ?? false) === true) {
-    $pagesMenu = true;
-} elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_pages_users'] ?? false) === true) {
-    $pagesMenu = true;
-}
+$logoutCsrfToken = $_SESSION['csrf_token'];
 
-// Проверка прав доступа к новостям
-$newsMenu = false;
-if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? false) === true) {
-    $newsMenu = true;
-} elseif ($userDataAdmin['author'] === 'user' && ($adminData['allow_news_users'] ?? false) === true) {
-    $newsMenu = true;
-}
 ?>
 
-<!-- Боковое меню -->
+<!-- ========================================
+     БОКОВОЕ МЕНЮ
+     ======================================== -->
 <nav class="sidebar" aria-label="Основная навигация">
-    <!-- Заголовок с логотипом -->
+    
+    <!-- ========================================
+         ЗАГОЛОВОК С ЛОГОТИПОМ
+         ======================================== -->
     <div class="sidebar-header">
         <a href="/admin/user/index.php" class="logo" style="gap: 4px;">
-            <img src="<?php echo escape($logo_profile); ?>" alt="<?php echo escape($defaultFirstName ?: 'Администратор'); ?>" loading="lazy" width="50" height="50">
+            <img class="sidebar-logo-image sidebar-logo-light" src="<?php echo escape($sidebarLogoLight); ?>" alt="<?php echo escape($defaultFirstName ?: 'Администратор'); ?>" loading="lazy">
+            <img class="sidebar-logo-image sidebar-logo-dark" src="<?php echo escape($sidebarLogoDark); ?>" alt="<?php echo escape($defaultFirstName ?: 'Администратор'); ?>" loading="lazy">
             <?= escape($adminData['AdminPanel'] ?? 'AdminPanel') ?>
         </a>
     </div>
 
-    <!-- Навигация -->
+    <!-- ========================================
+         НАВИГАЦИЯ
+         ======================================== -->
     <div class="sidebar-nav">
         <ul class="nav flex-column">
+            
+            <!-- Редактирование профиля -->
             <li class="nav-item">
                 <a href="/admin/user/personal_data.php" class="nav-link <?php if (basename($_SERVER['SCRIPT_NAME']) === 'personal_data.php') { echo 'active'; } ?>">
                     <i class="bi bi-person-vcard"></i>
@@ -92,22 +140,27 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                 </a>
             </li>
 
-            <?php if ($adminData['allow_photo_upload'] === true || $userDataAdmin['author'] == 'admin') { ?>
+            <!-- Библиотека файлов -->
+            <?php if ($adminData['allow_photo_upload'] === true || $userDataAdmin['author'] == 'admin'): ?>
             <li class="nav-item">
                 <a href="/admin/user/main_images.php" class="nav-link <?php if (basename($_SERVER['SCRIPT_NAME']) === 'main_images.php') { echo 'active'; } ?>">
                     <i class="bi bi-card-image"></i>
                     <span>Библиотека файлов</span>
                 </a>
             </li>
-            <?php } ?>
+            <?php endif; ?>
 
-            <?php if ($userDataAdmin['author'] == 'admin') { ?>
+            <!-- Подменю для администратора -->
+            <?php if ($userDataAdmin['author'] == 'admin'): ?>
+                
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Пользователи"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInAccountSubmenu = strpos($currentPath, '/admin/user/') !== false && in_array($currentScript, ['accounts_list.php', 'add_account.php']);
+                $currentScript        = basename($_SERVER['SCRIPT_NAME']);
+                $currentPath          = $_SERVER['SCRIPT_NAME'];
+                $isInAccountSubmenu   = strpos($currentPath, '/admin/user/') !== false && in_array($currentScript, ['accounts_list.php', 'add_account.php']);
                 ?>
+                
+                <!-- Пользователи -->
                 <li class="nav-item">
                     <a href="#settingsSubmenu_account" 
                        class="nav-link <?= $isInAccountSubmenu ? '' : 'collapsed' ?>"
@@ -131,11 +184,13 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
 
                 <?php
                 // Определяем, находится ли пользователь внутри подменю "Настройки"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInUserSettingsSubmenu = (strpos($currentPath, '/admin/user/') !== false && $currentScript === 'user_settings.php') || 
-                                          (strpos($currentPath, '/admin/app/') !== false && $currentScript === 'gpt.php');
+                $currentScript            = basename($_SERVER['SCRIPT_NAME']);
+                $currentPath              = $_SERVER['SCRIPT_NAME'];
+                $isInUserSettingsSubmenu  = (strpos($currentPath, '/admin/user/') !== false && $currentScript === 'user_settings.php') || 
+                                            (strpos($currentPath, '/admin/app/') !== false && $currentScript === 'gpt.php');
                 ?>
+                
+                <!-- Настройки -->
                 <li class="nav-item">
                     <a href="#settingsSubmenu_user" 
                        class="nav-link <?= $isInUserSettingsSubmenu ? '' : 'collapsed' ?>"
@@ -150,164 +205,113 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
                             <i class="bi bi-people"></i>
                             <span>Пользователи</span>
                         </a>
-                        <a href="/admin/app/gpt.php" class="nav-link <?= strpos($currentPath, '/admin/app/') !== false && $currentScript === 'gpt.php' ? 'active' : '' ?>">
-                            <i class="bi bi-lightbulb"></i>
-                            <span>GPT</span>
-                        </a>
                     </div>
                 </li>
-            <?php } ?>
 
-            <?php if ($showShopMenu): ?>
                 <?php
-                // Определяем, находится ли пользователь внутри подменю "Магазин"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInShopSubmenu = strpos($currentPath, '/admin/shop/') !== false && in_array($currentScript, ['catalog_list.php', 'add_catalog.php', 'product_list.php', 'add_product.php', 'shop_extra_list.php', 'add_shop_extra.php']);
+                // Определяем, находится ли пользователь внутри подменю "Плагины"
+                $currentScript           = basename($_SERVER['SCRIPT_NAME']);
+                $currentPath             = $_SERVER['SCRIPT_NAME'];
+                $isInPluginsSubmenu      = strpos($currentPath, '/admin/plugins/') !== false;
                 ?>
+                
+                <!-- Плагины -->
                 <li class="nav-item">
-                    <a href="#settingsSubmenu_shop" 
-                       class="nav-link <?= $isInShopSubmenu ? '' : 'collapsed' ?>"
+                    <a href="#settingsSubmenu_plugins" 
+                       class="nav-link <?= $isInPluginsSubmenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInShopSubmenu ? 'true' : 'false' ?>">
-                        <i class="bi bi-cart"></i>
-                        <span>Магазин</span>
+                       aria-expanded="<?= $isInPluginsSubmenu ? 'true' : 'false' ?>">
+                        <i class="bi bi-plugin"></i>
+                        <span>Плагины</span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInShopSubmenu ? 'show' : '' ?>" id="settingsSubmenu_shop">
-                        <a href="/admin/shop/catalog_list.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'catalog_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-grid"></i>
-                            <span>Управление каталогом</span>
-                        </a>
-                        <a href="/admin/shop/add_catalog.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'add_catalog.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить каталог</span>
-                        </a>
-                        <a href="/admin/shop/product_list.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'product_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-hdd-stack"></i>
-                            <span>Управление товаром</span>
-                        </a>
-                        <a href="/admin/shop/add_product.php" class="nav-link <?= strpos($currentPath, '/admin/shop/') !== false && $currentScript === 'add_product.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить товар</span>
+                    <div class="submenu collapse <?= $isInPluginsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_plugins">
+                        <a href="/admin/plugins/list.php" class="nav-link <?= strpos($currentPath, '/admin/plugins/') !== false && $currentScript === 'list.php' ? 'active' : '' ?>">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Список плагинов</span>
                         </a>
                     </div>
                 </li>
-            <?php endif; ?>
 
-            <?php if ($recordMenu): ?>
                 <?php
-                // Определяем, находится ли пользователь внутри подменю "Записи"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInRecordSubmenu = strpos($currentPath, '/admin/record/') !== false && in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
+                // ========================================
+                // ДИНАМИЧЕСКОЕ МЕНЮ ПЛАГИНОВ
+                // ========================================
+                
+                // Подключаем менеджер плагинов если ещё не подключен
+                if (!function_exists('getPluginMenus')) {
+                    $pluginManagerPath = __DIR__ . '/../functions/plugin_manager.php';
+                    if (file_exists($pluginManagerPath)) {
+                        require_once $pluginManagerPath;
+                    }
+                }
+                
+                // Получаем меню включенных плагинов, если функция доступна
+                $pluginMenus = function_exists('getPluginMenus') ? getPluginMenus($pdo) : [];
+                
+                // Отображаем меню каждого плагина
+                foreach ($pluginMenus as $index => $menu):
+                    $menuId              = 'pluginSubmenu_' . $index;
+                    $menuTitle           = $menu['menu_title'] ?? 'Plugin Menu';
+                    $menuIcon            = $menu['menu_icon'] ?? 'bi-puzzle';
+                    $submenuItems        = $menu['submenu'] ?? [];
+                    
+                    // Определяем, находится ли пользователь в этом подменю
+                    $isInThisPluginMenu = false;
+                    foreach ($submenuItems as $item) {
+                        if (isset($item['url']) && strpos($currentPath, $item['url']) !== false) {
+                            $isInThisPluginMenu = true;
+                            break;
+                        }
+                    }
                 ?>
+                
+                <!-- Меню плагина: <?= escape($menuTitle) ?> -->
                 <li class="nav-item">
-                    <a href="#settingsSubmenu_record" 
-                       class="nav-link <?= $isInRecordSubmenu ? '' : 'collapsed' ?>"
+                    <a href="#<?= escape($menuId) ?>" 
+                       class="nav-link <?= $isInThisPluginMenu ? '' : 'collapsed' ?>"
                        data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInRecordSubmenu ? 'true' : 'false' ?>">
-                        <i class="bi bi-grid"></i>
-                        <span>Записи</span>
+                       aria-expanded="<?= $isInThisPluginMenu ? 'true' : 'false' ?>">
+                        <i class="<?= escape($menuIcon) ?>"></i>
+                        <span><?= escape($menuTitle) ?></span>
                         <i class="bi bi-chevron-down ms-auto"></i>
                     </a>
-                    <div class="submenu collapse <?= $isInRecordSubmenu ? 'show' : '' ?>" id="settingsSubmenu_record">
-                        <a href="/admin/record/category_list.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'category_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-grid"></i>
-                            <span>Управление каталогом</span>
-                        </a>
-                        <a href="/admin/record/add_category.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'add_category.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить каталог</span>
-                        </a>
-                        <a href="/admin/record/record_list.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'record_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-hdd-stack"></i>
-                            <span>Управление записями</span>
-                        </a>
-                        <a href="/admin/record/add_record.php" class="nav-link <?= strpos($currentPath, '/admin/record/') !== false && $currentScript === 'add_record.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить запись</span>
-                        </a>
+                    <div class="submenu collapse <?= $isInThisPluginMenu ? 'show' : '' ?>" id="<?= escape($menuId) ?>">
+                        <?php foreach ($submenuItems as $item): ?>
+                            <?php
+                            $itemTitle  = $item['title'] ?? 'Item';
+                            $itemIcon   = $item['icon'] ?? 'bi-circle';
+                            $itemUrl    = $item['url'] ?? '#';
+                            $isActive   = strpos($currentPath, $itemUrl) !== false;
+                            ?>
+                            <a href="<?= escape($itemUrl) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
+                                <i class="<?= escape($itemIcon) ?>"></i>
+                                <span><?= escape($itemTitle) ?></span>
+                            </a>
+                        <?php endforeach; ?>
                     </div>
                 </li>
+                
+                <?php endforeach; ?>
             <?php endif; ?>
-
-            <?php if ($pagesMenu): ?>
-                <?php
-                // Определяем, находится ли пользователь внутри подменю "Страницы"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInPagesSubmenu = strpos($currentPath, '/admin/pages/') !== false && in_array($currentScript, ['parent_list.php', 'add_parent.php', 'pages_list.php', 'add_pages.php', 'pages_extra_list.php', 'add_pages_extra.php']);
-                ?>
-                <li class="nav-item">
-                    <a href="#settingsSubmenu_pages" 
-                       class="nav-link <?= $isInPagesSubmenu ? '' : 'collapsed' ?>"
-                       data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInPagesSubmenu ? 'true' : 'false' ?>">
-                        <i class="bi bi-file-earmark-text"></i>
-                        <span>Страницы</span>
-                        <i class="bi bi-chevron-down ms-auto"></i>
-                    </a>
-                    <div class="submenu collapse <?= $isInPagesSubmenu ? 'show' : '' ?>" id="settingsSubmenu_pages">
-                        <a href="/admin/pages/pages_list.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'pages_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-hdd-stack"></i>
-                            <span>Управление страницами</span>
-                        </a>
-                        <a href="/admin/pages/add_pages.php" class="nav-link <?= strpos($currentPath, '/admin/pages/') !== false && $currentScript === 'add_pages.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить страницу</span>
-                        </a>
-                    </div>
-                </li>
-            <?php endif; ?>
-
-            <?php if ($newsMenu): ?>
-                <?php
-                // Определяем, находится ли пользователь внутри подменю "Новости"
-                $currentScript = basename($_SERVER['SCRIPT_NAME']);
-                $currentPath = $_SERVER['SCRIPT_NAME'];
-                $isInNewsSubmenu = strpos($currentPath, '/admin/news/') !== false && in_array($currentScript, ['category_list.php', 'add_category.php', 'record_list.php', 'add_record.php', 'record_extra_list.php', 'add_record_extra.php']);
-                ?>
-                <li class="nav-item">
-                    <a href="#settingsSubmenu_news" 
-                       class="nav-link <?= $isInNewsSubmenu ? '' : 'collapsed' ?>"
-                       data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInNewsSubmenu ? 'true' : 'false' ?>">
-                        <i class="bi bi-newspaper"></i>
-                        <span>Новости</span>
-                        <i class="bi bi-chevron-down ms-auto"></i>
-                    </a>
-                    <div class="submenu collapse <?= $isInNewsSubmenu ? 'show' : '' ?>" id="settingsSubmenu_news">
-                        <a href="/admin/news/category_list.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'category_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-grid"></i>
-                            <span>Управление каталогом</span>
-                        </a>
-                        <a href="/admin/news/add_category.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'add_category.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить каталог</span>
-                        </a>
-                        <a href="/admin/news/record_list.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'record_list.php' ? 'active' : '' ?>">
-                            <i class="bi bi-hdd-stack"></i>
-                            <span>Управление новостями</span>
-                        </a>
-                        <a href="/admin/news/add_record.php" class="nav-link <?= strpos($currentPath, '/admin/news/') !== false && $currentScript === 'add_record.php' ? 'active' : '' ?>">
-                            <i class="bi bi-plus-circle"></i>
-                            <span>Добавить новость</span>
-                        </a>
-                    </div>
-                </li>
-            <?php endif; ?>
-
         </ul>
     </div>
 
-    <!-- Нижняя часть сайдбара -->
+    <!-- ========================================
+         НИЖНЯЯ ЧАСТЬ САЙДБАРА
+         ======================================== -->
     <div class="sidebar-footer">
+        
         <!-- Информация о пользователе -->
         <div class="user-info">
             <div class="user-avatar">
-                <img src="<?php echo escape($user_avatar); ?>" 
-                     alt="<?php echo escape($defaultFirstName ?: 'Администратор'); ?>"
+                <img class="user-avatar-light" src="<?php echo escape($userAvatarLight); ?>" 
+                     alt=""
+                     aria-hidden="true"
+                     loading="lazy">
+                <img class="user-avatar-dark" src="<?php echo escape($userAvatarDark); ?>" 
+                     alt=""
+                     aria-hidden="true"
                      loading="lazy">
             </div>
             <div>
@@ -331,12 +335,17 @@ if ($userDataAdmin['author'] === 'admin' && ($adminData['allow_news_admin'] ?? f
         </div>
 
         <!-- Кнопка выхода -->
-        <button class="logout-btn" onclick="window.location.href='../logout.php'" aria-label="Выйти из системы">
-            <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-            Выйти
-        </button>
+        <form method="post" action="/admin/logout.php">
+            <input type="hidden" name="csrf_token" value="<?php echo escape($logoutCsrfToken); ?>">
+            <button class="logout-btn" type="submit" aria-label="Выйти из системы">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                Выйти
+            </button>
+        </form>
     </div>
 </nav>
 
-<!-- Оверлей для мобильных устройств -->
+<!-- ========================================
+     ОВЕРЛЕЙ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+     ======================================== -->
 <div class="overlay" role="button" aria-label="Закрыть меню" tabindex="0"></div>

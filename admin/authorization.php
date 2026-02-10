@@ -1,314 +1,429 @@
 <?php
+
 /**
- * Файл: /admin/authorization.php
- * 
- * Страница авторизации пользователей в административной панели.
- * Обеспечивает безопасный вход в систему с многоуровневой защитой.
- * 
- * Функциональность:
- * - Авторизация по email и паролю
- * - Защита от брутфорс-атак с помощью счетчика попыток
- * - Автоматический вход через "Запомнить меня"
- * - Капча после нескольких неудачных попыток (безопасная, через сессию)
- * - CSRF-защита (добавлено)
- * - Проверка подтверждения email
- * - Безопасное хеширование и проверка паролей
- * 
+ * Название файла:      authorization.php
+ * Назначение:          Страница авторизации пользователей в административной панели
+ *                      Обеспечивает безопасный вход в систему с многоуровневой защитой
+ * Автор:               User
+ * Версия:              1.0
+ * Дата создания:       2026-02-08
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/** 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-*/
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// Запретить прямой доступ ко всем .php файлам
-define('APP_ACCESS', true);
+$config = [
+    'display_errors'   => false,  // Включение отображения ошибок (true/false)
+    'set_encoding'     => true,   // Включение кодировки UTF-8
+    'db_connect'       => true,   // Подключение к базе данных
+    'auth_check'       => true,   // Подключение функций авторизации
+    'file_log'         => true,   // Подключение системы логирования
+    'display_alerts'   => true,   // Подключение отображения сообщений
+    'sanitization'     => true,   // Подключение валидации/экранирования
+    'csrf_token'       => true,   // Генерация и проверка CSRF-токена
+];
 
-// Устанавливаем кодировку
-mb_internal_encoding('UTF-8');
-mb_http_output('UTF-8');
-header('Content-Type: text/html; charset=utf-8');
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/functions/init.php';
 
-// === Подключение зависимостей ===
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';          // База данных
-require_once __DIR__ . '/functions/auth_check.php';                  // Авторизация и получения данных пользователей
-require_once __DIR__ . '/functions/file_log.php';                    // Система логирования
-require_once __DIR__ . '/functions/display_alerts.php';              // Отображение сообщений
-require_once __DIR__ . '/functions/sanitization.php';                // Валидация экранирование 
 
-// Получаем настройки администратора
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
-    // Ошибка: admin не найден / ошибка БД / некорректный JSON
+    // Ошибка: администратор не найден / ошибка БД / некорректный JSON
     header("Location: logout.php");
     exit;
 }
 
-// Название Админ-панели
-$AdminPanel = $adminData['AdminPanel'] ?? 'AdminPanel';
+// ========================================
+// НАСТРОЙКИ СТРАНИЦЫ АВТОРИЗАЦИИ
+// ========================================
+
+$authTitle          = 'Добро пожаловать';  // Заголовок страницы
+$adminPanel         = $adminData['AdminPanel'] ?? 'AdminPanel';  // Название админ-панели
+$adminUserId        = getAdminUserId($pdo);  // ID администратора
+$logoPaths          = getThemeLogoPaths($pdo, $adminData['profile_logo'] ?? '', 'thumbnail', $adminUserId);
+$authLogoLight      = $logoPaths['light'];
+$authLogoDark       = $logoPaths['dark'];
+$authMetaTitle      = $authTitle . ' - ' . $adminPanel;
+$authMetaDescription = $authTitle . ' — страница входа в административную панель.';
+$authFavicon        = !empty($authLogoLight) ? $authLogoLight : 'img/avatar.svg';
+
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
 
 // Включаем/отключаем логирование. Глобальные константы.
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
-define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);  // Логировать успешные события true/false
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);  // Логировать ошибки true/false
 
-// Если пользователь уже авторизован, перенаправляем в админку
-$userredirect = redirectIfAuth();
-if ($userredirect) {
+// ========================================
+// ПРОВЕРКА ТЕКУЩЕЙ АВТОРИЗАЦИИ
+// ========================================
+
+$userRedirect = redirectIfAuth($pdo);
+if ($userRedirect) {
     $redirectTo = 'user/index.php';
-    logEvent("Авторизованный пользователь перенаправлен на: $redirectTo — ID: {$userredirect['id']} — IP: {$_SERVER['REMOTE_ADDR']}", LOG_INFO_ENABLED, 'info');
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
+    $logMessage = "Авторизованный пользователь перенаправлен на: $redirectTo — ID: {$userRedirect['id']} — IP: "
+        . "{$_SERVER['REMOTE_ADDR']}";
+    logEvent($logMessage, LOG_INFO_ENABLED, 'info');
     header("Location: $redirectTo");
     exit;
 }
 
-// Инициализируем переменные для сообщений
-$errors = [];
-$successMessages = [];
+// ========================================
+// ИНИЦИАЛИЗАЦИЯ СЧЕТЧИКОВ ПОПЫТОК ВХОДА
+// ========================================
 
-// === ГЕНЕРАЦИЯ CSRF-ТОКЕНА (если ещё не создан) ===
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
-/**
- * УЛУЧШЕННАЯ СИСТЕМА ЗАЩИТЫ ОТ БРУТФОРС-АТАК
- */
 if (!isset($_SESSION['login_attempts'])) {
-    $_SESSION['login_attempts'] = 0;
+    $_SESSION['login_attempts']     = 0;
     $_SESSION['login_attempt_time'] = time();
 }
 if (!isset($_SESSION['last_request_time'])) {
     $_SESSION['last_request_time'] = 0;
 }
 
-/**
- * ОГРАНИЧЕНИЕ ЧАСТОТЫ ЗАПРОСОВ (только для POST)
- */
-$current_time = time();
-$last_request_time = $_SESSION['last_request_time'];
+// ========================================
+// ОГРАНИЧЕНИЕ ЧАСТОТЫ ЗАПРОСОВ (ЗАЩИТА ОТ СПАМА)
+// ========================================
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && 
-    $last_request_time > 0 && 
-    ($current_time - $last_request_time) < 2) {
-    $errors[] = "Слишком частые запросы. Пожалуйста, подождите.";
-    logEvent("Превышена частота запросов — IP: {$_SERVER['REMOTE_ADDR']} - URI: " . strtok($_SERVER['REQUEST_URI'], '?'), LOG_ERROR_ENABLED, 'error');
+$currentTime      = time();
+$lastRequestTime  = $_SESSION['last_request_time'];
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && $lastRequestTime > 0
+    && ($currentTime - $lastRequestTime) < 2
+) {
+    $errors[]   = "Слишком частые запросы. Пожалуйста, подождите.";
+    $logMessage = "Превышена частота запросов — IP: {$_SERVER['REMOTE_ADDR']} - URI: "
+        . strtok($_SERVER['REQUEST_URI'], '?');
+    logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
 }
-$_SESSION['last_request_time'] = $current_time;
+$_SESSION['last_request_time'] = $currentTime;
 
-/**
- * ОПРЕДЕЛЕНИЕ: показывать капчу или нет?
- */
+// ========================================
+// ОПРЕДЕЛЕНИЕ ПОКАЗА КАПЧИ
+// ========================================
+
 $showCaptcha = $_SESSION['login_attempts'] >= 3;
 
-// Сброс попыток через 30 минут
-if (isset($_SESSION['login_attempt_time']) && ($current_time - $_SESSION['login_attempt_time']) > 1800) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['login_attempt_time'] = $current_time;
-    $showCaptcha = false;
+// Сброс попыток через 30 минут (1800 секунд)
+if (isset($_SESSION['login_attempt_time']) && ($currentTime - $_SESSION['login_attempt_time']) > 1800) {
+    $_SESSION['login_attempts']     = 0;
+    $_SESSION['login_attempt_time'] = $currentTime;
+    $showCaptcha                    = false;
 }
 
-/**
- * АВТОМАТИЧЕСКИЙ ВХОД ЧЕРЕЗ "ЗАПОМНИТЬ МЕНЯ"
- */
+// ========================================
+// ГЕНЕРАЦИЯ ТОКЕНА КАПЧИ
+// ========================================
+
+$captchaToken = null;
+if ($showCaptcha) {
+    $captchaTokenTtl = 600;  // Время жизни токена: 10 минут
+    $tokenCreated    = $_SESSION['captcha_token_created'] ?? 0;
+    if (empty($_SESSION['captcha_token'])
+        || empty($tokenCreated)
+        || (time() - $tokenCreated) > $captchaTokenTtl
+        || (!empty($_SESSION['captcha_token_used']) && $_SERVER['REQUEST_METHOD'] !== 'POST')
+    ) {
+        $_SESSION['captcha_token']         = bin2hex(random_bytes(32));
+        $_SESSION['captcha_token_created'] = time();
+        $_SESSION['captcha_token_used']    = false;
+    }
+    $captchaToken = $_SESSION['captcha_token'];
+}
+
+// ========================================
+// АВТОМАТИЧЕСКИЙ ВХОД ЧЕРЕЗ "ЗАПОМНИТЬ МЕНЯ"
+// ========================================
+
 if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_token']) && empty($errors)) {
     try {
-        $tableExists = $pdo->query("SHOW TABLES LIKE 'user_sessions'")->rowCount() > 0;
+        $rememberToken     = $_COOKIE['remember_token'];
+        $rememberTokenHash = hash('sha256', $rememberToken);
+        $tableExists       = $pdo->query("SHOW TABLES LIKE 'user_sessions'")->rowCount() > 0;
         
         if ($tableExists) {
-            $stmt = $pdo->prepare("SELECT user_id FROM user_sessions WHERE token = ? AND expires_at > NOW()");
-            $stmt->execute([$_COOKIE['remember_token']]);
+            $stmt = $pdo->prepare("SELECT user_id, token FROM user_sessions WHERE token = ? AND expires_at > NOW()");
+            $stmt->execute([$rememberTokenHash]);
             $session = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($session) {
-                $stmt = $pdo->prepare("SELECT id, email, data FROM users WHERE id = ? AND email_verified = 1 AND status = 1");
+            if ($session && hash_equals((string) $session['token'], $rememberTokenHash)) {
+                $stmt = $pdo->prepare(
+                    "SELECT id, email, data FROM users WHERE id = ? AND email_verified = 1 AND status = 1"
+                );
                 $stmt->execute([$session['user_id']]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($user) {
                     $userData = json_decode($user['data'], true);
                     if (!is_array($userData)) {
-                        $userData = [];
-                        logEvent("Некорректные JSON-данные пользователя (id={$user['id']}) при автоматическом входе", LOG_ERROR_ENABLED, 'error');
+                        $userData  = [];
+                        $logMessage = "Некорректные JSON-данные пользователя (id={$user['id']}) "
+                            . "при автоматическом входе";
+                        logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                     }
                     $firstName = escape($userData['first_name'] ?? 'Пользователь');
                     
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['user_email'] = $user['email'];
-                    $_SESSION['user_name'] = $firstName;
-                    $_SESSION['logged_in'] = true;
-                    $_SESSION['login_time'] = time();
+                    session_regenerate_id(true);
+                    $_SESSION['created'] = time();
                     
-                    // Закрываем соединение при завершении скрипта
-                    register_shutdown_function(function() {
-                        if (isset($pdo)) {
-                            $pdo = null; 
-                        }
-                    });
+                    $_SESSION['user_id']      = $user['id'];
+                    $_SESSION['user_email']   = $user['email'];
+                    $_SESSION['user_name']    = $firstName;
+                    $_SESSION['logged_in']    = true;
+                    $_SESSION['login_time']   = time();
+                    
                     header("Location: user/index.php");
                     exit;
                 }
             } else {
-                setcookie('remember_token', '', time() - 3600, "/", "", true, true);
+                // Удаление недействительного токена
+                $isSecure = isSecureRequest();
+                setcookie('remember_token', '', [
+                    'expires'  => time() - 3600,
+                    'path'     => '/',
+                    'secure'   => $isSecure,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
             }
         }
     } catch (Exception $e) {
-        $errors[] = "Ошибка при автоматическом входе. Пожалуйста, войдите вручную.";
-        logEvent("Ошибка автоматического входа по токену: " . substr($_COOKIE['remember_token'] ?? '', 0, 8) . "... — " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+        $errors[]    = "Ошибка при автоматическом входе. Пожалуйста, войдите вручную.";
+        $errorType   = get_class($e);
+        $requestId   = $_SERVER['HTTP_X_REQUEST_ID'] ?? ($_SERVER['UNIQUE_ID'] ?? '');
+        $requestContext = !empty($requestId) ? " — ID запроса: {$requestId}" : '';
+        $logMessage  = "Ошибка автоматического входа по токену — тип: {$errorType}{$requestContext}.";
+        logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
     }
 }
 
-/**
- * ОБРАБОТКА POST-ЗАПРОСА НА АВТОРИЗАЦИЮ
- */
+// ========================================
+// ОБРАБОТКА POST-ЗАПРОСА АВТОРИЗАЦИИ
+// ========================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($errors)) {
-    // === ПРОВЕРКА CSRF-ТОКЕНА ===
+    
+    // ========================================
+    // ПРОВЕРКА CSRF-ТОКЕНА
+    // ========================================
+    
     if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
         $errors[] = "Недопустимый запрос. Повторите попытку.";
-        logEvent("Попытка CSRF-атаки при авторизации — IP: {$_SERVER['REMOTE_ADDR']}", LOG_ERROR_ENABLED, 'error');
+        logEvent(
+            "Попытка CSRF-атаки при авторизации — IP: {$_SERVER['REMOTE_ADDR']}",
+            LOG_ERROR_ENABLED,
+            'error'
+        );
     } else {
-
+        
+        // ========================================
+        // ВАЛИДАЦИЯ ВВЕДЕННЫХ ДАННЫХ
+        // ========================================
+        
         // Валидация email-адреса
-        $result_email = validateEmail(trim($_POST['email'] ?? ''));
-        if ($result_email['valid']) {
-            $email =  $result_email['email'];
+        $resultEmail = validateEmail(trim($_POST['email'] ?? ''));
+        if ($resultEmail['valid']) {
+            $email = $resultEmail['email'];
         } else {
-            $errors[] = $result_email['error'];
-            $email = false;
+            $errors[] = $resultEmail['error'];
+            $email    = false;
         }
 
         // Пароль
         $password = trim($_POST['password'] ?? '');
 
-        // Запомнить меня
+        // Флажок "Запомнить меня"
         $rememberMe = isset($_POST['rememberMe']);
 
-        /**
-         * ПРОВЕРКА КАПЧИ — через сессию
-         */
+        // ========================================
+        // ПРОВЕРКА КАПЧИ (ЧЕРЕЗ СЕССИЮ)
+        // ========================================
+        
         if ($showCaptcha) {
-            if (!isset($_SESSION['captcha_passed']) || time() - $_SESSION['captcha_passed'] > 300) {
+            $captchaTokenPost    = $_POST['captcha_token'] ?? '';
+            $sessionCaptchaToken = $_SESSION['captcha_token'] ?? '';
+            $captchaPassed       = isset($_SESSION['captcha_passed']) && time() - $_SESSION['captcha_passed'] <= 300;
+            $tokenUsed           = !empty($_SESSION['captcha_token_used']);
+            $tokenValid          = $captchaPassed
+                && $tokenUsed
+                && is_string($captchaTokenPost)
+                && $captchaTokenPost !== ''
+                && $sessionCaptchaToken
+                && hash_equals($sessionCaptchaToken, $captchaTokenPost);
+
+            if (!$tokenValid) {
                 $errors[] = "Пожалуйста, подтвердите, что вы не робот!";
             }
         }
 
-        /**
-         * БАЗОВАЯ ВАЛИДАЦИЯ
-         */
+        // ========================================
+        // БАЗОВАЯ ВАЛИДАЦИЯ И ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ
+        // ========================================
+        
         if (empty($errors)) {
             if (empty($email) || empty($password)) {
                 $errors[] = "Заполните все поля!";
             } else {
                 try {
-                    $stmt = $pdo->prepare("SELECT id, password, email_verified, data FROM users WHERE email = ? AND status = 1 LIMIT 1");
+                    // Поиск пользователя в базе данных
+                    $stmt = $pdo->prepare(
+                        "SELECT id, password, email_verified, data FROM users WHERE email = ? AND status = 1 LIMIT 1"
+                    );
                     $stmt->execute([$email]);
                     $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 
+                    // Проверка пароля (с защитой от тайминг-атак)
                     $passwordValid = false;
                     if ($user && isset($user['password'])) {
                         $passwordValid = password_verify($password, $user['password']);
                     } else {
+                        // Защита от перебора: имитация проверки для несуществующего пользователя
                         password_verify('dummy_password', '$2y$10$dummyhashdummyhashdummyhashdummyha');
                     }
                 
+                    // ========================================
+                    // ОБРАБОТКА УСПЕШНОЙ АВТОРИЗАЦИИ
+                    // ========================================
+                    
                     if ($user && $passwordValid) {
                         if (!$user['email_verified']) {
+                            // Email не подтвержден
                             $errors[] = "Email не подтвержден. Проверьте вашу почту для подтверждения регистрации.";
                             $_SESSION['login_attempts']++;
-                            logEvent("Попытка входа с неподтверждённым email: $email — IP: {$_SERVER['REMOTE_ADDR']}", LOG_ERROR_ENABLED, 'error');
+                            $logMessage = "Попытка входа с неподтверждённым email: $email — IP: "
+                                . "{$_SERVER['REMOTE_ADDR']}";
+                            logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                         } else {
+                            // Успешная авторизация
                             $userData = json_decode($user['data'], true);
                             if (!is_array($userData)) {
-                                $userData = [];
-                                logEvent("Некорректные JSON-данные при входе (id={$user['id']})", LOG_ERROR_ENABLED, 'error');
+                                $userData   = [];
+                                $logMessage = "Некорректные JSON-данные при входе (id={$user['id']})";
+                                logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                             }
                             $firstName = escape($userData['first_name'] ?? 'Пользователь');
                         
-                            // Сброс счётчиков + очистка токенов
-                            $_SESSION['login_attempts'] = 0;
+                            session_regenerate_id(true);
+                            $_SESSION['created'] = time();
+
+                            // Сброс счетчиков и очистка токенов
+                            $_SESSION['login_attempts']     = 0;
                             $_SESSION['login_attempt_time'] = time();
-                            unset($_SESSION['captcha_passed']);
-                            $_SESSION['user_id'] = $user['id'];
+                            unset(
+                                $_SESSION['captcha_passed'],
+                                $_SESSION['captcha_token'],
+                                $_SESSION['captcha_token_created'],
+                                $_SESSION['captcha_token_used'],
+                            );
+                            $_SESSION['user_id']    = $user['id'];
                             $_SESSION['user_email'] = $email;
-                            $_SESSION['user_name'] = $firstName;
-                            $_SESSION['logged_in'] = true;
+                            $_SESSION['user_name']  = $firstName;
+                            $_SESSION['logged_in']  = true;
                             $_SESSION['login_time'] = time();
                         
-                            /**
-                             * "ЗАПОМНИТЬ МЕНЯ"
-                             */
+                            // ========================================
+                            // СОЗДАНИЕ ТОКЕНА "ЗАПОМНИТЬ МЕНЯ"
+                            // ========================================
+                            
                             if ($rememberMe) {
-                                $token = bin2hex(random_bytes(32));
-                                $expires = date('Y-m-d H:i:s', strtotime('+30 days'));
+                                $token     = bin2hex(random_bytes(32));
+                                $tokenHash = hash('sha256', $token);
+                                $expires   = date('Y-m-d H:i:s', strtotime('+30 days'));
                             
                                 $tableExists = $pdo->query("SHOW TABLES LIKE 'user_sessions'")->rowCount() > 0;
                             
                                 if ($tableExists) {
+                                    // Удаление старых токенов пользователя
                                     $deleteStmt = $pdo->prepare("DELETE FROM user_sessions WHERE user_id = ?");
                                     $deleteStmt->execute([$user['id']]);
                                 
-                                    $stmt = $pdo->prepare("INSERT INTO user_sessions (user_id, token, expires_at) VALUES (?, ?, ?)");
-                                    if ($stmt->execute([$user['id'], $token, $expires])) {
-                                        setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), "/", "", true, true);
+                                    // Создание нового токена
+                                    $stmt = $pdo->prepare(
+                                        "INSERT INTO user_sessions (user_id, token, expires_at) VALUES (?, ?, ?)"
+                                    );
+                                    if ($stmt->execute([$user['id'], $tokenHash, $expires])) {
+                                        // Установка безопасного cookie
+                                        $isSecure = isSecureRequest();
+                                        setcookie('remember_token', $token, [
+                                            'expires'  => time() + (30 * 24 * 60 * 60),
+                                            'path'     => '/',
+                                            'secure'   => $isSecure,
+                                            'httponly' => true,
+                                            'samesite' => 'Lax'
+                                        ]);
                                     } else {
-                                        logEvent("Ошибка создания токена 'Запомнить меня' для пользователя ID={$user['id']}", LOG_ERROR_ENABLED, 'error');
+                                        $logMessage = "Ошибка создания токена 'Запомнить меня' для пользователя "
+                                            . "ID={$user['id']}";
+                                        logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                                     }
                                 } else {
-                                    logEvent("Таблица user_sessions не найдена — функция 'Запомнить меня' недоступна", LOG_ERROR_ENABLED, 'error');
+                                    $logMessage = "Таблица user_sessions не найдена — функция 'Запомнить меня' "
+                                        . "недоступна";
+                                    logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                                 }
                             }
-                        
-                            logEvent("Успешная авторизация пользователя с email: $email — IP: {$_SERVER['REMOTE_ADDR']}", LOG_INFO_ENABLED, 'info');
-                            // Закрываем соединение при завершении скрипта
-                            register_shutdown_function(function() {
-                                if (isset($pdo)) {
-                                    $pdo = null; 
-                                }
-                            });
+
+                            $logMessage = "Успешная авторизация пользователя с email: $email — IP: "
+                                . "{$_SERVER['REMOTE_ADDR']}";
+                            logEvent($logMessage, LOG_INFO_ENABLED, 'info');
                             header("Location: user/index.php");
                             exit;
                         }
                     } else {
+                        // Неудачная попытка входа
                         $errors[] = "Неверный email или пароль!";
                         $_SESSION['login_attempts']++;
                         $_SESSION['login_attempt_time'] = time();
-                        logEvent("Неудачная попытка входа для email: $email — IP: {$_SERVER['REMOTE_ADDR']} — Попытка №{$_SESSION['login_attempts']}", LOG_ERROR_ENABLED, 'error');
+                        $logMessage = "Неудачная попытка входа для email: $email — IP: {$_SERVER['REMOTE_ADDR']} "
+                            . "— Попытка №{$_SESSION['login_attempts']}";
+                        logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                     }
                 } catch (Exception $e) {
-                    $errors[] = "Ошибка при авторизации. Пожалуйста, попробуйте позже.";
-                    logEvent("Ошибка базы данных при авторизации (email: $email) — " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+                    $errors[]   = "Ошибка при авторизации. Пожалуйста, попробуйте позже.";
+                    $logMessage = "Ошибка базы данных при авторизации (email: $email) — " . $e->getMessage();
+                    logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
                 }
             }
         }
     }
 }
 
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
+// ========================================
+// ОБНОВЛЕНИЕ ТОКЕНА КАПЧИ ПОСЛЕ ПОПЫТКИ ВХОДА
+// ========================================
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $showCaptcha) {
+    unset($_SESSION['captcha_passed']);
+    $_SESSION['captcha_token_used']    = false;
+    $_SESSION['captcha_token']         = bin2hex(random_bytes(32));
+    $_SESSION['captcha_token_created'] = time();
+    $captchaToken                      = $_SESSION['captcha_token'];
+}
+
 ?>
 
+<!-- ========================================
+     HTML-РАЗМЕТКА СТРАНИЦЫ АВТОРИЗАЦИИ
+     ======================================== -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Авторизация - <?= escape($AdminPanel) ?></title>
+    <meta name="description" content="<?= escape($authMetaDescription) ?>">
+    <meta name="robots" content="noindex, nofollow">
+    <title><?= escape($authMetaTitle) ?></title>
+    
+    <!-- Автоматическое применение сохраненной темы -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -317,11 +432,13 @@ register_shutdown_function(function() {
             }
         })();
     </script>
-    <!-- Bootstrap CSS -->
+    
+    <!-- Подключение стилей -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Подключение кастомных стилей -->
     <link rel="stylesheet" href="css/main.css">
+    <link rel="icon" href="<?= escape($authFavicon) ?>" type="image/x-icon">
+    
     <style>
         body {
             display: grid;
@@ -332,6 +449,7 @@ register_shutdown_function(function() {
     </style>
 </head>
 <body>
+    <!-- Переключатель темы -->
     <div class="theme-toggle-auth">
         <label class="theme-switch-auth">
             <input type="checkbox" id="themeToggleAuth">
@@ -342,30 +460,45 @@ register_shutdown_function(function() {
         </label>
     </div>
 
+    <!-- Основной контейнер авторизации -->
     <div class="auth-container">
         <div class="auth-card">
+            <!-- Заголовок и логотип -->
             <div class="auth-header">
                 <a href="authorization.php" class="auth-logo">
-                    <i class="bi bi-robot"></i>
-                    <?= escape($AdminPanel) ?>
+                    <?php if (!empty($authLogoLight)): ?>
+                        <img class="auth-logo-image auth-logo-light" src="<?= escape($authLogoLight) ?>" alt="<?= escape($adminPanel) ?>">
+                        <img class="auth-logo-image auth-logo-dark" src="<?= escape($authLogoDark) ?>" alt="<?= escape($adminPanel) ?>">
+                    <?php else: ?>
+                        <i class="bi bi-shield-lock"></i>
+                    <?php endif; ?>
+                    <?= escape($adminPanel) ?>
                 </a>
                 <h1 class="auth-title">Добро пожаловать</h1>
                 <p class="auth-subtitle">Войдите в свою учетную запись</p>    
             </div>
 
-            <!-- Отображение сообщений -->
-            <?php displayAlerts($successMessages, $errors); ?>
+            <!-- Отображение сообщений об ошибках и успехе -->
+            <?php displayAlerts(
+                $successMessages,  // Массив сообщений об успехе
+                $errors,           // Массив сообщений об ошибках
+                false,             // Показывать сообщения как обычные (не toast)
+            );
+            ?>
 
+            <!-- Форма авторизации -->
             <form class="auth-form" method="POST" action="">
-                <!-- CSRF-токен -->
+                <!-- CSRF-токен для защиты от атак -->
                 <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
+                <!-- Поле ввода email -->
                 <div class="form-group">
                     <label for="email" class="form-label">Email адрес</label>
                     <input type="email" class="form-control" id="email" name="email" placeholder="your@email.com" required 
                            value="<?= escape($_POST['email'] ?? '') ?>">
                 </div>
 
+                <!-- Поле ввода пароля -->
                 <div class="form-group">
                     <label for="password" class="form-label">Пароль</label>
                     <div class="input-group">
@@ -376,7 +509,7 @@ register_shutdown_function(function() {
                     </div>
                 </div>
 
-                <!-- Капча — показывается только при необходимости -->
+                <!-- Капча (показывается только при необходимости) -->
                 <?php if ($showCaptcha): ?>
                 <div class="captcha-container">
                     <div class="captcha-text">Перетащите ползунок вправо для подтверждения</div>
@@ -391,9 +524,11 @@ register_shutdown_function(function() {
                     </div>
                     <div class="captcha-instruction">Перетащите кружок со стрелкой до конца</div>
                     <input type="hidden" name="captcha_verified" id="captchaVerified" value="false">
+                    <input type="hidden" name="captcha_token" id="captchaToken" value="<?= escape($captchaToken ?? '') ?>">
                 </div>
                 <?php endif; ?>
 
+                <!-- Опции формы -->
                 <div class="auth-options">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="rememberMe" name="rememberMe" <?= isset($_POST['rememberMe']) ? 'checked' : ''; ?>>
@@ -404,11 +539,13 @@ register_shutdown_function(function() {
                     <a href="forgot.php" class="forgot-password">Забыли пароль?</a>
                 </div>
 
+                <!-- Кнопка входа -->
                 <button type="submit" class="btn btn-primary btn-block" id="submitBtn">
                     <i class="bi bi-box-arrow-in-right"></i> Войти
                 </button>
             </form>
 
+            <!-- Ссылка на регистрацию (если разрешена) -->
             <?php if (isset($adminData['allow_registration']) && $adminData['allow_registration']): ?>
             <div class="auth-footer">
                 <p class="auth-footer-text">
@@ -420,11 +557,9 @@ register_shutdown_function(function() {
         </div>
     </div>
 
-    <!-- Popper.js -->
+    <!-- Подключение JavaScript библиотек -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
-    <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <!-- Модульный JS admin -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

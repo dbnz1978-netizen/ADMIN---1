@@ -1,98 +1,98 @@
 <?php
+
 /**
-* Файл: admin/support/download.php
-*
-* Безопасное скачивание прикреплённого файла из обращения.
-* Проверяет:
-* - Авторизацию пользователя
-* - Принадлежность файла (только свой или админ)
-* - Существование файла
-*
-* Запрещает прямой доступ к файлам — только через этот скрипт.
-*/
+ * Название файла:      download.php
+ * Назначение:          Безопасное скачивание прикреплённого файла из обращения.
+ *                      Проверяет:
+ *                      - Авторизацию пользователя
+ *                      - Принадлежность файла (только свой или админ)
+ *                      - Существование файла
+ *                      Запрещает прямой доступ к файлам — только через этот скрипт.
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
+ */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/** 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-*/
+// ========================================
+// КОНФИГУРАЦИЯ
+// ========================================
 
-// Запретить прямой доступ ко всем .php файлам
-define('APP_ACCESS', true);
+$config = [
+    'display_errors' => false,   // включение отображения ошибок true/false
+    'db_connect'     => true,    // подключение к базе
+    'auth_check'     => true,    // подключение функций авторизации
+    'sanitization'   => true,    // подключение валидации/экранирования
+];
 
-// Подключаем системные компоненты
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';          // База данных
-require_once __DIR__ . '/../functions/auth_check.php';               // Авторизация и получения данных пользователей
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
 
-// === ТА ЖЕ ДИРЕКТОРИЯ, ЧТО И В support.php ===
+// ========================================
+// НАСТРОЙКА ДИРЕКТОРИИ ВЛОЖЕНИЙ
+// ========================================
+
+// ТА ЖЕ ДИРЕКТОРИЯ, ЧТО И В support.php
 define('SUPPORT_ATTACHMENTS_DIR', $_SERVER['DOCUMENT_ROOT'] . '/../support/');
 
-// Безопасный запуск сессии
-startSessionSafe();
+// ========================================
+// ПРОВЕРКА АВТОРИЗАЦИИ
+// ========================================
 
 $user = requireAuth($pdo);
+
 if (!$user) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     http_response_code(403);
     exit('Доступ запрещён');
 }
 
-$filename = basename($_GET['file'] ?? '');
-$ticket_id = (int)($_GET['ticket_id'] ?? 0);
+// ========================================
+// ПОЛУЧЕНИЕ ПАРАМЕТРОВ ЗАПРОСА
+// ========================================
 
-if (!$filename || !$ticket_id) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
+$filename = basename($_GET['file'] ?? '');
+$ticketId = (int)($_GET['ticket_id'] ?? 0);
+
+if (!$filename || !$ticketId) {
     header("Location: index.php");
     exit;
 }
 
-// Проверка принадлежности
+// ========================================
+// ПРОВЕРКА ПРИНАДЛЕЖНОСТИ ФАЙЛА
+// ========================================
+
 $stmt = $pdo->prepare("
     SELECT t.user_id, m.attachment_path
     FROM support_tickets t
     JOIN support_messages m ON m.ticket_id = t.id
     WHERE t.id = ? AND m.attachment_path = ?
 ");
-$stmt->execute([$ticket_id, $filename]);
+$stmt->execute([$ticketId, $filename]);
 $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
 $userDataAdmin = getUserData($pdo, $user['id']);
-$is_admin = ($userDataAdmin['author'] === 'admin');
+$isAdmin       = ($userDataAdmin['author'] === 'admin');
 
-if (!$record || ($record['user_id'] != $user['id'] && !$is_admin)) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
+if (!$record || ($record['user_id'] != $user['id'] && !$isAdmin)) {
     http_response_code(403);
     exit('Доступ запрещён');
 }
 
+// ========================================
+// ПРОВЕРКА СУЩЕСТВОВАНИЯ ФАЙЛА
+// ========================================
+
 $filepath = SUPPORT_ATTACHMENTS_DIR . $filename;
 
 if (!file_exists($filepath)) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     http_response_code(404);
     exit('Файл не найден');
 }
+
+// ========================================
+// ОТПРАВКА ФАЙЛА
+// ========================================
 
 // Отдаём файл
 header('Content-Type: application/octet-stream');
@@ -101,9 +101,4 @@ header('Content-Length: ' . filesize($filepath));
 readfile($filepath);
 
 // Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
 exit;

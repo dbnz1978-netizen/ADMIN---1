@@ -38,6 +38,41 @@
     font-size: 26px;
 }
 
+.sidebar-logo-image {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+    object-fit: contain;
+}
+
+.sidebar-logo-dark {
+    display: none;
+}
+
+[data-theme="dark"] .sidebar-logo-dark {
+    display: inline-block;
+}
+
+[data-theme="dark"] .sidebar-logo-light {
+    display: none;
+}
+
+.user-avatar-light {
+    display: block;
+}
+
+.user-avatar-dark {
+    display: none;
+}
+
+[data-theme="dark"] .user-avatar-dark {
+    display: block;
+}
+
+[data-theme="dark"] .user-avatar-light {
+    display: none;
+}
+
 /* Navigation */
 .sidebar-nav {
     flex: 1;

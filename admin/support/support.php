@@ -1,211 +1,234 @@
 <?php
+
 /**
- * Файл: admin/support/support.php
- *
- * Модуль обратной связи для авторизованных ПОЛЬЗОВАТЕЛЕЙ.
- * Несмотря на расположение в /admin/, доступ имеют ТОЛЬКО обычные пользователи (не админы).
- * Администраторы автоматически перенаправляются в index.php.
- *
- * ИСПРАВЛЕНИЯ:
- * 1. ПОЛНОСТЬЮ УДАЛЕНА кнопка "Закрыть обращение"
- * 2. УДАЛЕНА вся PHP логика обработки action='close'
- * 3. УДАЛЕНА HTML кнопка закрытия и связанный с ней код
- * 4. УДАЛЕНА проверка $existing_ticket['status'] !== 'closed'
- * 5. ОСТАЛАСЬ только отправка новых обращений и ответов
- *
- * Возможности:
- * - отправка нового обращения
- * - переписка с поддержкой
- * - прикрепление файлов
- *
- * Файлы сохраняются в защищённой директории вне public_html.
- * Использует функции из /admin/functions/.
+ * Название файла:      support.php
+ * Назначение:          Модуль обратной связи для авторизованных ПОЛЬЗОВАТЕЛЕЙ
+ *                      Несмотря на расположение в /admin/, доступ имеют ТОЛЬКО обычные пользователи (не админы)
+ *                      Администраторы автоматически перенаправляются в index.php
+ *                      Исправления:
+ *                      1. ПОЛНОСТЬЮ УДАЛЕНА кнопка "Закрыть обращение"
+ *                      2. УДАЛЕНА вся PHP логика обработки action='close'
+ *                      3. УДАЛЕНА HTML кнопка закрытия и связанный с ней код
+ *                      4. УДАЛЕНА проверка $existingTicket['status'] !== 'closed'
+ *                      5. ОСТАЛАСЬ только отправка новых обращений и ответов
+ *                      6. ДОБАВЛЕНА СТАНДАРТНАЯ ПРОВЕРКА CSRF-ТОКЕНА (как в /admin/registration.php)
+ *                      Возможности:
+ *                      - отправка нового обращения
+ *                      - переписка с поддержкой
+ *                      - прикрепление файлов
+ *                      Файлы сохраняются в защищённой директории вне public_html
+ *                      Использует функции из /admin/functions/
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-// ini_set('display_errors', 1);
-// ini_set('display_startup_errors', 1);
-// error_reporting(E_ALL);
+// ========================================
+// КОНФИГУРАЦИЯ
+// ========================================
 
-// Запретить прямой доступ ко всем .php файлам
-define('APP_ACCESS', true);
+$config = [
+    'display_errors' => false,  // включение отображения ошибок true/false
+    'set_encoding'   => true,   // включение кодировки UTF-8
+    'db_connect'     => true,   // подключение к базе
+    'auth_check'     => true,   // подключение функций авторизации
+    'file_log'       => true,   // подключение системы логирования
+    'mailer'         => true,   // подключение отправка email уведомлений
+    'display_alerts' => true,   // подключение отображения сообщений
+    'sanitization'   => true,   // подключение валидации/экранирования
+    'csrf_token'     => true,   // генерация CSRF-токена
+];
 
-mb_internal_encoding('UTF-8');
-mb_http_output('UTF-8');
-header('Content-Type: text/html; charset=utf-8');
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
 
-// Подключаем системные компоненты
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';          // База данных
-require_once __DIR__ . '/../functions/auth_check.php';               // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                 // Система логирования
-require_once __DIR__ . '/../functions/mailer.php';                   // Отправка email уведомлений 
-require_once __DIR__ . '/../functions/display_alerts.php';           // Отображения сообщений
-require_once __DIR__ . '/../functions/sanitization.php';             // Валидация экранирование
+// ========================================
+// НАСТРОЙКА ПАПКИ ДЛЯ ФАЙЛОВ
+// ========================================
 
-// === НАСТРОЙКА ПАПКИ ДЛЯ ФАЙЛОВ ===
 // Путь вне public_html — например: /home/user/support_files/
 // Можно изменить имя папки — главное, чтобы она была НЕ в DOCUMENT_ROOT
 define('SUPPORT_ATTACHMENTS_DIR', $_SERVER['DOCUMENT_ROOT'] . '/../support/');
 
-// Безопасный запуск сессии
-startSessionSafe();
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
 
 // Получаем настройки администратора
 $adminData = getAdminData($pdo);
+
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     header("Location: ../logout.php");
     exit;
 }
 
 // Название Админ-панели
-$AdminPanel = $adminData['AdminPanel'] ?? 'AdminPanel';
+$adminPanel = $adminData['AdminPanel'] ?? 'AdminPanel';
 
-// Включаем/отключаем логирование
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
+
+// Включаем/отключаем логирование. Глобальные константы.
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled'] ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
+
+// ========================================
+// ЗАГРУЗКА FLASH-СООБЩЕНИЙ ИЗ СЕССИИ
+// ========================================
+
+// Загружаем flash-сообщения из сессии (если есть)
+if (!empty($_SESSION['flash_messages'])) {
+    $successMessages = $_SESSION['flash_messages']['success'] ?? [];
+    $errors          = $_SESSION['flash_messages']['error'] ?? [];
+    // Удаляем их, чтобы не показывались при повторной загрузке
+    unset($_SESSION['flash_messages']);
+}
+
+// ========================================
+// ПРОВЕРКА АВТОРИЗАЦИИ И ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+// ========================================
 
 try {
     $user = requireAuth($pdo);
+    
     if (!$user) {
         $redirectTo = '../logout.php';
-        logEvent("Неавторизованный доступ — перенаправление на: $redirectTo — IP: {$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}", LOG_INFO_ENABLED, 'info');
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
+        $logMessage = "Неавторизованный доступ — перенаправление на: $redirectTo — IP: "
+            . "{$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}";
+        logEvent($logMessage, LOG_INFO_ENABLED, 'info');
+        
         header("Location: $redirectTo");
         exit;
     }
-
+    
     $userDataAdmin = getUserData($pdo, $user['id']);
+    
     if ($userDataAdmin['author'] === 'admin') {
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
         header("Location: index.php");
         exit;
     }
-
+    
     if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        $msg = $userDataAdmin['message'];
-        $level = $userDataAdmin['level'];
-        $logEnabled = match($level) {'info' => LOG_INFO_ENABLED, 'error' => LOG_ERROR_ENABLED, default => LOG_ERROR_ENABLED};
+        $msg        = $userDataAdmin['message'];
+        $level      = $userDataAdmin['level'];
+        $logEnabled = match ($level) {
+            'info'  => LOG_INFO_ENABLED,
+            'error' => LOG_ERROR_ENABLED,
+            default => LOG_ERROR_ENABLED
+        };
+        
         logEvent($msg, $logEnabled, $level);
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
+        
         header("Location: ../logout.php");
         exit;
     }
-
-    // Успех
+    
+    // Декодируем JSON-данные администратора
     $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-
+    
     // Разрешить чат онлайн с администратором Нет/Да
     if (!$adminData['allow_online_chat']) {
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
         header("Location: ../logout.php");
         exit;
     }
-
+    
 } catch (Exception $e) {
-    logEvent("Ошибка при инициализации: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
+    logEvent(
+        "Ошибка при инициализации: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+        LOG_ERROR_ENABLED,
+        'error'
+    );
+    
     header("Location: ../logout.php");
     exit;
 }
 
-// CSRF
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-function validateCsrfToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
-
-$errors = [];
-$successMessages = [];
+// ========================================
+// ЗАГРУЗКА ПОСЛЕДНЕГО ОБРАЩЕНИЯ
+// ========================================
 
 // Загружаем последнее обращение
-$stmt = $pdo->prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 1");
+$stmt          = $pdo->prepare("SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 1");
 $stmt->execute([$user['id']]);
-$existing_ticket = $stmt->fetch(PDO::FETCH_ASSOC);
-$messages = [];
-if ($existing_ticket) {
-    $stmt = $pdo->prepare("SELECT * FROM support_messages WHERE ticket_id = ? ORDER BY created_at ASC");
-    $stmt->execute([$existing_ticket['id']]);
+$existingTicket = $stmt->fetch(PDO::FETCH_ASSOC);
+$messages       = [];
+
+if ($existingTicket) {
+    $stmt    = $pdo->prepare("SELECT * FROM support_messages WHERE ticket_id = ? ORDER BY created_at ASC");
+    $stmt->execute([$existingTicket['id']]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// ИСПРАВЛЕНИЕ 1: УДАЛЕНА вся обработка action='close'
+// ========================================
+// ОБРАБОТКА POST-ЗАПРОСА
+// ========================================
 
 // Обработка POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $csrfToken = $_POST['csrf_token'] ?? '';
-    if (!validateCsrfToken($csrfToken)) {
-        $errors[] = 'Недействительная форма. Обновите страницу.';
-        logEvent("CSRF проверка не пройдена — ID: " . $user['id'], LOG_ERROR_ENABLED, 'error');
+    
+    // ========================================
+    // ПРОВЕРКА CSRF-ТОКЕНА
+    // ========================================
+    
+    // Проверка CSRF-токена (как в /admin/registration.php)
+    if (!hash_equals($_SESSION['csrf_token'] ?? '', $_POST['csrf_token'] ?? '')) {
+        $errors[] = "Недопустимый запрос. Повторите попытку.";
+        logEvent(
+            "Попытка CSRF-атаки при отправке сообщения в поддержку — User ID: " . $user['id'] . " — IP: {$_SERVER['REMOTE_ADDR']}",
+            LOG_ERROR_ENABLED,
+            'error'
+        );
     } else {
-        // ИСПРАВЛЕНИЕ 2: УДАЛЕНА проверка $action === 'close'
-
-        if (!$existing_ticket) {
+        
+        // ========================================
+        // ВАЛИДАЦИЯ ДАННЫХ
+        // ========================================
+        
+        if (!$existingTicket) {
             // Валидация многострочного текстового поля
             $resultsubject = validateTextareaField(trim($_POST['subject'] ?? ''), 2, 255, 'Тема обращения');
+            
             if ($resultsubject['valid']) {
                 $subject = ($resultsubject['value']);
             } else {
                 $errors[] = ($resultsubject['error']);
-                $subject = false;
+                $subject  = false;
             }
         }
-
+        
         // Валидация многострочного текстового поля
         $resultmessage = validateTextareaField(trim($_POST['message'] ?? ''), 2, 10000, 'Сообщение');
+        
         if ($resultmessage['valid']) {
-            $message_text = ($resultmessage['value']);
+            $messageText = ($resultmessage['value']);
         } else {
-            $errors[] = ($resultmessage['error']);
-            $message_text = false;
+            $errors[]    = ($resultmessage['error']);
+            $messageText = false;
         }
-
+        
         if (empty($errors)) {
+            
+            // ========================================
+            // ОБРАБОТКА ВЛОЖЕНИЯ
+            // ========================================
+            
             // Обработка вложения
-            $attachment_path = null;
+            $attachmentPath = null;
+            
             if (!empty($_FILES['attachment']['name'])) {
                 $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'txt', 'zip'];
-                $max_size = 10 * 1024 * 1024;
-                $file = $_FILES['attachment'];
-
+                $maxSize = 10 * 1024 * 1024;
+                $file    = $_FILES['attachment'];
+                
                 if ($file['error'] !== UPLOAD_ERR_OK) {
                     $errors[] = 'Ошибка загрузки файла.';
-                } elseif ($file['size'] > $max_size) {
+                } elseif ($file['size'] > $maxSize) {
                     $errors[] = 'Файл слишком большой (макс. 10 МБ).';
                 } else {
                     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    
                     if (!in_array($ext, $allowed)) {
                         $errors[] = 'Недопустимый тип файла.';
                     } else {
@@ -216,74 +239,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 logEvent("Ошибка создания папки: " . SUPPORT_ATTACHMENTS_DIR, LOG_ERROR_ENABLED, 'error');
                             }
                         }
-
-                        $filename = 'ticket_' . ($existing_ticket ? $existing_ticket['id'] : uniqid()) . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
-                        $full_path = SUPPORT_ATTACHMENTS_DIR . $filename;
-
-                        if (move_uploaded_file($file['tmp_name'], $full_path)) {
-                            $attachment_path = $filename;
+                        
+                        $filename = 'ticket_' . ($existingTicket ? $existingTicket['id'] : uniqid()) . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+                        $fullPath = SUPPORT_ATTACHMENTS_DIR . $filename;
+                        
+                        if (move_uploaded_file($file['tmp_name'], $fullPath)) {
+                            $attachmentPath = $filename;
                         } else {
                             $errors[] = 'Не удалось сохранить файл.';
-                            logEvent("Ошибка сохранения файла: $full_path", LOG_ERROR_ENABLED, 'error');
+                            logEvent("Ошибка сохранения файла: $fullPath", LOG_ERROR_ENABLED, 'error');
                         }
                     }
                 }
             }
         }
-
+        
         if (empty($errors)) {
-            if (!$existing_ticket) {
+            
+            // ========================================
+            // СОЗДАНИЕ ИЛИ ОБНОВЛЕНИЕ ОБРАЩЕНИЯ
+            // ========================================
+            
+            if (!$existingTicket) {
                 $stmt = $pdo->prepare("
                     INSERT INTO support_tickets (user_id, user_email, subject, status, created_at, updated_at)
                     VALUES (?, ?, ?, 'new', NOW(), NOW())
                 ");
                 $stmt->execute([$user['id'], $userDataAdmin['email'], $subject]);
-                $ticket_id = $pdo->lastInsertId();
-                logEvent("Создано новое обращение #{$ticket_id} от пользователя {$user['id']}", LOG_INFO_ENABLED, 'info');
-
+                $ticketId = $pdo->lastInsertId();
+                
+                logEvent("Создано новое обращение #{$ticketId} от пользователя {$user['id']}", LOG_INFO_ENABLED, 'info');
+                
                 // Отправляет уведомление администратору о новом обращении или новом сообщении
-                sendAdminSupportNotification($adminData['email'], $userDataAdmin['email'], $subject, $ticket_id, $AdminPanel, true);
+                sendAdminSupportNotification($adminData['email'], $userDataAdmin['email'], $subject, $ticketId, $adminPanel, true);
             } else {
-                $ticket_id = $existing_ticket['id'];
-                // ИСПРАВЛЕНИЕ 3: УДАЛЕНА проверка на статус 'closed'
-                $pdo->prepare("UPDATE support_tickets SET updated_at = NOW() WHERE id = ?")->execute([$ticket_id]);
+                $ticketId = $existingTicket['id'];
+                // Удалена проверка на статус 'closed'
+                $pdo->prepare("UPDATE support_tickets SET updated_at = NOW() WHERE id = ?")->execute([$ticketId]);
             }
-
+            
+            // ========================================
+            // СОХРАНЕНИЕ СООБЩЕНИЯ
+            // ========================================
+            
             // Сохраняем сообщение
             $pdo->prepare("
                 INSERT INTO support_messages (ticket_id, author_type, author_id, author_email, message, attachment_path, created_at)
                 VALUES (?, 'user', ?, ?, ?, ?, NOW())
-            ")->execute([$ticket_id, $user['id'], $userDataAdmin['email'], $message_text, $attachment_path]);
-
-            if ($existing_ticket) {
+            ")->execute([$ticketId, $user['id'], $userDataAdmin['email'], $messageText, $attachmentPath]);
+            
+            if ($existingTicket) {
                 // Отправляет уведомление администратору о новом обращении или новом сообщении
-                sendAdminSupportNotification($adminData['email'], $userDataAdmin['email'], '', $ticket_id, $AdminPanel, false);
+                sendAdminSupportNotification($adminData['email'], $userDataAdmin['email'], '', $ticketId, $adminPanel, false);
             }
-
+            
             $successMessages[] = 'Сообщение отправлено.';
         }
     }
+    
+    // ========================================
+    // СОХРАНЕНИЕ СООБЩЕНИЙ И ПЕРЕНАПРАВЛЕНИЕ
+    // ========================================
+    
+    // Сохраняем сообщения в сессию для отображения после редиректа
+    if (!empty($errors) || !empty($successMessages)) {
+        $_SESSION['flash_messages'] = [
+            'success' => $successMessages,
+            'error'   => $errors,
+        ];
+    }
+    
+    header("Location: support.php");
+    exit;
 }
 
+// ========================================
+// ОБНОВЛЕНИЕ СООБЩЕНИЙ
+// ========================================
+
 // Обновляем сообщения
-if ($existing_ticket) {
-    $stmt = $pdo->prepare("SELECT * FROM support_messages WHERE ticket_id = ? ORDER BY created_at ASC");
-    $stmt->execute([$existing_ticket['id']]);
+if ($existingTicket) {
+    $stmt    = $pdo->prepare("SELECT * FROM support_messages WHERE ticket_id = ? ORDER BY created_at ASC");
+    $stmt->execute([$existingTicket['id']]);
     $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// ========================================
+// ПОЛУЧЕНИЕ ЛОГОТИПА
+// ========================================
+
 // Получает логотип
-$logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg');
+$adminUserId = getAdminUserId($pdo);
+$logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg', $adminUserId);
+
 // Название раздела
 $titlemeta = 'Обратная связь с техподдержкой';
 
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
 ?>
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -301,7 +354,7 @@ register_shutdown_function(function() {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <!-- Локальные стили -->
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="icon" href="<?php echo escape($logo_profile); ?>" type="image/x-icon">
+    <link rel="icon" href="<?php echo escape($logoProfile); ?>" type="image/x-icon">
 </head>
 <body>
 <div class="container-fluid">
@@ -309,8 +362,16 @@ register_shutdown_function(function() {
 <main class="main-content">
 <?php require_once __DIR__ . '/../template/header.php'; ?>
 <div class="content-card">
-    <?php displayAlerts($successMessages, $errors); ?>
-    <?php if ($existing_ticket): ?>
+    
+    <!-- Отображение сообщений -->
+    <?php displayAlerts(
+        $successMessages,  // Массив сообщений об успехе
+        $errors,           // Массив сообщений об ошибках
+        true               // Показывать сообщения как toast-уведомления true/false
+    ); 
+    ?>
+
+    <?php if ($existingTicket): ?>
         <h5>История переписки</h5>
         <div class="mb-3">
         <?php foreach ($messages as $msg): ?>
@@ -322,12 +383,12 @@ register_shutdown_function(function() {
                         <?php else: ?>
                             <i class="bi bi-person"></i> Вы
                         <?php endif; ?>
-                        — <?= date('d.m.Y H:i', strtotime($msg['created_at'])) ?>
+                        — <?= escape(date('d.m.Y H:i', strtotime($msg['created_at']))) ?>
                     </small>
                     <div><?= nl2br(escape($msg['message'])) ?></div>
                     <?php if ($msg['attachment_path']): ?>
                         <div class="mt-2">
-                            <a href="download.php?file=<?= urlencode($msg['attachment_path']) ?>&ticket_id=<?= $msg['ticket_id'] ?>"
+                            <a href="download.php?file=<?= escape(urlencode($msg['attachment_path'])) ?>&amp;ticket_id=<?= escape((string)$msg['ticket_id']) ?>"
                                class="btn btn-sm <?= $msg['author_type'] === 'admin' ? 'btn-outline-dark' : 'btn-outline-light' ?>">
                                 <i class="bi bi-paperclip"></i> <?= escape(basename($msg['attachment_path'])) ?>
                             </a>
@@ -338,13 +399,13 @@ register_shutdown_function(function() {
         <?php endforeach; ?>
         </div>
     <?php endif; ?>
-    <!-- ИСПРАВЛЕНИЕ 4: УДАЛЕНО поле action - больше не нужно -->
+    <!-- Удалено поле action - больше не нужно -->
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
-        <?php if ($existing_ticket): ?>
-            <input type="hidden" name="ticket_id" value="<?= $existing_ticket['id'] ?>">
+        <?php if ($existingTicket): ?>
+            <input type="hidden" name="ticket_id" value="<?= escape((string)$existingTicket['id']) ?>">
         <?php endif; ?>
-        <?php if (!$existing_ticket): ?>
+        <?php if (!$existingTicket): ?>
             <div class="mb-3">
                 <label class="form-label">Тема обращения</label>
                 <input type="text" class="form-control" name="subject" required minlength="2" maxlength="255" value="<?= escape($_POST['subject'] ?? '') ?>">
@@ -360,10 +421,10 @@ register_shutdown_function(function() {
             <input type="file" class="form-control" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.txt,.zip">
             <div class="form-text">Поддерживаются: PDF, изображения, текст, архивы.</div>
         </div>
-        <!-- ИСПРАВЛЕНИЕ 5: УДАЛЕНА кнопка "Закрыть обращение" полностью -->
+        <!-- Удалена кнопка "Закрыть обращение" полностью -->
         <div class="d-flex justify-content-end">
             <button type="submit" class="btn btn-primary">
-                <i class="bi bi-send"></i> <?= $existing_ticket ? 'Отправить ответ' : 'Отправить обращение' ?>
+                <i class="bi bi-send"></i> <?= $existingTicket ? 'Отправить ответ' : 'Отправить обращение' ?>
             </button>
         </div>
     </form>
@@ -376,6 +437,6 @@ register_shutdown_function(function() {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <!-- Модульный JS admin -->
 <script type="module" src="../js/main.js"></script>
-<!-- ИСПРАВЛЕНИЕ 6: УДАЛЕН весь JavaScript связанный с закрытием -->
+<!-- Удален весь JavaScript связанный с закрытием -->
 </body>
 </html>

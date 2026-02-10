@@ -117,10 +117,26 @@ export function initListManager() {
         const url = new URL(window.location);
         const params = new URLSearchParams(url.search);
         // Можно добавить скрытые поля для возврата, но проще — POST на текущую страницу
-        form.innerHTML = `
-            <input type="hidden" name="action" value="${action}">
-            <input type="hidden" name="user_ids[]" value="${userId}">
-        `;
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = action;
+        const userInput = document.createElement('input');
+        userInput.type = 'hidden';
+        userInput.name = 'user_ids[]';
+        userInput.value = userId;
+        const inputs = [actionInput, userInput];
+        const csrfTokenInput = massActionForm ? massActionForm.querySelector('input[name="csrf_token"]') : null;
+        if (!csrfTokenInput || !csrfTokenInput.value) {
+            alert('Недействительная форма. Пожалуйста, обновите страницу.');
+            return;
+        }
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = csrfTokenInput.value;
+        inputs.push(csrfInput);
+        form.append(...inputs);
         document.body.appendChild(form);
         form.submit();
     }

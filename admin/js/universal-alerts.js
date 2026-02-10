@@ -13,15 +13,15 @@
  * - Поддержка атрибута data-auto-close для настройки времени показа
  * 
  * Использование в HTML:
- * <div class="alert alert-success" data-auto-close="5000">
- *     Сообщение будет автоматически закрыто через 5 секунд
+ * <div class="alert alert-success" data-auto-close="3000">
+ *     Сообщение будет автоматически закрыто через 3 секунды
  *     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
  * </div>
  * 
  * data-auto-close значения:
  * - 0: отключить авто-закрытие
  * - >0: время в миллисекундах до автоматического закрытия
- * - отсутствует: используется значение по умолчанию (5000 мс)
+ * - отсутствует: используется значение по умолчанию (3000 мс)
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,7 +42,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const autoCloseAlerts = () => {
         const alerts = document.querySelectorAll('.alert[data-auto-close]');
         alerts.forEach(alert => {
-            const timeout = parseInt(alert.getAttribute('data-auto-close')) || 5000;
+            const autoCloseValue = alert.getAttribute('data-auto-close');
+            const timeout = parseInt(autoCloseValue, 10);
+            if (Number.isNaN(timeout) || timeout <= 0) {
+                return;
+            }
             setTimeout(() => {
                 closeAlert(alert);
             }, timeout);

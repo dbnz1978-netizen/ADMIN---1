@@ -151,6 +151,23 @@ padding-right: 1rem;
   animation: fadeInSmooth 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
+/* Отключаем pointer-events на Bootstrap backdrop когда кастомное модальное окно активно */
+body:has(.custom-overlay-modal.active) .modal-backdrop,
+body.custom-modal-active .modal-backdrop {
+  pointer-events: none;
+}
+
+/* Также отключаем pointer-events на Bootstrap модалах, чтобы предотвратить перехват фокуса */
+body:has(.custom-overlay-modal.active) .modal.show,
+body.custom-modal-active .modal.show {
+  pointer-events: none;
+}
+
+/* Но включаем pointer-events для кастомного модального окна */
+.custom-overlay-modal {
+  pointer-events: auto;
+}
+
 .custom-modal-dialog {
   width: 90%;
   max-width: 600px;

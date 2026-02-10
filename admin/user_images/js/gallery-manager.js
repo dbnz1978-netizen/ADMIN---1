@@ -127,7 +127,9 @@ export class GalleryManager {
     // Инициализация функционала перетаскивания для секции
     initSection(sectionId) {
         const list = document.getElementById(`selectedImagesList_${sectionId}`);
-        const container = document.querySelector(`#image-management-section-${sectionId} .selected-images-container`) || list.parentElement;
+        const container = document.querySelector(`#image-management-section-${sectionId} .selected-images-container`) || 
+                         document.querySelector(`#image-management-section-${sectionId} .selected-images-section`) || 
+                         list.parentElement;
 
         if (!list) {
             console.error(`GalleryManager: List not found for section: ${sectionId}`);

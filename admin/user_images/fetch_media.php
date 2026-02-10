@@ -1,24 +1,29 @@
 <?php
-// Файл: /admin/user_images/fetch_media.php
-// -----------------------------------------------------------
-// Скрипт динамической подгрузки медиафайлов пользователя в галерею.
-// Используется в AJAX-запросах для отображения превью файлов с поддержкой:
-// - пагинации (по 25 элементов за раз),
-// - множественного выбора,
-// - удаления и просмотра информации о файле.
-// -----------------------------------------------------------
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
 /**
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+ * Название файла:      fetch_media.php
+ * Назначение:          Скрипт динамической подгрузки медиафайлов пользователя в галерею
+ *                      Используется в AJAX-запросах для отображения превью файлов с поддержкой:
+ *                      - пагинации (по 25 элементов за раз)
+ *                      - множественного выбора
+ *                      - удаления и просмотра информации о файле
+ *                      - поддержки различных форматов: JPEG, PNG, GIF, WebP, AVIF, JPEG XL
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
+// ========================================
+// ПРОВЕРКА ТИПА ЗАПРОСА
+// ========================================
+
 // Запрет прямого доступа через браузер только через AJAX
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || 
-    !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || 
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+if (
+    $_SERVER['REQUEST_METHOD'] !== 'POST'
+    || !isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+    || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest'
+) {
     http_response_code(403);
     exit;
 }
@@ -26,65 +31,84 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' ||
 // Запретить прямой доступ ко всем .php файлам
 define('APP_ACCESS', true);
 
-// Устанавливаем кодировку
-header('Content-Type: application/json');
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// === Подключение зависимостей ===
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';             // База данных
-require_once __DIR__ . '/../functions/auth_check.php';                  // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                    // Система логирования
+$config = [
+    'display_errors'   => false,  // Включение отображения ошибок (true/false)
+    'set_encoding'     => true,   // Включение кодировки UTF-8
+    'db_connect'       => true,   // Подключение к базе данных
+    'auth_check'       => true,   // Подключение функций авторизации
+    'file_log'         => true,   // Подключение системы логирования
+    'sanitization'     => true,   // Подключение валидации/экранирования
+    'csrf_token'       => true,   // Генерация и проверка CSRF-токена
+];
 
-// Безопасный запуск сессии
-startSessionSafe();
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
+
+// ========================================
+// ПРОВЕРКА CSRF-ТОКЕНА
+// ========================================
+
+$csrfTokenSession = $_SESSION['csrf_token'] ?? '';
+$csrfTokenRequest = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+
+if (
+    empty($csrfTokenSession)
+    || empty($csrfTokenRequest)
+    || !hash_equals($csrfTokenSession, $csrfTokenRequest)
+) {
+    http_response_code(403);
+    echo '<p>Недействительный CSRF-токен. Обновите страницу.</p>';
+    exit;
+}
+
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
 
 // Получаем настройки администратора
 $adminData = getAdminData($pdo);
+
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     // Ошибка: admin не найден / ошибка БД / некорректный JSON
     header("Location: ../logout.php");
     exit;
 }
 
-// Включаем/отключаем логирование. Глобальные константы.
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
-define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
 
-// === Валидация входных данных ===
+// Включаем/отключаем логирование. Глобальные константы.
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);  // Логировать успешные события true/false
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);  // Логировать ошибки true/false
+
+// ========================================
+// ВАЛИДАЦИЯ ВХОДНЫХ ДАННЫХ
+// ========================================
+
 // Проверяем, передан ли идентификатор секции и авторизован ли пользователь
 if (!isset($_POST['sectionId']) || !isset($_SESSION['user_id'])) {
     echo '<p>Недостаточно данных для загрузки галереи.</p>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
 // Получаем и очищаем ID секции (строка, например: 'avatar', 'portfolio_main')
 $sectionId = trim($_POST['sectionId']);
+
 // Получаем ID текущего пользователя из сессии, приводим к целому числу
-$user_id = (int)$_SESSION['user_id'];
+$userId = (int)$_SESSION['user_id'];
+
 // Получаем смещение для пагинации (по умолчанию — 0, т.е. первая страница)
 $offset = isset($_POST['offset']) ? (int)$_POST['offset'] : 0;
 
 // Дополнительная проверка корректности user_id
-if ($user_id === false || $user_id <= 0) {
+if ($userId === false || $userId <= 0) {
     http_response_code(400); // Bad Request
     echo '<p>Некорректный ID пользователя.</p>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
@@ -92,38 +116,35 @@ if ($user_id === false || $user_id <= 0) {
 // (например, 'gallery_1', 'logo', но не 'gallery<script>')
 if (!preg_match('/^[a-zA-Z0-9_]+$/', $sectionId)) {
     echo '<p>Недопустимое имя секции.</p>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
 // Проверяем, что подключение к БД успешно установлено
 if (!isset($pdo) || !($pdo instanceof PDO)) {
-    $error_message = 'Database connection failed';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
+    $errorMessage = 'Database connection failed';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
     echo '<div class="alert alert-danger">Ошибка подключения к базе данных</div>';
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
-// === Параметры пагинации ===
+// ========================================
+// ПАРАМЕТРЫ ПАГИНАЦИИ
+// ========================================
+
 $limit = 60; // Количество элементов на одну "порцию"
 
-// === Подсчёт общего числа медиафайлов пользователя (не зависит от смещения) ===
+// ========================================
+// ПОДСЧЁТ ОБЩЕГО ЧИСЛА МЕДИАФАЙЛОВ
+// ========================================
+
 $countStmt = $pdo->prepare("SELECT COUNT(*) FROM media_files WHERE user_id = :user_id");
-$countStmt->execute(['user_id' => $user_id]);
+$countStmt->execute(['user_id' => $userId]);
 $totalCount = (int)$countStmt->fetchColumn(); // Общее количество записей
 
-// === Основной запрос: получаем файлы с сортировкой по убыванию ID и пагинацией ===
+// ========================================
+// ОСНОВНОЙ ЗАПРОС: ПОЛУЧЕНИЕ ФАЙЛОВ
+// ========================================
+
 $stmt = $pdo->prepare("
     SELECT id, alt_text, file_versions 
     FROM media_files 
@@ -131,21 +152,21 @@ $stmt = $pdo->prepare("
     ORDER BY id DESC 
     LIMIT :limit OFFSET :offset
 ");
-$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+
+$stmt->bindValue(':user_id', $userId, PDO::PARAM_INT);
 $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
 $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
+
 $mediaItems = $stmt->fetchAll(PDO::FETCH_ASSOC); // Получаем все строки как ассоциативные массивы
 
 // Базовый URL для доступа к загруженным файлам (относительно корня сайта)
 $uploadBaseUrl = '/uploads/';
 
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
+// ========================================
+// ОТОБРАЖЕНИЕ ГАЛЕРЕИ
+// ========================================
+
 ?>
 
 <!-- Основной контейнер галереи -->
@@ -157,8 +178,8 @@ register_shutdown_function(function() {
         <button 
             class="btn btn-outline-primary load-more-files"
             type="button"
-            onclick="uploadFiles('<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>')"
-            data-section-files="<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>">
+            onclick='uploadFiles(<?php echo json_encode($sectionId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'
+            data-section-files="<?php echo escape($sectionId); ?>">
             <i class="bi bi-plus-circle me-1"></i> Добавить медиа файл
         </button>
 
@@ -166,8 +187,8 @@ register_shutdown_function(function() {
         <button 
             class="btn btn-outline-secondary" 
             type="button"
-            data-all="gallery-all_<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>" 
-            onclick="selectAll('<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>')">
+            data-all="gallery-all_<?php echo escape($sectionId); ?>" 
+            onclick='selectAll(<?php echo json_encode($sectionId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
             <i class="bi bi-check-all me-1"></i> Выделить всё
         </button>
 
@@ -175,8 +196,8 @@ register_shutdown_function(function() {
         <button 
             class="btn btn-outline-danger" 
             type="button"
-            id="deleteBtn_<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>" 
-            onclick="deleteSelectedPhotos('<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>')"
+            id="deleteBtn_<?php echo escape($sectionId); ?>" 
+            onclick='deleteSelectedPhotos(<?php echo json_encode($sectionId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'
             style="display: none;">
             <i class="bi bi-trash me-1"></i> Удалить
         </button>
@@ -185,7 +206,7 @@ register_shutdown_function(function() {
     <!-- Сетка изображений -->
     <div 
         class="gallery-grid" 
-        id="gallery_<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>">
+        id="gallery_<?php echo escape($sectionId); ?>">
         
         <?php foreach ($mediaItems as $item): ?>
             <?php
@@ -199,7 +220,7 @@ register_shutdown_function(function() {
 
             // Формируем путь к миниатюре: убираем возможный лидирующий `/`, чтобы избежать двойного слеша
             $thumbnailPath = ltrim($fileVersions['thumbnail']['path'], '/');
-            $fullImageUrl = $uploadBaseUrl . $thumbnailPath;
+            $fullImageUrl  = $uploadBaseUrl . $thumbnailPath;
 
             // Физический путь на сервере для проверки существования файла
             $physicalPath = $_SERVER['DOCUMENT_ROOT'] . $fullImageUrl;
@@ -211,19 +232,19 @@ register_shutdown_function(function() {
             }
 
             // Безопасное экранирование alt-текста
-            $altText = htmlspecialchars($item['alt_text'] ?: 'Media', ENT_QUOTES, 'UTF-8');
+            $altText = escape($item['alt_text'] ?: 'Media');
             ?>
 
             <!-- Элемент галереи -->
             <div 
                 class="gallery-item" 
                 id="galleryid_<?php echo (int)$item['id']; ?>"
-                data-gallery="gallery_<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>"
-                onclick="updateDeleteButtonVisibility('<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>', <?php echo (int)$item['id']; ?>)">
+                data-gallery="gallery_<?php echo escape($sectionId); ?>"
+                onclick='updateDeleteButtonVisibility(<?php echo json_encode($sectionId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, <?php echo (int)$item['id']; ?>, event)'>
                 
                 <!-- Превью изображения -->
                 <img 
-                    src="<?php echo htmlspecialchars($fullImageUrl, ENT_QUOTES, 'UTF-8'); ?>" 
+                    src="<?php echo escape($fullImageUrl); ?>" 
                     alt="<?php echo $altText; ?>">
 
                 <!-- Индикатор выбора (галочка при выделении) -->
@@ -247,15 +268,15 @@ register_shutdown_function(function() {
         // Сколько элементов уже загружено (с учётом текущего offset)
         $loadedCount = $offset + count($mediaItems);
         // Есть ли ещё элементы для загрузки?
-        $hasMore = ($loadedCount < $totalCount);
+        $hasMore     = ($loadedCount < $totalCount);
         ?>
 
         <!-- Кнопка "Загрузить ещё", если есть ещё данные -->
         <?php if ($hasMore): ?>
             <button 
                 class="btn btn-outline-secondary load-more-btn"
-                onclick="clickAll('<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>', <?php echo $offset + $limit; ?>)"
-                data-section="<?php echo htmlspecialchars($sectionId, ENT_QUOTES, 'UTF-8'); ?>">
+                onclick='clickAll(<?php echo json_encode($sectionId, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>, <?php echo $offset + $limit; ?>)'
+                data-section="<?php echo escape($sectionId); ?>">
                 <i class="bi bi-arrow-clockwise me-1"></i> Загрузить ещё
             </button>
         <?php endif; ?>

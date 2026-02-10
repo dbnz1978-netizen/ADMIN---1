@@ -53,8 +53,6 @@
 .btn-primary:hover {
     background-color: var(--primary-dark);
     border-color: var(--primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 5px 15px rgba(74, 108, 247, 0.3);
 }
 
 .btn-outline-primary {
@@ -97,6 +95,14 @@
 .alert-danger {
     background-color: rgba(220, 53, 69, 0.1);
     color: var(--danger-color);
+}
+
+.alert-toast-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1080;
+    max-width: 90vw;
 }
 
 /* Progress Bars */

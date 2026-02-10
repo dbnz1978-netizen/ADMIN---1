@@ -1,86 +1,104 @@
 <?php
+
 /**
- * Файл: /admin/user_images/upload-handler.php
- * ОБРАБОТЧИК ЗАГРУЗКИ ИЗОБРАЖЕНИЙ - UPLOAD-HANDLER.PHP
- * 
- * Назначение:
- * - Принимает и обрабатывает загружаемые изображения через AJAX
- * - Выполняет валидацию файлов (формат, размер, тип)
- * - Конвертирует изображения в формат WebP для оптимизации
- * - Создает multiple версии изображений согласно переданным настройкам размеров
- * - Сохраняет информацию о файлах в базу данных
- * - Возвращает JSON ответ с результатом обработки
- * 
- * Особенности обработки:
- * - Автоматическая конвертация JPEG, PNG, GIF в WebP
- * - Создание ресайзнутых версий: thumbnail, small, medium, large
- * - Поддержка режимов ресайза: 'contain' (вписать) и 'cover' (заполнить)
- * - Организация файлов по дате (год/месяц/)
- * - Валидация прав доступа к директориям
- * - Обработка ошибок с откатом изменений
- * - Защита от дублирования через уникальные имена файлов
- * 
- * Параметры запроса:
- * - user_id: ID пользователя для привязки файла
- * - file: загружаемый файл изображения
- * - image_sizes: JSON с настройками размеров для ресайза
- * 
- * Возвращаемый JSON:
- * - success: true/false результат операции
- * - message: текстовое сообщение
- * - file_id: ID созданной записи в БД
- * - file_data: информация о файле из БД
- * - webp_versions: пути к созданным WebP файлам
- * - created_sizes: список созданных размеров
- * 
- * Требования:
- * - Подключение к базе данных через db.php
- * - Директория uploads/ с правами на запись
- * - Поддержка GD library для работы с изображениями
+ * Название файла:      upload-handler.php
+ * Назначение:          Обработчик загрузки изображений через AJAX.
+ *                      Выполняет валидацию файлов (формат, размер, тип),
+ *                      конвертирует изображения в формат WebP для оптимизации,
+ *                      создает несколько версий изображений согласно настройкам размеров,
+ *                      сохраняет информацию о файлах в базу данных,
+ *                      возвращает JSON ответ с результатом обработки.
+ *                      
+ *                      Особенности обработки:
+ *                      - Автоматическая конвертация JPEG, PNG, GIF в WebP
+ *                      - Создание ресайзнутых версий: thumbnail, small, medium, large
+ *                      - Поддержка режимов ресайза: 'contain' (вписать) и 'cover' (заполнить)
+ *                      - Организация файлов по дате (год/месяц/)
+ *                      - Валидация прав доступа к директориям
+ *                      - Обработка ошибок с откатом изменений
+ *                      - Защита от дублирования через уникальные имена файлов
+ *                      
+ *                      Параметры запроса:
+ *                      - user_id: ID пользователя для привязки файла
+ *                      - file: загружаемый файл изображения
+ *                      - image_sizes: JSON с настройками размеров для ресайза
+ *                      
+ *                      Возвращаемый JSON:
+ *                      - success: true/false результат операции
+ *                      - message: текстовое сообщение
+ *                      - file_id: ID созданной записи в БД
+ *                      - file_data: информация о файле из БД
+ *                      - webp_versions: пути к созданным WebP файлам
+ *                      - created_sizes: список созданных размеров
+ *                      
+ *                      Требования:
+ *                      - Подключение к базе данных через db.php
+ *                      - Директория uploads/ с правами на запись
+ *                      - Поддержка GD library для работы с изображениями
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/**
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
- */
-
+// ========================================
+// ИНИЦИАЛИЗАЦИЯ
+// ========================================
 
 // Запретить прямой доступ ко всем .php файлам
 define('APP_ACCESS', true);
 
-// Устанавливаем кодировку
-header('Content-Type: application/json');
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// === Подключение зависимостей ===
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';             // База данных
-require_once __DIR__ . '/../functions/auth_check.php';                  // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                    // Система логирования
+$config = [
+    'display_errors'   => false,   // Включение отображения ошибок (true/false)
+    'set_encoding'     => true,    // Включение кодировки UTF-8
+    'db_connect'       => true,    // Подключение к базе данных
+    'auth_check'       => true,    // Подключение функций авторизации
+    'file_log'         => true,    // Подключение системы логирования
+    'sanitization'     => true,    // Подключение валидации/экранирования
+    'csrf_token'       => true,    // Генерация и проверка CSRF-токена
+];
 
-// Безопасный запуск сессии
-startSessionSafe();
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
 
-// Получаем настройки администратора
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
+
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     // Ошибка: admin не найден / ошибка БД / некорректный JSON
     header("Location: ../logout.php");
     exit;
 }
 
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
+
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
 
-// Функция для отправки JSON ответа
-function sendResponse($success, $data = []) {
+// ========================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ========================================
+
+
+/**
+ * Отправка JSON-ответа с результатом операции
+ *
+ * @param bool   $success  true при успешной операции, false при ошибке
+ * @param array  $data     Массив данных для ответа
+ * @return void
+ */
+function sendResponse(bool $success, array $data = []): void
+{
     $response = [
         'success' => $success
     ];
@@ -95,495 +113,632 @@ function sendResponse($success, $data = []) {
     }
 
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     exit;
 }
 
-// Проверяем метод запроса
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    $error_message = 'Метод не поддерживается: ' . $_SERVER['REQUEST_METHOD'];
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Метод не поддерживается']);
-}
-
-// === CSRF ЗАЩИТА ===
-$csrf_token_session = $_SESSION['csrf_token'] ?? '';
-$csrf_token_request = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-
-if (empty($csrf_token_session) || empty($csrf_token_request) || !hash_equals($csrf_token_session, $csrf_token_request)) {
-    $error_message = 'CSRF проверка не пройдена (user_id: ' . ($_SESSION['user_id'] ?? 'guest') . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Безопасность запроса не подтверждена. Обновите страницу и попробуйте снова.']);
-}
-
-// Получаем user_id и файл
-$section_id = trim($_POST['section_id']);
-$user_id = (int)$_SESSION['user_id'] ?? 0;
-$file = $_FILES['file'] ?? null;
-
-// Валидация user_id
-if (!$user_id || !is_numeric($user_id)) {
-    $error_message = 'Неверный user_id: ' . $user_id;
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Неверный user_id']);
-}
-
-// =============================
-// ЛИМИТ КОЛИЧЕСТВА ФАЙЛОВ НА ПОЛЬЗОВАТЕЛЯ
-// =============================
-$max_files_per_user = (int)$_SESSION['max_files_per_user'] ?? 0;
-
-// Применяем проверку ТОЛЬКО если лимит задан как положительное целое число
-if (is_int($max_files_per_user) && $max_files_per_user > 0) {
-    try {
-        $count_sql = "SELECT COUNT(*) FROM media_files WHERE user_id = ?";
-        $count_stmt = $pdo->prepare($count_sql);
-        $count_stmt->execute([$user_id]);
-        $current_file_count = (int)$count_stmt->fetchColumn();
-
-        if ($current_file_count >= $max_files_per_user) {
-            $error_message = "Превышен лимит файлов для пользователя (user_id: $user_id). Максимум: $max_files_per_user, текущее количество: $current_file_count";
-            sendResponse(false, [
-                'error' => "Вы достигли лимита загрузок. Удалите старые файлы.",
-                'max_files_per_user' => $max_files_per_user
-            ]);
-        }
-    } catch (Exception $e) {
-        $error_message = 'Ошибка проверки лимита файлов (user_id: ' . $user_id . '): ' . $e->getMessage();
-        logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-        sendResponse(false, ['error' => 'Служебная ошибка при проверке лимита. Попробуйте позже.']);
-    }
-}
-
-// Валидация файла
-if (!$file) {
-    $error_message = 'Файл не получен (user_id: ' . $user_id . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Файл не получен']);
-}
-
-if ($file['error'] !== UPLOAD_ERR_OK) {
-    $errorMessages = [
-        UPLOAD_ERR_INI_SIZE => 'Размер файла превышает разрешенный директивой upload_max_filesize',
-        UPLOAD_ERR_FORM_SIZE => 'Размер файла превышает разрешенный значением MAX_FILE_SIZE',
-        UPLOAD_ERR_PARTIAL => 'Файл был загружен только частично',
-        UPLOAD_ERR_NO_FILE => 'Файл не был загружен',
-        UPLOAD_ERR_NO_TMP_DIR => 'Отсутствует временная папка',
-        UPLOAD_ERR_CANT_WRITE => 'Не удалось записать файл на диск',
-        UPLOAD_ERR_EXTENSION => 'PHP расширение остановило загрузку файла'
-    ];
-    
-    $errorMessage = $errorMessages[$file['error']] ?? 'Неизвестная ошибка загрузки (код: ' . $file['error'] . ')';
-    $log_message = 'Ошибка загрузки файла: ' . $errorMessage . ' (user_id: ' . $user_id . ', файл: ' . ($file['name'] ?? 'unknown') . ')';
-    logEvent($log_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => $errorMessage]);
-}
-
-// Проверяем тип файла
-$allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-if (!in_array($file['type'], $allowed_types)) {
-    $error_message = 'Недопустимый тип файла: ' . $file['type'] . ' (user_id: ' . $user_id . ', файл: ' . $file['name'] . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Недопустимый тип файла. Разрешены: JPEG, PNG, GIF, WebP']);
-}
-
-// Проверяем размер файла (максимум 10MB)
-$maxFileSize = 10 * 1024 * 1024;
-if ($file['size'] > $maxFileSize) {
-    $error_message = 'Размер файла превышает 10MB: ' . round($file['size'] / 1024 / 1024, 2) . 'MB (user_id: ' . $user_id . ', файл: ' . $file['name'] . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Размер файла превышает 10MB']);
-}
-
-// Получаем настройки размеров изображений
-$image_sizes = $_SESSION["imageSizes_{$section_id}"];
-
-if (json_last_error() !== JSON_ERROR_NONE) {
-    $error_message = 'Ошибка декодирования настроек размеров: ' . json_last_error_msg() . ' (user_id: ' . $user_id . ', JSON: ' . $imageSizesJson . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Ошибка декодирования настроек размеров']);
-}
-
-// Определяем директорию для загрузок - используем существующую структуру
-$upload_dir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/';
-$date_dir = date('Y/m/');
-$full_upload_dir = $upload_dir . $date_dir;
-
-// Проверяем существование основной директории uploads
-if (!is_dir($upload_dir)) {
-    $error_message = 'Директория загрузок не существует: ' . $upload_dir . ' (user_id: ' . $user_id . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Директория загрузок не существует. Обратитесь к администратору.']);
-}
-
-// Проверяем права на запись в основную директорию
-if (!is_writable($upload_dir)) {
-    $error_message = 'Нет прав на запись в директорию загрузок: ' . $upload_dir . ' (user_id: ' . $user_id . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Нет прав на запись в директорию загрузок. Обратитесь к администратору.']);
-}
-
-// Создаем поддиректорию по дате если не существует
-if (!is_dir($full_upload_dir)) {
-    if (!mkdir($full_upload_dir, 0755, true)) {
-        $error_message = 'Не удалось создать поддиректорию: ' . $full_upload_dir . ' (user_id: ' . $user_id . ')';
-        logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-        // Если не удалось создать, пробуем использовать основную директорию
-        $full_upload_dir = $upload_dir;
-        $date_dir = '';
-    }
-}
-
-// Проверяем права на запись в целевую директорию
-if (!is_writable($full_upload_dir)) {
-    $error_message = 'Нет прав на запись в целевую директорию: ' . $full_upload_dir . ' (user_id: ' . $user_id . ')';
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
-    sendResponse(false, ['error' => 'Нет прав на запись в целевую директорию. Обратитесь к администратору.']);
-}
-
-// Генерируем уникальное имя файла
-$base_name = uniqid() . '_' . time();
-$original_name = $base_name . '.webp';
-
-// Функция для конвертации изображения в WebP
-function convertToWebP($source_path, $destination_path, $quality = 80) {
-    global $logFile;
-    if (!file_exists($source_path)) {
-        logEvent('Source file not found for WebP conversion: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+/**
+ * Конвертация изображения в формат WebP
+ *
+ * @param string  $sourcePath       Путь к исходному файлу
+ * @param string  $destinationPath  Путь для сохранения WebP
+ * @param int     $quality          Качество WebP (0-100)
+ * @return bool   true при успехе, false при ошибке
+ */
+function convertToWebP(string $sourcePath, string $destinationPath, int $quality = 80): bool
+{
+    if (!file_exists($sourcePath)) {
+        logEvent('Source file not found for WebP conversion: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
     
-    $image_info = getimagesize($source_path);
-    if (!$image_info) {
-        logEvent('Не удается получить информацию об изображении для преобразования в WebP: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+    $imageInfo = getimagesize($sourcePath);
+    
+    if (!$imageInfo) {
+        logEvent('Не удается получить информацию об изображении для преобразования в WebP: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
 
-    $mime_type = $image_info['mime'];
+    $mimeType = $imageInfo['mime'];
     
-    switch ($mime_type) {
+    switch ($mimeType) {
         case 'image/jpeg':
-            $image = imagecreatefromjpeg($source_path);
+            $image = imagecreatefromjpeg($sourcePath);
             break;
         case 'image/png':
-            $image = imagecreatefrompng($source_path);
+            $image = imagecreatefrompng($sourcePath);
             // Сохраняем прозрачность для PNG
             imagepalettetotruecolor($image);
             imagealphablending($image, true);
             imagesavealpha($image, true);
             break;
         case 'image/gif':
-            $image = imagecreatefromgif($source_path);
+            $image = imagecreatefromgif($sourcePath);
             break;
         case 'image/webp':
             // Если уже WebP, просто копируем
-            return copy($source_path, $destination_path);
+            return copy($sourcePath, $destinationPath);
+        case 'image/avif':
+            // Проверяем наличие поддержки AVIF
+            if (function_exists('imagecreatefromavif')) {
+                $image = imagecreatefromavif($sourcePath);
+            } else {
+                logEvent('Поддержка AVIF не установлена для преобразования в WebP: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
+                return false;
+            }
+            break;
+        case 'image/jxl':
+            // Проверяем наличие поддержки JPEG XL
+            if (function_exists('imagecreatefromjxl')) {
+                $image = imagecreatefromjxl($sourcePath);
+            } else {
+                logEvent('Поддержка JPEG XL не установлена для преобразования в WebP: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
+                return false;
+            }
+            break;
         default:
-            logEvent('Неподдерживаемый MIME-тип для преобразования в WebP: ' . $mime_type, LOG_ERROR_ENABLED, 'error');
+            logEvent('Неподдерживаемый MIME-тип для преобразования в WebP: ' . $mimeType, LOG_ERROR_ENABLED, 'error');
             return false;
     }
 
     if (!$image) {
-        logEvent('Не удается создать графический ресурс для преобразования в WebP: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+        logEvent('Не удается создать графический ресурс для преобразования в WebP: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
 
     // Конвертируем в WebP
-    $result = imagewebp($image, $destination_path, $quality);
+    $result = imagewebp($image, $destinationPath, $quality);
     imagedestroy($image);
     
     if (!$result) {
-        logEvent('Не удалось выполнить преобразование WebP: ' . $source_path . ' -> ' . $destination_path, LOG_ERROR_ENABLED, 'error');
+        logEvent('Не удалось выполнить преобразование WebP: ' . $sourcePath . ' -> ' . $destinationPath, LOG_ERROR_ENABLED, 'error');
     }
     
     return $result;
 }
 
-// Функция для создания ресайзнутой версии изображения
-function createResizedVersion($source_path, $destination_path, $target_width, $target_height, $mode = 'contain', $quality = 75) {
-    global $logFile;
-    if (!file_exists($source_path)) {
-        logEvent('Исходный файл не найден для изменения размера: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+/**
+ * Создание ресайзнутой версии изображения
+ *
+ * @param string  $sourcePath       Путь к исходному файлу
+ * @param string  $destinationPath  Путь для сохранения ресайзнутого изображения
+ * @param int|string  $targetWidth  Целевая ширина или 'auto'
+ * @param int|string  $targetHeight Целевая высота или 'auto'
+ * @param string  $mode             Режим ресайза: 'contain' или 'cover'
+ * @param int     $quality          Качество WebP (0-100)
+ * @return bool   true при успехе, false при ошибке
+ */
+function createResizedVersion(string $sourcePath, string $destinationPath, $targetWidth, $targetHeight, string $mode = 'contain', int $quality = 75): bool
+{
+    if (!file_exists($sourcePath)) {
+        logEvent('Исходный файл не найден для изменения размера: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
     
-    $image_info = getimagesize($source_path);
-    if (!$image_info) {
-        logEvent('Не удается получить информацию об изображении для изменения размера: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+    $imageInfo = getimagesize($sourcePath);
+    
+    if (!$imageInfo) {
+        logEvent('Не удается получить информацию об изображении для изменения размера: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
 
-    list($original_width, $original_height) = $image_info;
+    list($originalWidth, $originalHeight) = $imageInfo;
     
     // Обрабатываем значения 'auto'
-    if ($target_width === 'auto' && $target_height === 'auto') {
-        $target_width = $original_width;
-        $target_height = $original_height;
-    } elseif ($target_width === 'auto') {
-        $target_width = round($original_width * ($target_height / $original_height));
-    } elseif ($target_height === 'auto') {
-        $target_height = round($original_height * ($target_width / $original_width));
+    if ($targetWidth === 'auto' && $targetHeight === 'auto') {
+        $targetWidth  = $originalWidth;
+        $targetHeight = $originalHeight;
+    } elseif ($targetWidth === 'auto') {
+        $targetWidth = round($originalWidth * ($targetHeight / $originalHeight));
+    } elseif ($targetHeight === 'auto') {
+        $targetHeight = round($originalHeight * ($targetWidth / $originalWidth));
     }
     
     // Для режима 'contain' - вписываем с сохранением пропорций
     if ($mode === 'contain') {
-        $ratio_original = $original_width / $original_height;
-        $ratio_target = $target_width / $target_height;
+        $ratioOriginal = $originalWidth / $originalHeight;
+        $ratioTarget   = $targetWidth / $targetHeight;
         
-        if ($ratio_target > $ratio_original) {
-            $new_width = $target_height * $ratio_original;
-            $new_height = $target_height;
+        if ($ratioTarget > $ratioOriginal) {
+            $newWidth  = $targetHeight * $ratioOriginal;
+            $newHeight = $targetHeight;
         } else {
-            $new_width = $target_width;
-            $new_height = $target_width / $ratio_original;
+            $newWidth  = $targetWidth;
+            $newHeight = $targetWidth / $ratioOriginal;
         }
         
-        $src_x = 0;
-        $src_y = 0;
-        $src_w = $original_width;
-        $src_h = $original_height;
+        $srcX = 0;
+        $srcY = 0;
+        $srcW = $originalWidth;
+        $srcH = $originalHeight;
         
-        $dst_x = round(($target_width - $new_width) / 2);
-        $dst_y = round(($target_height - $new_height) / 2);
-        $dst_w = round($new_width);
-        $dst_h = round($new_height);
+        $dstX = round(($targetWidth - $newWidth) / 2);
+        $dstY = round(($targetHeight - $newHeight) / 2);
+        $dstW = round($newWidth);
+        $dstH = round($newHeight);
         
     } 
     // Для режима 'cover' - заполняем область без искажений (с обрезкой)
-    else if ($mode === 'cover') {
-        $ratio_original = $original_width / $original_height;
-        $ratio_target = $target_width / $target_height;
+    else {
+        $ratioOriginal = $originalWidth / $originalHeight;
+        $ratioTarget   = $targetWidth / $targetHeight;
         
-        if ($ratio_target > $ratio_original) {
+        if ($ratioTarget > $ratioOriginal) {
             // Обрезаем по высоте
-            $src_h = $original_width / $ratio_target;
-            $src_y = ($original_height - $src_h) / 2;
-            $src_x = 0;
-            $src_w = $original_width;
+            $srcH = $originalWidth / $ratioTarget;
+            $srcY = ($originalHeight - $srcH) / 2;
+            $srcX = 0;
+            $srcW = $originalWidth;
         } else {
             // Обрезаем по ширине
-            $src_w = $original_height * $ratio_target;
-            $src_x = ($original_width - $src_w) / 2;
-            $src_y = 0;
-            $src_h = $original_height;
+            $srcW = $originalHeight * $ratioTarget;
+            $srcX = ($originalWidth - $srcW) / 2;
+            $srcY = 0;
+            $srcH = $originalHeight;
         }
         
-        $dst_x = 0;
-        $dst_y = 0;
-        $dst_w = $target_width;
-        $dst_h = $target_height;
+        $dstX = 0;
+        $dstY = 0;
+        $dstW = $targetWidth;
+        $dstH = $targetHeight;
     }
     
     // Создаем новое изображение
-    $new_image = imagecreatetruecolor($target_width, $target_height);
+    $newImage = imagecreatetruecolor($targetWidth, $targetHeight);
     
     // Сохраняем прозрачность для PNG/GIF
-    if ($image_info['mime'] == 'image/png' || $image_info['mime'] == 'image/gif') {
-        imagealphablending($new_image, false);
-        imagesavealpha($new_image, true);
-        $transparent = imagecolorallocatealpha($new_image, 255, 255, 255, 127);
-        imagefilledrectangle($new_image, 0, 0, $target_width, $target_height, $transparent);
+    if ($imageInfo['mime'] == 'image/png' || $imageInfo['mime'] == 'image/gif') {
+        imagealphablending($newImage, false);
+        imagesavealpha($newImage, true);
+        $transparent = imagecolorallocatealpha($newImage, 255, 255, 255, 127);
+        imagefilledrectangle($newImage, 0, 0, $targetWidth, $targetHeight, $transparent);
     } else {
         // Для JPEG создаем белый фон
-        $white = imagecolorallocate($new_image, 255, 255, 255);
-        imagefill($new_image, 0, 0, $white);
+        $white = imagecolorallocate($newImage, 255, 255, 255);
+        imagefill($newImage, 0, 0, $white);
     }
     
     // Загружаем исходное изображение
-    switch ($image_info['mime']) {
+    switch ($imageInfo['mime']) {
         case 'image/jpeg':
-            $source_image = imagecreatefromjpeg($source_path);
+            $sourceImage = imagecreatefromjpeg($sourcePath);
             break;
         case 'image/png':
-            $source_image = imagecreatefrompng($source_path);
+            $sourceImage = imagecreatefrompng($sourcePath);
             break;
         case 'image/gif':
-            $source_image = imagecreatefromgif($source_path);
+            $sourceImage = imagecreatefromgif($sourcePath);
             break;
         case 'image/webp':
-            $source_image = imagecreatefromwebp($source_path);
+            $sourceImage = imagecreatefromwebp($sourcePath);
             break;
         default:
-            logEvent('Неподдерживаемый MIME-тип для изменения размера: ' . $image_info['mime'], LOG_ERROR_ENABLED, 'error');
+            logEvent('Неподдерживаемый MIME-тип для изменения размера: ' . $imageInfo['mime'], LOG_ERROR_ENABLED, 'error');
             return false;
     }
     
-    if (!$source_image) {
-        logEvent('Не удается создать исходный ресурс изображения для изменения размера: ' . $source_path, LOG_ERROR_ENABLED, 'error');
+    if (!$sourceImage) {
+        logEvent('Не удается создать исходный ресурс изображения для изменения размера: ' . $sourcePath, LOG_ERROR_ENABLED, 'error');
         return false;
     }
     
     // Ресайзим изображение
-    imagecopyresampled($new_image, $source_image, $dst_x, $dst_y, $src_x, $src_y, $dst_w, $dst_h, $src_w, $src_h);
-    imagedestroy($source_image);
+    imagecopyresampled($newImage, $sourceImage, $dstX, $dstY, $srcX, $srcY, $dstW, $dstH, $srcW, $srcH);
+    imagedestroy($sourceImage);
     
     // Сохраняем в WebP
-    $result = imagewebp($new_image, $destination_path, $quality);
-    imagedestroy($new_image);
+    $result = imagewebp($newImage, $destinationPath, $quality);
+    imagedestroy($newImage);
     
     if (!$result) {
-        logEvent('Не удалось создать WebP с измененным размером: ' . $destination_path, LOG_ERROR_ENABLED, 'error');
+        logEvent('Не удалось создать WebP с измененным размером: ' . $destinationPath, LOG_ERROR_ENABLED, 'error');
     }
     
     return $result;
 }
 
-try {
-    // Временный путь для оригинального файла
-    $temp_path = $file['tmp_name'];
+// ========================================
+// ПРОВЕРКА МЕТОДА ЗАПРОСА
+// ========================================
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $errorMessage = 'Метод не поддерживается: ' . $_SERVER['REQUEST_METHOD'];
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Метод не поддерживается']);
+}
+
+// ========================================
+// ПРОВЕРКА CSRF-ТОКЕНА
+// ========================================
+
+$csrfTokenSession = $_SESSION['csrf_token'] ?? '';
+$csrfTokenRequest = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+
+if (
+    empty($csrfTokenSession) ||
+    empty($csrfTokenRequest) ||
+    !hash_equals($csrfTokenSession, $csrfTokenRequest)
+) {
+    $errorMessage = 'CSRF проверка не пройдена (user_id: ' . ($_SESSION['user_id'] ?? 'guest') . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Безопасность запроса не подтверждена. Обновите страницу и попробуйте снова.']);
+}
+
+// ========================================
+// ПОЛУЧЕНИЕ И ВАЛИДАЦИЯ ВХОДНЫХ ДАННЫХ
+// ========================================
+
+// Получаем user_id и файл
+$sectionId = trim((string)($_POST['section_id'] ?? ''));
+$userId    = (int)$_SESSION['user_id'] ?? 0;
+$file      = $_FILES['file'] ?? null;
+
+// Валидация section_id
+$sectionResult = validateSectionId($sectionId, 'ID секции');
+
+if (!$sectionResult['valid']) {
+    $errorMessage = $sectionResult['error'] ?? 'Некорректный ID секции';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => $errorMessage]);
+}
+
+$sectionId = $sectionResult['value'];
+
+// Валидация user_id
+if (!$userId || !is_numeric($userId)) {
+    $errorMessage = 'Неверный user_id: ' . $userId;
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Неверный user_id']);
+}
+
+// ========================================
+// ПРОВЕРКА ЛИМИТА ФАЙЛОВ НА ПОЛЬЗОВАТЕЛЯ
+// ========================================
+
+$maxFilesPerUser = (int)$_SESSION['max_files_per_user'] ?? 0;
+
+// Применяем проверку ТОЛЬКО если лимит задан как положительное целое число
+if (is_int($maxFilesPerUser) && $maxFilesPerUser > 0) {
+    try {
+        $countSql   = "SELECT COUNT(*) FROM media_files WHERE user_id = ?";
+        $countStmt  = $pdo->prepare($countSql);
+        $countStmt->execute([$userId]);
+        $currentFileCount = (int)$countStmt->fetchColumn();
+
+        if ($currentFileCount >= $maxFilesPerUser) {
+            $errorMessage = "Превышен лимит файлов для пользователя (user_id: $userId). Максимум: $maxFilesPerUser, текущее количество: $currentFileCount";
+            sendResponse(false, [
+                'error'            => "Вы достигли лимита загрузок. Удалите старые файлы.",
+                'max_files_per_user' => $maxFilesPerUser
+            ]);
+        }
+    } catch (Exception $e) {
+        $errorMessage = 'Ошибка проверки лимита файлов (user_id: ' . $userId . '): ' . $e->getMessage();
+        logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+        sendResponse(false, ['error' => 'Служебная ошибка при проверке лимита. Попробуйте позже.']);
+    }
+}
+
+// ========================================
+// ВАЛИДАЦИЯ ФАЙЛА
+// ========================================
+
+// Проверка наличия файла
+if (!$file) {
+    $errorMessage = 'Файл не получен (user_id: ' . $userId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Файл не получен']);
+}
+
+// Проверка ошибок загрузки
+if ($file['error'] !== UPLOAD_ERR_OK) {
+    $errorMessages = [
+        UPLOAD_ERR_INI_SIZE   => 'Размер файла превышает разрешенный директивой upload_max_filesize',
+        UPLOAD_ERR_FORM_SIZE  => 'Размер файла превышает разрешенный значением MAX_FILE_SIZE',
+        UPLOAD_ERR_PARTIAL    => 'Файл был загружен только частично',
+        UPLOAD_ERR_NO_FILE    => 'Файл не был загружен',
+        UPLOAD_ERR_NO_TMP_DIR => 'Отсутствует временная папка',
+        UPLOAD_ERR_CANT_WRITE => 'Не удалось записать файл на диск',
+        UPLOAD_ERR_EXTENSION  => 'PHP расширение остановило загрузку файла'
+    ];
     
-    // Проверяем временный файл
-    if (!file_exists($temp_path)) {
-        throw new Exception('Временный файл не найден: ' . $temp_path);
+    $errorMessage = $errorMessages[$file['error']] ?? 'Неизвестная ошибка загрузки (код: ' . $file['error'] . ')';
+    $logMessage   = 'Ошибка загрузки файла: ' . $errorMessage . ' (user_id: ' . $userId . ', файл: ' . ($file['name'] ?? 'unknown') . ')';
+    logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => $errorMessage]);
+}
+
+// Проверка MIME-типа через fileinfo
+$finfo       = finfo_open(FILEINFO_MIME_TYPE);
+$detectedMime = finfo_file($finfo, $file['tmp_name']);
+finfo_close($finfo);
+
+$allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/jxl'];
+
+if (!in_array($detectedMime, $allowedMimes)) {
+    $errorMessage = 'Недопустимый MIME-тип файла: ' . $detectedMime . ' (user_id: ' . $userId . ', файл: ' . $file['name'] . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Недопустимый MIME-тип файла. Разрешены: JPEG, PNG, GIF, WebP, AVIF, JPEG XL']);
+}
+
+// Проверка оригинального типа из $_FILES
+if (!in_array($file['type'], $allowedMimes)) {
+    $errorMessage = 'Недопустимый тип файла из $_FILES: ' . $file['type'] . ' (user_id: ' . $userId . ', файл: ' . $file['name'] . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Недопустимый тип файла. Разрешены: JPEG, PNG, GIF, WebP, AVIF, JPEG XL']);
+}
+
+// Проверка расширения файла
+$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'avifs', 'jxl'];
+$fileExtension     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+
+if (!in_array($fileExtension, $allowedExtensions)) {
+    $errorMessage = 'Недопустимое расширение файла: ' . $fileExtension . ' (user_id: ' . $userId . ', файл: ' . $file['name'] . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Недопустимое расширение файла. Разрешены: JPG, JPEG, PNG, GIF, WebP, AVIF, AVIFS, JXL']);
+}
+
+// Проверка, что файл является изображением
+$imageInfo = getimagesize($file['tmp_name']);
+
+if ($imageInfo === false) {
+    $errorMessage = 'Файл не является допустимым изображением: ' . $file['name'] . ' (user_id: ' . $userId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Файл не является допустимым изображением']);
+}
+
+// Проверка размера файла (максимум 10MB)
+$maxFileSize = 10 * 1024 * 1024;
+
+if ($file['size'] > $maxFileSize) {
+    $errorMessage = 'Размер файла превышает 10MB: ' . round($file['size'] / 1024 / 1024, 2) . 'MB (user_id: ' . $userId . ', файл: ' . $file['name'] . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Размер файла превышает 10MB']);
+}
+
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК РАЗМЕРОВ ИЗОБРАЖЕНИЙ
+// ========================================
+
+$imageSizes = $_SESSION["imageSizes_{$sectionId}"] ?? null;
+
+if (is_string($imageSizes)) {
+    $decodedSizes = json_decode($imageSizes, true);
+    
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decodedSizes)) {
+        $imageSizes = $decodedSizes;
+    }
+}
+
+// Если настройки отсутствуют, используем значения по умолчанию
+if (!is_array($imageSizes) || empty($imageSizes)) {
+    $imageSizes = [
+        "thumbnail" => [100, 100, "cover"],
+        "small"     => [300, 'auto', "contain"],
+        "medium"    => [600, 'auto', "contain"],
+        "large"     => [1200, 'auto', "contain"]
+    ];
+}
+
+// ========================================
+// НАСТРОЙКА ДИРЕКТОРИИ ЗАГРУЗОК
+// ========================================
+
+// Определяем директорию для загрузок - используем существующую структуру
+$uploadDir     = $_SERVER['DOCUMENT_ROOT'] . '/uploads/';
+$dateDir       = date('Y/m/');
+$fullUploadDir = $uploadDir . $dateDir;
+
+// Проверка существования основной директории uploads
+if (!is_dir($uploadDir)) {
+    $errorMessage = 'Директория загрузок не существует: ' . $uploadDir . ' (user_id: ' . $userId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Директория загрузок не существует. Обратитесь к администратору.']);
+}
+
+// Проверка прав на запись в основную директорию
+if (!is_writable($uploadDir)) {
+    $errorMessage = 'Нет прав на запись в директорию загрузок: ' . $uploadDir . ' (user_id: ' . $userId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Нет прав на запись в директорию загрузок. Обратитесь к администратору.']);
+}
+
+// Создание поддиректории по дате если не существует
+if (!is_dir($fullUploadDir)) {
+    if (!mkdir($fullUploadDir, 0755, true)) {
+        $errorMessage = 'Не удалось создать поддиректорию: ' . $fullUploadDir . ' (user_id: ' . $userId . ')';
+        logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+        // Если не удалось создать, пробуем использовать основную директорию
+        $fullUploadDir = $uploadDir;
+        $dateDir       = '';
+    }
+}
+
+// Проверка прав на запись в целевую директорию
+if (!is_writable($fullUploadDir)) {
+    $errorMessage = 'Нет прав на запись в целевую директорию: ' . $fullUploadDir . ' (user_id: ' . $userId . ')';
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    sendResponse(false, ['error' => 'Нет прав на запись в целевую директорию. Обратитесь к администратору.']);
+}
+
+// ========================================
+// ГЕНЕРАЦИЯ УНИКАЛЬНОГО ИМЕНИ ФАЙЛА
+// ========================================
+
+$baseName      = uniqid() . '_' . time();
+$originalName  = $baseName . '.webp';
+
+// ========================================
+// ОСНОВНАЯ ЛОГИКА ЗАГРУЗКИ И ОБРАБОТКИ
+// ========================================
+
+try {
+    
+    // ========================================
+    // ПОДГОТОВКА ВРЕМЕННОГО ФАЙЛА
+    // ========================================
+    
+    // Временный путь для оригинального файла
+    $tempPath = $file['tmp_name'];
+    
+    // Проверка временного файла
+    if (!file_exists($tempPath)) {
+        throw new Exception('Временный файл не найден: ' . $tempPath);
     }
     
+    // ========================================
+    // КОНВЕРТАЦИЯ В WEBP
+    // ========================================
+    
     // Пути для WebP версий
-    $original_webp_path = $date_dir . $original_name;
-    $file_versions = [];
-    $webp_versions = ['original' => $original_webp_path];
+    $originalWebpPath = $dateDir . $originalName;
+    $fileVersions     = [];
+    $webpVersions     = ['original' => $originalWebpPath];
     
     // Создаем оригинальную WebP версию
-    if (!convertToWebP($temp_path, $upload_dir . $original_webp_path, 90)) {
+    if (!convertToWebP($tempPath, $uploadDir . $originalWebpPath, 90)) {
         throw new Exception('Ошибка конвертации в WebP для файла: ' . $file['name']);
     }
     
-    // Проверяем созданный файл
-    if (!file_exists($upload_dir . $original_webp_path)) {
-        throw new Exception('Не удалось создать WebP версию: ' . $upload_dir . $original_webp_path);
+    // Проверка созданного файла
+    if (!file_exists($uploadDir . $originalWebpPath)) {
+        throw new Exception('Не удалось создать WebP версию: ' . $uploadDir . $originalWebpPath);
     }
     
-    // Получаем размеры оригинального изображения
-    $original_image_info = getimagesize($upload_dir . $original_webp_path);
-    if (!$original_image_info) {
-        throw new Exception('Не удалось получить информацию об изображении: ' . $upload_dir . $original_webp_path);
+    // Получение размеров оригинального изображения
+    $originalImageInfo = getimagesize($uploadDir . $originalWebpPath);
+    
+    if (!$originalImageInfo) {
+        throw new Exception('Не удалось получить информацию об изображении: ' . $uploadDir . $originalWebpPath);
     }
     
-    $original_dimensions = $original_image_info[0] . 'x' . $original_image_info[1];
-    $original_size = filesize($upload_dir . $original_webp_path);
+    $originalDimensions = $originalImageInfo[0] . 'x' . $originalImageInfo[1];
+    $originalSize       = filesize($uploadDir . $originalWebpPath);
     
     // Добавляем оригинал в версии
-    $file_versions['original'] = [
-        'path' => $original_webp_path,
-        'size' => $original_size,
-        'dimensions' => $original_dimensions
+    $fileVersions['original'] = [
+        'path'       => $originalWebpPath,
+        'size'       => $originalSize,
+        'dimensions' => $originalDimensions
     ];
     
+    // ========================================
+    // СОЗДАНИЕ РЕСАЙЗНУТЫХ ВЕРСИЙ
+    // ========================================
+    
     // Создаем ресайзнутые версии для каждого размера из массива
-    foreach ($image_sizes as $size_name => $size_config) {
-        if (!is_array($size_config) || count($size_config) < 3) {
-            logEvent('Некорректные настройки размера: ' . $size_name . ' - ' . json_encode($size_config), LOG_ERROR_ENABLED, 'error');
+    foreach ($imageSizes as $sizeName => $sizeConfig) {
+        if (!is_array($sizeConfig) || count($sizeConfig) < 3) {
+            logEvent('Некорректные настройки размера: ' . $sizeName . ' - ' . json_encode($sizeConfig), LOG_ERROR_ENABLED, 'error');
             continue; // Пропускаем некорректные настройки
         }
         
-        list($width, $height, $mode) = $size_config;
+        list($width, $height, $mode) = $sizeConfig;
         
-        $resized_webp_path = $date_dir . $base_name . '_' . $size_name . '.webp';
+        $resizedWebpPath = $dateDir . $baseName . '_' . $sizeName . '.webp';
         
         // Создаем ресайзнутую версию
-        if (createResizedVersion($temp_path, $upload_dir . $resized_webp_path, $width, $height, $mode, 85)) {
-            $resized_size = filesize($upload_dir . $resized_webp_path);
-            $resized_image_info = getimagesize($upload_dir . $resized_webp_path);
-            $resized_dimensions = $resized_image_info[0] . 'x' . $resized_image_info[1];
+        if (createResizedVersion($tempPath, $uploadDir . $resizedWebpPath, $width, $height, $mode, 85)) {
+            $resizedSize       = filesize($uploadDir . $resizedWebpPath);
+            $resizedImageInfo  = getimagesize($uploadDir . $resizedWebpPath);
+            $resizedDimensions = $resizedImageInfo[0] . 'x' . $resizedImageInfo[1];
             
-            $file_versions[$size_name] = [
-                'path' => $resized_webp_path,
-                'size' => $resized_size,
-                'dimensions' => $resized_dimensions,
-                'mode' => $mode
+            $fileVersions[$sizeName] = [
+                'path'       => $resizedWebpPath,
+                'size'       => $resizedSize,
+                'dimensions' => $resizedDimensions,
+                'mode'       => $mode
             ];
             
-            $webp_versions[$size_name] = $resized_webp_path;
+            $webpVersions[$sizeName] = $resizedWebpPath;
         } else {
             // Если не удалось создать ресайзнутую версию, используем оригинал
-            logEvent('Не удалось создать ресайзнутую версию: ' . $size_name . ', используется оригинал', LOG_ERROR_ENABLED, 'error');
-            $file_versions[$size_name] = [
-                'path' => $original_webp_path,
-                'size' => $original_size,
-                'dimensions' => $original_dimensions,
-                'mode' => 'original'
+            logEvent('Не удалось создать ресайзнутую версию: ' . $sizeName . ', используется оригинал', LOG_ERROR_ENABLED, 'error');
+            $fileVersions[$sizeName] = [
+                'path'       => $originalWebpPath,
+                'size'       => $originalSize,
+                'dimensions' => $originalDimensions,
+                'mode'       => 'original'
             ];
             
-            $webp_versions[$size_name] = $original_webp_path;
+            $webpVersions[$sizeName] = $originalWebpPath;
         }
     }
     
-    // Проверяем подключение к базе данных
+    // ========================================
+    // СОХРАНЕНИЕ В БАЗУ ДАННЫХ
+    // ========================================
+    
+    // Проверка подключения к базе данных
     if (!isset($pdo)) {
         throw new Exception('Ошибка подключения к базе данных');
     }
     
     // Сохраняем в базу данных
-    $sql = "INSERT INTO media_files (user_id, file_versions, upload_date) VALUES (?, ?, NOW())";
+    $sql  = "INSERT INTO media_files (user_id, file_versions, upload_date) VALUES (?, ?, NOW())";
     $stmt = $pdo->prepare($sql);
     
-    if (!$stmt->execute([$user_id, json_encode($file_versions)])) {
-        $error_info = $stmt->errorInfo();
-        throw new Exception('Ошибка сохранения в базу данных: ' . ($error_info[2] ?? 'unknown error'));
+    if (!$stmt->execute([$userId, json_encode($fileVersions)])) {
+        $errorInfo = $stmt->errorInfo();
+        throw new Exception('Ошибка сохранения в базу данных: ' . ($errorInfo[2] ?? 'unknown error'));
     }
     
-    $file_id = $pdo->lastInsertId();
+    $fileId = $pdo->lastInsertId();
     
     // Получаем информацию о созданном файле для ответа
-    $select_sql = "SELECT * FROM media_files WHERE id = ?";
-    $select_stmt = $pdo->prepare($select_sql);
-    $select_stmt->execute([$file_id]);
-    $file_data = $select_stmt->fetch(PDO::FETCH_ASSOC);
+    $selectSql   = "SELECT * FROM media_files WHERE id = ?";
+    $selectStmt  = $pdo->prepare($selectSql);
+    $selectStmt->execute([$fileId]);
+    $fileData = $selectStmt->fetch(PDO::FETCH_ASSOC);
     
-    // Логируем успешную загрузку для отладки (закомментировано по умолчанию)
-    // logEvent('SUCCESS: Файл успешно загружен - ID: ' . $file_id . ', user_id: ' . $user_id . ', файл: ' . $file['name'], $logFile);
+    // ========================================
+    // ОТПРАВКА УСПЕШНОГО ОТВЕТА
+    // ========================================
     
     sendResponse(true, [
-        'message' => 'Файл успешно загружен',
-        'file_id' => $file_id,
-        'file_data' => $file_data,
-        'webp_versions' => $webp_versions,
-        'created_sizes' => array_keys($image_sizes)
+        'message'       => 'Файл успешно загружен',
+        'file_id'       => $fileId,
+        'file_data'     => $fileData,
+        'webp_versions' => $webpVersions,
+        'created_sizes' => array_keys($imageSizes)
     ]);
     
 } catch (Exception $e) {
-    // Логируем ошибку
-    $error_message = 'Upload error (user_id: ' . $user_id . ', file: ' . ($file['name'] ?? 'unknown') . '): ' . $e->getMessage();
-    logEvent($error_message, LOG_ERROR_ENABLED, 'error');
     
-    // Удаляем загруженные файлы в случае ошибки
-    $files_to_delete = [];
+    // ========================================
+    // ОБРАБОТКА ОШИБОК И ОТКАТ ИЗМЕНЕНИЙ
+    // ========================================
     
-    if (isset($original_webp_path) && file_exists($upload_dir . $original_webp_path)) {
-        $files_to_delete[] = $upload_dir . $original_webp_path;
+    // Логирование ошибки
+    $errorMessage = 'Upload error (user_id: ' . $userId . ', file: ' . ($file['name'] ?? 'unknown') . '): ' . $e->getMessage();
+    logEvent($errorMessage, LOG_ERROR_ENABLED, 'error');
+    
+    // Удаление загруженных файлов в случае ошибки
+    $filesToDelete = [];
+    
+    if (isset($originalWebpPath) && file_exists($uploadDir . $originalWebpPath)) {
+        $filesToDelete[] = $uploadDir . $originalWebpPath;
     }
     
     // Удаляем все созданные ресайзнутые версии
-    if (isset($image_sizes)) {
-        foreach ($image_sizes as $size_name => $size_config) {
-            $resized_path = $upload_dir . $date_dir . $base_name . '_' . $size_name . '.webp';
-            if (file_exists($resized_path)) {
-                $files_to_delete[] = $resized_path;
+    if (isset($imageSizes)) {
+        foreach ($imageSizes as $sizeName => $sizeConfig) {
+            $resizedPath = $uploadDir . $dateDir . $baseName . '_' . $sizeName . '.webp';
+            
+            if (file_exists($resizedPath)) {
+                $filesToDelete[] = $resizedPath;
             }
         }
     }
     
-    foreach ($files_to_delete as $file_path) {
-        if (file_exists($file_path)) {
-            if (@unlink($file_path)) {
-                logEvent('Удален файл после ошибки: ' . $file_path, LOG_ERROR_ENABLED, 'error');
+    foreach ($filesToDelete as $filePath) {
+        if (file_exists($filePath)) {
+            if (@unlink($filePath)) {
+                logEvent('Удален файл после ошибки: ' . $filePath, LOG_ERROR_ENABLED, 'error');
             } else {
-                logEvent('Не удалось удалить файл после ошибки: ' . $file_path, LOG_ERROR_ENABLED, 'error');
+                logEvent('Не удалось удалить файл после ошибки: ' . $filePath, LOG_ERROR_ENABLED, 'error');
             }
         }
     }
     
     sendResponse(false, ['error' => $e->getMessage()]);
 }
-
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
-?>

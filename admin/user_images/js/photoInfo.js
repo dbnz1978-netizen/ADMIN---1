@@ -4,7 +4,16 @@
  * Флаг для предотвращения параллельных запросов к серверу.
  * @type {boolean}
  */
+
+// Импортируем общие константы и функции из modal.js
+import { FOCUS_DELAY_AFTER_CONTENT_LOAD, INPUT_SELECTOR, focusFirstInput } from '../../js/modal.js';
+
 let isFetching = false;
+
+function getCsrfToken() {
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    return metaToken && metaToken.content ? metaToken.content : '';
+}
 
 /**
  * Загружает информацию о фотографии (метаданные) по её ID и вставляет результат
@@ -46,8 +55,16 @@ export function photoInfo(photoId) {
     // Подготавливаем данные для запроса
     const data = new FormData();
     data.append('photoId', photoId);
+    const csrfToken = getCsrfToken();
+    data.append('csrf_token', csrfToken);
 
-    fetch('../user_images/get_photo_info.php', { method: 'POST', body: data })
+    fetch('/admin/user_images/get_photo_info.php', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-Token': csrfToken
+        },
+        body: data
+    })
         .then(async (res) => {
             if (!res.ok) {
                 throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -58,6 +75,10 @@ export function photoInfo(photoId) {
             // Вставляем полученный HTML в контейнер
             if (loadingContents) {
                 loadingContents.innerHTML = html || '<p class="text-muted">Нет данных для отображения.</p>';
+                
+                // После вставки HTML, устанавливаем фокус на первый input
+                // Используем общую функцию из modal.js для консистентности
+                focusFirstInput(loadingContents, FOCUS_DELAY_AFTER_CONTENT_LOAD);
             }
         })
         .catch((err) => {
@@ -112,6 +133,8 @@ export function updatePhotoInfo() {
     data.append('title', title);
     data.append('description', description);
     data.append('alt_text', alt_text);
+    const csrfToken = getCsrfToken();
+    data.append('csrf_token', csrfToken);
 
     // Получаем кнопку для визуальной обратной связи
     const saveBtn = document.getElementById('saveMetaBtn');
@@ -123,8 +146,11 @@ export function updatePhotoInfo() {
     }
 
     // Отправляем запрос
-    fetch('../user_images/update_photo_info.php', {
+    fetch('/admin/user_images/update_photo_info.php', {
         method: 'POST',
+        headers: {
+            'X-CSRF-Token': csrfToken
+        },
         body: data
     })
         .then(response => {

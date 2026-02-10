@@ -32,6 +32,7 @@
 /* Панель инструментов: кнопки "Добавить", "Выделить всё", "Удалить" */
 .gallery-toolbar {
   display: flex;
+  flex-wrap: wrap; /* Позволяет кнопкам переноситься на новую строку */
   gap: 8px; /* Расстояние между кнопками */
   align-items: center;
   padding: 12px 0;
@@ -44,6 +45,28 @@
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Автоподбор колонок */
   gap: 16px; /* Расстояние между карточками */
   width: 100%;
+}
+
+@media (max-width: 576px) {
+  .gallery-grid {
+    gap: 10px;
+  }
+
+  .overlay {
+    padding: 6px 8px;
+    gap: 10px;
+  }
+
+  .gallery-toolbar {
+    padding: 8px 0;
+    margin-bottom: 10px;
+  }
+
+  .gallery-item {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
 }
 
 /* Стили отдельного элемента галереи (карточки) */

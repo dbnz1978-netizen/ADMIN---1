@@ -8,7 +8,7 @@
  */
 export function updateSelectedImagesInput(sectionId) {
     // 1. Находим контейнер с выбранными изображениями
-    const imageListContainer = document.getElementById('selectedImagesList_' + sectionId);
+    const imageListContainer = document.querySelector('#selectedImagesPreview_' + sectionId + ' #selectedImagesList_' + sectionId);
     
     // 2. Находим скрытое поле для сохранения ID
     const hiddenInput = document.getElementById('selectedImages_' + sectionId);
@@ -34,6 +34,11 @@ export function updateSelectedImagesInput(sectionId) {
     hiddenInput.value = newValue;
 }
 
+function getCsrfToken() {
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    return metaToken && metaToken.content ? metaToken.content : '';
+}
+
 
 /**
  * УПРАВЛЕНИЕ ГАЛЕРЕЕЙ ИЗОБРАЖЕНИЙ С AJAX ЗАГРУЗКОЙ
@@ -51,23 +56,33 @@ export function loadGallery(sectionId) {
     const imageIds = hiddenInput.value;
     console.log('Загрузка галереи:', { sectionId, imageIds });
 
+    const csrfToken = getCsrfToken();
+
     // AJAX запрос
     $.ajax({
-        url: '../user_images/image-management-section.php',
+        url: '/admin/user_images/image-management-section.php',
         type: 'POST',
         data: {
             sectionId: sectionId,
-            image_ids: imageIds
+            image_ids: imageIds,
+            csrf_token: csrfToken
+        },
+        headers: {
+            'X-CSRF-Token': csrfToken
         },
         beforeSend: function() {
             console.log('Начало загрузки данных для секции:', sectionId);
+            // Show spinner when starting AJAX request
+            if (typeof showSpinner === 'function') {
+                showSpinner(sectionId);
+            }
         },
         success: function(response) {
-            // Вставляем полученное содержимое в конкретный контейнер
-            $('#loading-content-' + sectionId).html(response);
+            // Вставляем полученное содержимое в контейнер для превью изображений
+            $('#selectedImagesPreview_' + sectionId).html(response);
             
             // Плавное появление (опционально)
-            $('#loading-content-' + sectionId).hide().fadeIn(300);
+            $('#selectedImagesPreview_' + sectionId).hide().fadeIn(300);
             
             // Обновляет скрытое поле selectedImages_{sectionId} на основе выбранных изображений
             updateSelectedImagesInput(sectionId);
@@ -88,6 +103,10 @@ export function loadGallery(sectionId) {
         },
         complete: function() {
             console.log('Запрос завершен для секции:', sectionId);
+            // Hide spinner when AJAX request completes (success or error)
+            if (typeof hideSpinner === 'function') {
+                hideSpinner(sectionId);
+            }
         }
     });
 }

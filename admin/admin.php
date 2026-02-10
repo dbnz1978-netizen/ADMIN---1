@@ -1,3 +1,35 @@
+<?php
+// Запретить прямой доступ ко всем .php файлам
+if (!defined('APP_ACCESS')) {
+    define('APP_ACCESS', true);
+}
+
+require_once __DIR__ . '/functions/auth_check.php';
+startSessionSafe();
+
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$captchaTokenTtl = 600;
+$tokenCreated = $_SESSION['captcha_token_created'] ?? 0;
+if (empty($_SESSION['captcha_token']) ||
+    empty($tokenCreated) ||
+    (time() - $tokenCreated) > $captchaTokenTtl ||
+    (!empty($_SESSION['captcha_token_used']) && $_SERVER['REQUEST_METHOD'] !== 'POST')) {
+    $_SESSION['captcha_token'] = bin2hex(random_bytes(32));
+    $_SESSION['captcha_token_created'] = time();
+    $_SESSION['captcha_token_used'] = false;
+}
+
+$captchaToken = $_SESSION['captcha_token'];
+$csrfToken = $_SESSION['csrf_token'];
+
+require_once __DIR__ . '/functions/htmleditor.php';               // Редактор WYSIWYG
+require_once __DIR__ . '/functions/sanitization.php';             // Валидация/экранирование
+
+?>
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -18,6 +50,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/main.css">
+    <!-- WYSIWYG-редактор -->
+    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="user_images/css/main.css">
 </head>
 <body>
     <div class="container-fluid">
@@ -26,7 +61,7 @@
             <!-- Заголовок с логотипом -->
             <div class="sidebar-header">
                 <a href="authorization.php" class="logo">
-                    <i class="bi bi-robot"></i>
+                    <i class="bi bi-shield-lock"></i>
                     AdminPanel
                 </a>
             </div>
@@ -162,11 +197,14 @@
                 </div>
 
                 <!-- Кнопка выхода -->
-<!-- Кнопка выхода -->
-<button class="logout-btn" onclick="window.location.href='logout.php'">
-    <i class="bi bi-box-arrow-right"></i>
-    Выйти
-</button>
+                <?php $csrfToken = $csrfToken ?? ($_SESSION['csrf_token'] ?? ''); ?>
+                <form method="post" action="logout.php">
+                    <input type="hidden" name="csrf_token" value="<?= escape($csrfToken) ?>">
+                    <button class="logout-btn" type="submit">
+                        <i class="bi bi-box-arrow-right"></i>
+                        Выйти
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -337,6 +375,29 @@
                 </div>
             </div>
 
+            <!-- Демонстрация нескольких экземпляров редактора -->
+            <div class="content-card">
+                <h3 class="card-title">
+                    <i class="bi bi-pencil-square"></i>
+                    Редакторы (множественные экземпляры)
+                </h3>
+                
+                <h5>Первый редактор</h5>
+                <div class="mb-4">
+                    <?php 
+                    renderHtmlEditor('demo_editor_1', '<p>Это первый экземпляр редактора. Вы можете редактировать этот текст независимо от других редакторов на странице.</p>');
+                    ?>
+                </div>
+                
+                <h5>Второй редактор</h5>
+                <div class="mb-4">
+                    <?php 
+                    renderHtmlEditor('demo_editor_2', '<p>Это второй экземпляр редактора. Он работает независимо от первого редактора.</p>');
+                    ?>
+                </div>
+                
+            </div>
+
             <!-- Блоки с заголовком в обводке -->
             <div class="row">
                 <div class="col-md-6">
@@ -505,6 +566,32 @@
                                     <textarea class="form-control" id="exampleTextarea" rows="3" placeholder="Введите много текста"></textarea>
                                 </div>
                             </div>
+
+                            <h5 class="mt-4">Контактные данные</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="demoPhone" class="form-label">Телефон</label>
+                                    <input type="tel" class="form-control" id="demoPhone" name="demo_phone" placeholder="+7 (XXX) XXX-XX-XX или +Код Страны Номер" maxlength="30">
+                                    <div class="form-text">Формат: +7 (XXX) XXX-XX-XX или +Код Страны Номер</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="demoEmail" class="form-label">Email адрес</label>
+                                    <input type="email" class="form-control" id="demoEmail" name="demo_email" placeholder="your@email.com" maxlength="254">
+                                    <div class="form-text">Максимум 254 символа</div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="demoPassword" class="form-label">Пароль</label>
+                                    <div class="input-group">
+                                        <input type="password" class="form-control" id="demoPassword" name="demo_password" placeholder="Введите пароль" minlength="6" maxlength="128">
+                                        <button type="button" class="password-toggle" aria-label="Показать пароль">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                             
                             <h5 class="mt-4">Чекбоксы и радиокнопки</h5>
                             <div class="row mb-3">
@@ -551,6 +638,24 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <h5 class="mt-4">Подтверждение</h5>
+                            <div class="captcha-container">
+                                <div class="captcha-text">Перетащите ползунок вправо для подтверждения</div>
+                                <div class="captcha-slider" id="captchaSlider">
+                                    <div class="captcha-track">
+                                        <div class="captcha-progress" id="captchaProgress"></div>
+                                        <div class="captcha-progress-extended" id="captchaProgressExtended"></div>
+                                    </div>
+                                    <div class="captcha-handle" id="captchaHandle" role="slider" aria-label="Подтверждение" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </div>
+                                </div>
+                                <div class="captcha-instruction">Перетащите кружок со стрелкой до конца</div>
+                                <input type="hidden" name="captcha_verified" id="captchaVerified" value="false">
+                                <input type="hidden" name="csrf_token" value="<?= escape($csrfToken) ?>">
+                                <input type="hidden" name="captcha_token" id="captchaToken" value="<?= escape($captchaToken) ?>">
+                            </div>
                             
                             <h5 class="mt-4">Выбор цвета</h5>
                             <div class="row mb-3">
@@ -564,9 +669,148 @@
                                 </div>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary mt-3">Сохранить изменения</button>
+                            <button type="submit" class="btn btn-primary mt-3">
+                                <i class="bi bi-check-lg" aria-hidden="true"></i> Сохранить изменения
+                            </button>
                             <button type="reset" class="btn btn-outline-secondary mt-3">Сбросить</button>
                         </div>
+                    </div>
+                    <div class="content-card">
+                        <h3 class="card-title">
+                            <i class="bi bi-layers"></i>
+                            Дополнительные элементы
+                        </h3>
+
+                        <h5>Карточки</h5>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="bordered-card h-100">
+                                    <div class="card-header">
+                                        <i class="bi bi-gem"></i> Презентация
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-3">Краткое описание карточки с акцентом на ценность.</p>
+                                        <button class="btn btn-sm btn-primary">Подробнее</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bordered-card h-100">
+                                    <div class="card-header">
+                                        <i class="bi bi-rocket"></i> Запуск
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-3">Добавьте показатели и быстрые действия в карточке.</p>
+                                        <div class="d-flex gap-2">
+                                            <span class="badge bg-success">Готово</span>
+                                            <span class="badge bg-info">4 шага</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="bordered-card h-100">
+                                    <div class="card-header">
+                                        <i class="bi bi-graph-up-arrow"></i> Аналитика
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-3">Покажите прогресс, KPI или статус выполнения.</p>
+                                        <button class="btn btn-sm btn-outline-primary">Смотреть отчет</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5>Вкладки</h5>
+                        <ul class="nav nav-tabs mb-3" id="demoTabs" role="tablist"
+                            style="--bs-nav-tabs-border-color: var(--border-color); --bs-nav-tabs-link-active-bg: var(--card-bg); --bs-nav-tabs-link-active-color: var(--text-color);">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-tab-pane" type="button" role="tab" aria-controls="overview-tab-pane" aria-selected="true">
+                                    Обзор
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-tab-pane" type="button" role="tab" aria-controls="details-tab-pane" aria-selected="false">
+                                    Детали
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-tab-pane" type="button" role="tab" aria-controls="settings-tab-pane" aria-selected="false">
+                                    Настройки
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mb-4" id="demoTabsContent"
+                             style="background-color: var(--card-bg); border: 1px solid var(--border-color); border-top: 0; padding: 16px; border-radius: 0 0 10px 10px;">
+                            <div class="tab-pane fade show active" id="overview-tab-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+                                <p class="mb-2">Сводная информация с ключевыми метриками и последними обновлениями.</p>
+                                <span class="badge bg-primary">Обновлено 5 минут назад</span>
+                            </div>
+                            <div class="tab-pane fade" id="details-tab-pane" role="tabpanel" aria-labelledby="details-tab" tabindex="0">
+                                <p class="mb-0">Подробные данные, отчеты и аналитика по выбранному разделу.</p>
+                            </div>
+                            <div class="tab-pane fade" id="settings-tab-pane" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+                                <p class="mb-0">Управляйте доступом, уведомлениями и параметрами отображения.</p>
+                            </div>
+                        </div>
+
+                        <h5>Вопрос-ответ</h5>
+                        <div class="accordion mb-4" id="faqAccordion"
+                             style="--bs-accordion-bg: var(--card-bg); --bs-accordion-color: var(--text-color); --bs-accordion-border-color: var(--border-color); --bs-accordion-btn-bg: var(--card-bg); --bs-accordion-btn-color: var(--text-color); --bs-accordion-active-bg: rgba(74, 108, 247, 0.12); --bs-accordion-active-color: var(--text-color); --bs-accordion-btn-focus-box-shadow: 0 0 0 0.2rem rgba(74, 108, 247, 0.2);">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqHeadingOne">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseOne" aria-expanded="true" aria-controls="faqCollapseOne">
+                                        Как добавить нового пользователя?
+                                    </button>
+                                </h2>
+                                <div id="faqCollapseOne" class="accordion-collapse collapse show" aria-labelledby="faqHeadingOne" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        Перейдите в раздел «Пользователи», нажмите «Добавить» и заполните форму.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqHeadingTwo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseTwo" aria-expanded="false" aria-controls="faqCollapseTwo">
+                                        Где посмотреть историю действий?
+                                    </button>
+                                </h2>
+                                <div id="faqCollapseTwo" class="accordion-collapse collapse" aria-labelledby="faqHeadingTwo" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        История событий доступна в разделе «Логи» и обновляется в реальном времени.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="faqHeadingThree">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseThree" aria-expanded="false" aria-controls="faqCollapseThree">
+                                        Как переключить тему оформления?
+                                    </button>
+                                </h2>
+                                <div id="faqCollapseThree" class="accordion-collapse collapse" aria-labelledby="faqHeadingThree" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        Используйте переключатель темы в боковом меню для выбора светлого или тёмного режима.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5>Заголовки H</h5>
+                        <div class="mb-4">
+                            <h1 class="mb-2">H1 Заголовок</h1>
+                            <h2 class="mb-2">H2 Заголовок</h2>
+                            <h3 class="mb-2">H3 Заголовок</h3>
+                            <h4 class="mb-2">H4 Заголовок</h4>
+                            <h5 class="mb-2">H5 Заголовок</h5>
+                            <h6 class="mb-0">H6 Заголовок</h6>
+                        </div>
+
+                        <h5>Маркированные списки</h5>
+                        <ul class="ps-3 mb-0">
+                            <li>Пункт списка с описанием функции или преимущества.</li>
+                            <li>Второй пункт для отображения структуры контента.</li>
+                            <li>Третий пункт, показывающий дополнительные возможности.</li>
+                        </ul>
                     </div>
                 </div>
                 
@@ -859,12 +1103,12 @@
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
-
     <!-- Модульный JS admin -->
     <script type="module" src="js/main.js"></script>
 
-
-
+<!-- WYSIWYG-редактор -->
+<script src="js/editor.js"></script>
+<script type="module" src="user_images/js/main.js"></script>
 
 </body>
 </html>

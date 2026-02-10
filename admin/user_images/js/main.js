@@ -46,6 +46,7 @@ import { initGalleryManager } from './gallery-manager.js';
 // Некоторые функции должны быть доступны из HTML-атрибутов вроде onclick="..."
 // Для этого явно добавляем их в глобальный объект window
 
+
 window.selectAll = selectAll;
 window.updateDeleteButtonVisibility = updateDeleteButtonVisibility;
 window.loadImageSection = loadImageSection;

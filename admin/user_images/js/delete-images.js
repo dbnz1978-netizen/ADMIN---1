@@ -57,6 +57,11 @@ export function deleteSelectedPhotos(sectionId) {
     // Формируем строку ID через запятую для передачи на сервер
     const idString = ids.join(',');
 
+    // Показываем индикатор загрузки
+    if (typeof showSpinner === 'function') {
+        showSpinner(sectionId);
+    }
+
     // Находим кнопку удаления и блокируем её, показывая индикатор загрузки
     const button = document.getElementById('deleteBtn_' + sectionId);
     if (button) {
@@ -68,7 +73,7 @@ export function deleteSelectedPhotos(sectionId) {
 
     // Отправляем AJAX-запрос на сервер для удаления
     $.ajax({
-        url: '../user_images/delete-images.php',
+        url: '/admin/user_images/delete-images.php',
         type: 'POST',
         data: {
             sectionId: sectionId, // ID раздела (для контекста)
@@ -107,6 +112,11 @@ export function deleteSelectedPhotos(sectionId) {
             if (button) {
                 button.innerHTML = 'Удалить';
                 button.disabled = false;
+            }
+            
+            // Скрываем индикатор загрузки
+            if (typeof hideSpinner === 'function') {
+                hideSpinner(sectionId);
             }
         }
     });

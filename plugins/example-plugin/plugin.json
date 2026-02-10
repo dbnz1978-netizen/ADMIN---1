@@ -1,0 +1,10 @@
+{
+  "name": "example-plugin",
+  "display_name": "Пример плагина",
+  "version": "1.0.0",
+  "author": "Команда разработки",
+  "description": "Это пример плагина для демонстрации функциональности системы плагинов",
+  "requires_php": "7.4",
+  "requires_db": true,
+  "has_settings_page": true
+}

@@ -29,6 +29,11 @@
  * =============================================================
  */
 
+function getCsrfToken() {
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    return metaToken && metaToken.content ? metaToken.content : '';
+}
+
 /**
  * Загружает HTML-содержимое секции управления изображениями с сервера.
  * 
@@ -40,14 +45,25 @@
  * loadImageSection('profile_images', 12); // дозагрузка следующих 12 элементов
  */
 export function loadImageSection(sectionId, offset = 0) {
+    
+    // Показываем индикатор загрузки
+    if (typeof showSpinner === 'function') {
+        showSpinner(sectionId);
+    }
+
+    const csrfToken = getCsrfToken();
 
     // Выполняем AJAX-запрос к серверу
     $.ajax({
-        url: '../user_images/fetch_media.php',           // Эндпоинт, возвращающий HTML-фрагмент галереи
+        url: '/admin/user_images/fetch_media.php',           // Эндпоинт, возвращающий HTML-фрагмент галереи
         type: 'POST',                                    // Метод запроса
         data: {                                          // Передаваемые данные
             sectionId: sectionId,
-            offset: offset
+            offset: offset,
+            csrf_token: csrfToken
+        },
+        headers: {
+            'X-CSRF-Token': csrfToken
         },
         dataType: 'html',                 // Ожидаем HTML в ответе
         success: function (response) {
@@ -82,6 +98,11 @@ export function loadImageSection(sectionId, offset = 0) {
                     $loadMoreSection.empty();
                 }
             }
+            
+            // Скрываем индикатор загрузки
+            if (typeof hideSpinner === 'function') {
+                hideSpinner(sectionId);
+            }
         },
         error: function (xhr, status, error) {
             // Обработка ошибок сети или сервера
@@ -99,6 +120,11 @@ export function loadImageSection(sectionId, offset = 0) {
                 // Находим кнопку по data-section и возвращаем её в исходное состояние
                 const $btn = $(`.load-more-btn[data-section="${sectionId}"]`);
                 $btn.prop('disabled', false).html('<i class="bi bi-arrow-clockwise me-1"></i> Загрузить ещё');
+            }
+            
+            // Скрываем индикатор загрузки
+            if (typeof hideSpinner === 'function') {
+                hideSpinner(sectionId);
             }
         }
     });

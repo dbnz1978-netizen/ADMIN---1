@@ -97,11 +97,11 @@ if (!function_exists('validateEmail')) {
 /**
  *  
 // Валидация email-адреса
-$result_email = validateEmail("user@example.com");
-if ($result_email['valid']) {
-    echo "Email валиден: " $result_email['email'];
+$resultEmail = validateEmail("user@example.com");
+if ($resultEmail['valid']) {
+    echo "Email валиден: " . $resultEmail['email'];
 } else {
-    echo "Ошибка: " $result_email['error'];
+    echo "Ошибка: " . $resultEmail['error'];
 }
 */
 
@@ -192,11 +192,11 @@ if (!function_exists('validatePassword')) {
 /**
  * 
 // Валидация пароля
-$result_pass = validatePassword('@Dbnz1978@@');
-if ($result_pass['valid']) {
-    echo "Пароль валиден: " . htmlspecialchars($result_pass['value']);
+$resultPass = validatePassword('@Dbnz1978@@');
+if ($resultPass['valid']) {
+    echo "Пароль валиден: " . htmlspecialchars($resultPass['value']);
 } else {
-    echo "Ошибка: " . htmlspecialchars($result_pass['error']);
+    echo "Ошибка: " . htmlspecialchars($resultPass['error']);
 }
 */
 
@@ -513,6 +513,43 @@ function validateIdList(string $input, int $maxCount = 10): array
     ];
 }
 /**
+ * Валидация идентификатора секции (например, для DOM-элементов)
+ *
+ * Разрешены: латинские буквы, цифры, подчёркивания и дефисы.
+ *
+ * @param string $value
+ * @param string $fieldName
+ * @return array ['valid' => bool, 'value' => string|null, 'error' => string|null]
+ */
+if (!function_exists('validateSectionId')) {
+    function validateSectionId(string $value, string $fieldName = 'Секция'): array
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return [
+                'valid' => false,
+                'value' => null,
+                'error' => "{$fieldName} не может быть пустой."
+            ];
+        }
+
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $value)) {
+            return [
+                'valid' => false,
+                'value' => null,
+                'error' => "{$fieldName} содержит недопустимые символы."
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'value' => $value,
+            'error' => null
+        ];
+    }
+}
+/**
  * 
 // Валидация строки вида "123,456,789"
 $input = "  abc123,,456x789, 0001  "; // "грязная" строка
@@ -564,10 +601,11 @@ function sanitizeHtmlFromEditor($html) {
         'tr' => [],
         'th' => ['style'],
         'td' => ['style'],
-        'span' => ['style'],
-        'div' => ['style'],
-        'a' => ['href', 'target'],
-        'img' => ['src', 'alt', 'width', 'height'],
+        'span' => ['style', 'data-font-style'],
+        'div' => ['style', 'class'],
+        'section' => ['class'],
+        'a' => ['href', 'target', 'rel'],
+        'img' => ['src', 'alt', 'width', 'height', 'style', 'class'],
         'font' => ['color']
     ];
 
@@ -665,7 +703,7 @@ function sanitizeDomNode($node, $allowedTags, $dangerousProtocols) {
                     $prop = trim(strtolower($parts[0]));
                     $val = trim($parts[1]);
                     
-                    if (in_array($prop, ['text-align', 'color', 'background-color', 'width', 'height'])) {
+                    if (in_array($prop, ['text-align', 'color', 'background-color', 'width', 'height', 'font-family', 'font-size'])) {
                         if (strpos($val, 'url(') !== false || strpos($val, 'expression') !== false) {
                             continue;
                         }

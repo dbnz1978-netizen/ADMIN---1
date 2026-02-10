@@ -26,12 +26,26 @@ export function initSidebarMenu() {
     }
 
     if (menuToggle) {
-        menuToggle.addEventListener('click', toggleMenu);
+        menuToggle.addEventListener('click', function (event) {
+            event.stopPropagation();
+            toggleMenu();
+        });
     }
 
     if (overlay) {
         overlay.addEventListener('click', toggleMenu);
     }
+
+    // Закрытие по клику вне бокового меню
+    document.addEventListener('click', function (event) {
+        if (!sidebar || !sidebar.classList.contains('active')) return;
+        const isClickInsideSidebar = sidebar.contains(event.target);
+        const isClickOnToggle = menuToggle && menuToggle.contains(event.target);
+
+        if (!isClickInsideSidebar && !isClickOnToggle) {
+            toggleMenu();
+        }
+    });
 
     // Закрытие по Escape
     document.addEventListener('keydown', function (e) {

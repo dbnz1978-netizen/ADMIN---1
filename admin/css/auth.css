@@ -41,6 +41,25 @@
     font-size: 32px;
 }
 
+.auth-logo-image {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+    object-fit: contain;
+}
+
+.auth-logo-dark {
+    display: none;
+}
+
+[data-theme="dark"] .auth-logo-dark {
+    display: inline-block;
+}
+
+[data-theme="dark"] .auth-logo-light {
+    display: none;
+}
+
 .auth-title {
     font-size: 24px;
     font-weight: 600;

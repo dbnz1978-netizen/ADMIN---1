@@ -48,15 +48,24 @@ function formatRussianPhone(cleaned) {
  * @returns {string} Частично отформатированный номер
  */
 function formatInternationalPhone(cleaned) {
-    if (cleaned.length <= 3) return cleaned;
-    
-    if (cleaned.length > 7) {
-        return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
-    } else if (cleaned.length > 4) {
-        return cleaned.replace(/(\d{3})(\d+)/, '$1 $2');
+    const hasPlus = cleaned.startsWith('+');
+    const digits = hasPlus ? cleaned.slice(1) : cleaned;
+
+    if (digits.length <= 4) {
+        return hasPlus ? `+${digits}` : digits;
     }
-    
-    return cleaned;
+
+    let formattedDigits;
+
+    if (digits.length > 10) {
+        formattedDigits = digits.replace(/(\d{3})(\d{3})(\d{4})(\d+)/, '$1 $2 $3 $4');
+    } else if (digits.length > 7) {
+        formattedDigits = digits.replace(/(\d{3})(\d{3})(\d{1,4})/, '$1 $2 $3');
+    } else {
+        formattedDigits = digits.replace(/(\d{3})(\d+)/, '$1 $2');
+    }
+
+    return hasPlus ? `+${formattedDigits}` : formattedDigits;
 }
 
 /**

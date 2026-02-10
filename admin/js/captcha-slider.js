@@ -24,7 +24,8 @@ export class CaptchaSlider {
             verifiedInputId = 'captchaVerified',
             submitButtonId,
             successThreshold = 0.95,
-            handleOffset = 5
+            handleOffset = 5,
+            captchaTokenId = 'captchaToken'
         } = options;
 
         this.slider = document.getElementById(sliderId);
@@ -32,6 +33,13 @@ export class CaptchaSlider {
         this.progress = document.getElementById(sliderId.replace('Slider', 'Progress'));
         this.progressExtended = document.getElementById(sliderId.replace('Slider', 'ProgressExtended'));
         this.verifiedInput = document.getElementById(verifiedInputId);
+        this.form = this.slider ? this.slider.closest('form') : null;
+        this.captchaTokenInput = this.form
+            ? this.form.querySelector(`#${captchaTokenId}`)
+            : document.getElementById(captchaTokenId);
+        this.csrfTokenInput = this.form
+            ? this.form.querySelector('input[name="csrf_token"]')
+            : document.querySelector('input[name="csrf_token"]');
         this.submitButton = this.findSubmitButton(submitButtonId);
 
         if (!this.slider || !this.handle) {
@@ -59,7 +67,7 @@ export class CaptchaSlider {
 
     findSubmitButton(submitButtonId) {
         if (submitButtonId) return document.getElementById(submitButtonId);
-        const form = this.slider?.closest('form');
+        const form = this.form || this.slider?.closest('form');
         return form ? form.querySelector('button[type="submit"], [type="submit"]') : null;
     }
 
@@ -137,10 +145,30 @@ export class CaptchaSlider {
         this.slider.setAttribute('data-verifying', 'true');
 
         try {
+            const captchaToken = this.captchaTokenInput?.value;
+            const csrfToken = this.csrfTokenInput?.value;
+
+            if (!captchaToken) {
+                throw new Error('Captcha token is missing');
+            }
+
+            const payload = {
+                action: 'verify',
+                captcha_token: captchaToken
+            };
+
+            if (csrfToken) {
+                payload.csrf_token = csrfToken;
+            }
+
             const response = await fetch('verify.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json; charset=utf-8' },
-                body: JSON.stringify({ action: 'verify' })
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
@@ -167,6 +195,10 @@ export class CaptchaSlider {
      * Обработка успешного завершения перетаскивания (визуально + серверно)
      */
     async onSuccess() {
+        if (this.slider.hasAttribute('data-verifying') || this.slider.classList.contains('captcha-verified')) {
+            return;
+        }
+
         // 1. Визуальный успех (как раньше)
         this.slider.classList.add('captcha-success');
         if (this.progress) this.progress.style.animation = 'slideBackground 0.5s linear infinite';

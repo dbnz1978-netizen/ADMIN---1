@@ -43,7 +43,7 @@ if (!defined('FILE_LOG_INCLUDED')) {
     $docRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
     if (empty($docRoot)) {
         // fallback: если DOCUMENT_ROOT не установлен (например, CLI), используем __DIR__
-        $projectRoot = dirname(__DIR__, 2); // можно настроить по ситуации
+        $projectRoot = dirname(__DIR__, 2);  // можно настроить по ситуации
         error_log('logEvent(): $_SERVER[\'DOCUMENT_ROOT\'] отсутствует — использован fallback для $projectRoot');
     } else {
         $projectRoot = dirname($docRoot);
@@ -75,12 +75,12 @@ if (!defined('FILE_LOG_INCLUDED')) {
             }
 
             // === Настройки ===
-            $MAX_LOG_SIZE = 10 * 1024 * 1024; // 10 МБ
-            $MAX_ARCHIVES = 5;                // Макс. количество .gz-архивов
+            $maxLogSize = 10 * 1024 * 1024;  // 10 МБ
+            $maxArchives = 5;  // Макс. количество .gz-архивов
 
             // === Определяем имя вызывающего файла ===
             $callerFile = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file'] ?? __FILE__;
-            $baseName   = basename($callerFile, '.php'); // например: 'auth_check'
+            $baseName = basename($callerFile, '.php');  // например: 'auth_check'
 
             // Путь к лог-файлу: $projectRoot/logs/baseName_level.log
             $logDir  = $projectRoot . '/logs';
@@ -99,7 +99,7 @@ if (!defined('FILE_LOG_INCLUDED')) {
             $lockHandle = @fopen($lockFile, 'c+');
             if ($lockHandle && flock($lockHandle, LOCK_EX | LOCK_NB)) {
                 // Архивируем, если файл существует и > 10 МБ
-                if (file_exists($logFile) && filesize($logFile) > $MAX_LOG_SIZE) {
+                if (file_exists($logFile) && filesize($logFile) > $maxLogSize) {
                     try {
                         $timestamp   = date('Ymd_His');
                         $archiveName = "{$baseName}_{$level}_{$timestamp}.log.gz";
@@ -110,8 +110,8 @@ if (!defined('FILE_LOG_INCLUDED')) {
                         if ($logContent !== false) {
                             $gzData = gzencode($logContent, 6);
                             if ($gzData !== false && file_put_contents($archivePath, $gzData) !== false) {
-                                unlink($logFile); // удаляем оригинал
-                                cleanupOldArchives($logDir, $baseName, $level, $MAX_ARCHIVES);
+                                unlink($logFile);  // удаляем оригинал
+                                cleanupOldArchives($logDir, $baseName, $level, $maxArchives);
                             }
                         }
                     } catch (Exception $e) {
@@ -130,6 +130,7 @@ if (!defined('FILE_LOG_INCLUDED')) {
             return $bytes !== false;
         }
     }
+
 
     /**
      * Удаляет старые .gz-архивы, оставляя только последние $maxCount

@@ -31,7 +31,9 @@ if (!defined('APP_ACCESS')) {
 }
 
 // Базовые настройки отправителя
-define('MAIL_FROM_EMAIL', 'admin@' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost'));
+$mailHost = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+$mailHost = preg_replace('/:\d+$/', '', $mailHost);
+define('MAIL_FROM_EMAIL', 'admin@' . $mailHost);
 
 // SMTP настройки (опционально - для улучшенной доставки)
 define('MAIL_SMTP_HOST', 'localhost');    // SMTP сервер
@@ -39,6 +41,170 @@ define('MAIL_SMTP_PORT', 587);            // Порт SMTP (587 для TLS, 465 
 define('MAIL_SMTP_USER', '');             // Логин SMTP (оставьте пустым для использования mail())
 define('MAIL_SMTP_PASS', '');             // Пароль SMTP (оставьте пустым для использования mail())
 define('MAIL_SMTP_SECURE', 'tls');        // Шифрование: tls или ssl
+define('MAIL_LOGO_FALLBACK', '/admin/img/avatar.svg');
+
+/**
+ * Формирует абсолютный URL для email
+ *
+ * @param string $baseUrl
+ * @param string|null $path Optional path to append to base URL.
+ * @return string Absolute URL combining base URL and path.
+ */
+function formatEmailUrl($baseUrl, $path) {
+    if (empty($path)) {
+        return $baseUrl;
+    }
+
+    if (preg_match('/^https?:\/\//i', $path)) {
+        return $path;
+    }
+
+    return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+}
+
+/**
+ * Получает данные брендинга для email (логотип, base URL, email поддержки).
+ *
+ * @param string $adminPanel
+ * @return array{base_url: string, logo_url: string, support_email: string, preheader: string}
+ */
+function getEmailBrandingData($adminPanel) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $baseUrl = rtrim($protocol . '://' . $host, '/');
+    $logoPath = null;
+
+    if (!empty($GLOBALS['authLogoLight'])) {
+        $logoPath = $GLOBALS['authLogoLight'];
+    }
+
+    if (empty($logoPath) && isset($GLOBALS['adminData'], $GLOBALS['pdo']) && function_exists('getThemeLogoPaths')) {
+        $adminUserId = null;
+        if (function_exists('getAdminUserId')) {
+            $adminUserId = getAdminUserId($GLOBALS['pdo']);
+        }
+        if ($adminUserId !== null) {
+            $logoPaths = getThemeLogoPaths($GLOBALS['pdo'], $GLOBALS['adminData']['profile_logo'] ?? '', 'thumbnail', $adminUserId);
+            $logoPath = $logoPaths['light'] ?? null;
+        }
+    }
+
+    if (empty($logoPath)) {
+        $logoPath = MAIL_LOGO_FALLBACK;
+    }
+
+    $supportEmail = MAIL_FROM_EMAIL;
+    if (!empty($GLOBALS['adminData']['email']) && filter_var($GLOBALS['adminData']['email'], FILTER_VALIDATE_EMAIL)) {
+        $supportEmail = $GLOBALS['adminData']['email'];
+    }
+
+    return [
+        'base_url' => $baseUrl,
+        'logo_url' => formatEmailUrl($baseUrl, $logoPath),
+        'support_email' => $supportEmail,
+        'preheader' => $adminPanel . ' уведомление'
+    ];
+}
+
+/**
+ * Собирает единый HTML-шаблон письма.
+ *
+ * @param string $title
+ * @param string $contentHtml
+ * @param string $adminPanel
+ * @return string HTML письмо.
+ */
+function buildEmailTemplate($title, $contentHtml, $adminPanel) {
+    $branding = getEmailBrandingData($adminPanel);
+    $logoUrl = htmlspecialchars($branding['logo_url'], ENT_QUOTES, 'UTF-8');
+    $supportEmail = htmlspecialchars($branding['support_email'], ENT_QUOTES, 'UTF-8');
+    $panelName = htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8');
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $preheader = htmlspecialchars($branding['preheader'] ?? $title, ENT_QUOTES, 'UTF-8');
+    $year = date('Y');
+
+    return <<<HTML
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{$safeTitle}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,sans-serif;color:#1f2937;">
+    <div style="display:none;max-height:0;overflow:hidden;color:transparent;opacity:0;">{$preheader}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:24px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 12px 30px rgba(15,23,42,0.08);">
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#0d6efd,#2563eb);padding:28px 32px;text-align:center;color:#ffffff;">
+                            <img src="{$logoUrl}" alt="{$panelName}" style="max-height:48px;display:block;margin:0 auto 12px;" />
+                            <div style="font-size:20px;font-weight:600;line-height:1.2;">{$panelName}</div>
+                            <div style="font-size:14px;opacity:0.9;margin-top:4px;">{$safeTitle}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            {$contentHtml}
+                            <p style="margin:24px 0 0;font-size:14px;color:#6b7280;">С уважением,<br><strong>{$panelName}</strong></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:24px 32px;background-color:#f8fafc;color:#6b7280;font-size:12px;text-align:center;line-height:1.6;">
+                            <p style="margin:0 0 8px;">Это автоматическое письмо. Пожалуйста, не отвечайте на него.</p>
+                            <p style="margin:0 0 8px;">Если у вас есть вопросы, напишите нам: <a href="mailto:{$supportEmail}" style="color:#0d6efd;text-decoration:none;">{$supportEmail}</a></p>
+                            <p style="margin:0;">&copy; {$year} {$panelName}. Все права защищены.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+HTML;
+}
+
+/**
+ * Конвертирует HTML в текстовую версию письма для multipart писем.
+ *
+ * @param string $html
+ * @return string
+ */
+function buildPlainTextEmail($html) {
+    $lineBreaks = ['<br>', '<br/>', '<br />', '</p>', '</div>', '</h1>', '</h2>', '</h3>', '</li>'];
+    $text = str_ireplace($lineBreaks, "\n", $html);
+    $text = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
+    $text = preg_replace("/\n{3,}/", "\n\n", trim($text));
+    return $text;
+}
+
+/**
+ * Генерирует безопасный случайный токен для почтовых заголовков.
+ *
+ * @param int $byteLength
+ * @return string
+ */
+function getRandomToken($byteLength) {
+    if (function_exists('random_bytes')) {
+        return bin2hex(random_bytes($byteLength));
+    }
+
+    if (function_exists('openssl_random_pseudo_bytes')) {
+        return bin2hex(openssl_random_pseudo_bytes($byteLength));
+    }
+
+    $urandom = @fopen('/dev/urandom', 'rb');
+    if ($urandom !== false) {
+        $bytes = fread($urandom, $byteLength);
+        fclose($urandom);
+        if ($bytes !== false) {
+            return bin2hex($bytes);
+        }
+    }
+
+    // Небезопасный fallback: используется только для технических заголовков (не для токенов безопасности).
+    return substr(hash('sha256', uniqid((string) mt_rand(), true)), 0, $byteLength * 2);
+}
 
 /**
  * Отправляет email для восстановления пароля
@@ -46,63 +212,35 @@ define('MAIL_SMTP_SECURE', 'tls');        // Шифрование: tls или ss
  * @param string $email Email получателя
  * @param string $firstName Имя пользователя
  * @param string $token Токен сброса пароля
- * @param string $AdminPanel Название админ-панели
+ * @param string $adminPanel Название админ-панели
  * @return bool Успешность отправки
  */
-function sendPasswordResetEmail($email, $firstName, $token, $AdminPanel) {
+function sendPasswordResetEmail($email, $firstName, $token, $adminPanel) {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $basePath = rtrim(dirname($_SERVER['PHP_SELF']), '/') ?: '';
     $resetLink = $protocol . '://' . $host . $basePath . '/reset.php?token=' . urlencode($token);
 
-    $subject = "Восстановление пароля - " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8');
-    $messageBody = "
-    <html>
-    <head>
-        <title>Восстановление пароля</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { padding: 20px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
-            .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-            .warning { background: #fff3cd; padding: 10px; border-radius: 4px; margin: 15px 0; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>Восстановление пароля</h1>
-            </div>
-            <div class='content'>
-                <h2>Здравствуйте, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
-                <p>Мы получили запрос на восстановление пароля для вашего аккаунта в " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ".</p>
-                
-                <div style='text-align: center; margin: 25px 0;'>
-                    <a href='" . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . "' class='button'>Восстановить пароль</a>
-                </div>
-                
-                <p>Если кнопка не работает, скопируйте и вставьте следующую ссылку в ваш браузер:</p>
-                <p style='word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px;'>
-                    <a href='" . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . "</a>
-                </p>
-                
-                <div class='warning'>
-                    <p><strong>Внимание:</strong> Ссылка действительна в течение 1 часа.</p>
-                </div>
-                
-                <p>Если вы не запрашивали восстановление пароля, пожалуйста, проигнорируйте это письмо.</p>
-            </div>
-            <div class='footer'>
-                <p>&copy; " . date('Y') . " " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ". Все права защищены.</p>
-            </div>
+    $subject = "Восстановление пароля - " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8');
+    $safeResetLink = htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8');
+    $body = "
+        <h2 style='margin-top:0;'>Здравствуйте, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
+        <p>Мы получили запрос на восстановление пароля для вашего аккаунта в " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . ".</p>
+        <div style='text-align:center;margin:24px 0;'>
+            <a href='{$safeResetLink}' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Восстановить пароль</a>
         </div>
-    </body>
-    </html>
+        <p style='margin:0 0 12px;'>Если кнопка не работает, скопируйте и вставьте следующую ссылку в ваш браузер:</p>
+        <p style='word-break:break-all;background-color:#f1f5f9;padding:12px;border-radius:8px;margin:0 0 16px;'>
+            <a href='{$safeResetLink}' style='color:#0d6efd;text-decoration:none;'>{$safeResetLink}</a>
+        </p>
+        <div style='background-color:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:8px;color:#92400e;margin-bottom:16px;'>
+            <strong>Внимание:</strong> Ссылка действительна в течение 1 часа.
+        </div>
+        <p style='margin:0;'>Если вы не запрашивали восстановление пароля, просто проигнорируйте это письмо.</p>
     ";
+    $messageBody = buildEmailTemplate('Восстановление пароля', $body, $adminPanel);
 
-    return sendEmail($email, $subject, $messageBody, $AdminPanel);
+    return sendEmail($email, $subject, $messageBody, $adminPanel);
 }
 
 /**
@@ -114,12 +252,12 @@ function sendPasswordResetEmail($email, $firstName, $token, $AdminPanel) {
  * @param string $email Email адрес получателя
  * @param string $firstName Имя пользователя для персонализации письма
  * @param string $verificationToken Уникальный токен для подтверждения email
- * @param string $AdminPanel Название админ-панели
+ * @param string $adminPanel Название админ-панели
  * @return bool Возвращает true если письмо отправлено успешно, false в случае ошибки
  */
-function sendVerificationEmail($email, $firstName, $verificationToken, $AdminPanel) {
+function sendVerificationEmail($email, $firstName, $verificationToken, $adminPanel) {
     // Тема письма
-    $subject = "Подтверждение регистрации - " . $AdminPanel;
+    $subject = "Подтверждение регистрации - " . $adminPanel;
     
     // Правильное формирование URL для верификации
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
@@ -131,45 +269,24 @@ function sendVerificationEmail($email, $firstName, $verificationToken, $AdminPan
     $verificationUrl = $baseUrl . "/verify_email.php?token=" . urlencode($verificationToken);
     
     // HTML-шаблон письма подтверждения
-    $message = "
-    <html>
-    <head>
-        <title>Подтверждение регистрации</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #007bff; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f9f9f9; }
-            .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>" . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . "</h1>
-            </div>
-            <div class='content'>
-                <h2>Здравствуйте, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
-                <p>Благодарим вас за регистрацию в " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ". Для завершения регистрации и активации вашего аккаунта, пожалуйста, подтвердите ваш email адрес.</p>
-                <p style='text-align: center;'>
-                    <a href='" . htmlspecialchars($verificationUrl, ENT_QUOTES, 'UTF-8') . "' class='button'>Подтвердить Email</a>
-                </p>
-                <p>Если кнопка не работает, скопируйте и вставьте следующую ссылку в ваш браузер:</p>
-                <p><a href='" . htmlspecialchars($verificationUrl, ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($verificationUrl, ENT_QUOTES, 'UTF-8') . "</a></p>
-                <p><strong>Ссылка действительна в течение 24 часов.</strong></p>
-            </div>
-            <div class='footer'>
-                <p>Если вы не регистрировались в " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ", пожалуйста, проигнорируйте это письмо.</p>
-                <p>&copy; " . date('Y') . " " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ". Все права защищены.</p>
-            </div>
+    $safeVerificationUrl = htmlspecialchars($verificationUrl, ENT_QUOTES, 'UTF-8');
+    $body = "
+        <h2 style='margin-top:0;'>Здравствуйте, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
+        <p>Благодарим вас за регистрацию в " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . ". Для завершения регистрации и активации вашего аккаунта, пожалуйста, подтвердите ваш email адрес.</p>
+        <div style='text-align:center;margin:24px 0;'>
+            <a href='{$safeVerificationUrl}' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Подтвердить Email</a>
         </div>
-    </body>
-    </html>
+        <p style='margin:0 0 12px;'>Если кнопка не работает, скопируйте и вставьте следующую ссылку в ваш браузер:</p>
+        <p style='word-break:break-all;background-color:#f1f5f9;padding:12px;border-radius:8px;margin:0 0 16px;'>
+            <a href='{$safeVerificationUrl}' style='color:#0d6efd;text-decoration:none;'>{$safeVerificationUrl}</a>
+        </p>
+        <p style='margin:0;'><strong>Ссылка действительна в течение 24 часов.</strong></p>
+        <p style='margin:16px 0 0;'>Если вы не регистрировались в " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . ", пожалуйста, проигнорируйте это письмо.</p>
     ";
+    $message = buildEmailTemplate('Подтверждение регистрации', $body, $adminPanel);
     
     // Отправка email с выбором метода
-    return sendEmail($email, $subject, $message, $AdminPanel);
+    return sendEmail($email, $subject, $message, $adminPanel);
 }
 
 /**
@@ -182,44 +299,25 @@ function sendVerificationEmail($email, $firstName, $verificationToken, $AdminPan
  * @param string $firstName Имя пользователя для персонализации письма
  * @return bool Возвращает true если письмо отправлено успешно, false в случае ошибки
  */
-function sendWelcomeEmail($email, $firstName, $AdminPanel) {
+function sendWelcomeEmail($email, $firstName, $adminPanel) {
     // Тема приветственного письма
-    $subject = "Добро пожаловать в " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . "!";
-    
-    // HTML-шаблон приветственного письма
-    $message = "
-    <html>
-    <head>
-        <title>Добро пожаловать</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #28a745; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f9f9f9; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>Добро пожаловать!</h1>
-            </div>
-            <div class='content'>
-                <h2>Поздравляем, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
-                <p>Ваш аккаунт в " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . " успешно активирован.</p>
-                <p>Теперь вы можете войти в систему и начать работу.</p>
-                <p>Если у вас возникнут вопросы, не стесняйтесь обращаться в нашу службу поддержки.</p>
-            </div>
-            <div class='footer'>
-                <p>&copy; " . date('Y') . " " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ". Все права защищены.</p>
-            </div>
+    $subject = "Добро пожаловать в " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . "!";
+
+    $branding = getEmailBrandingData($adminPanel);
+    $baseUrl = htmlspecialchars($branding['base_url'], ENT_QUOTES, 'UTF-8');
+    $body = "
+        <h2 style='margin-top:0;'>Поздравляем, " . htmlspecialchars($firstName, ENT_QUOTES, 'UTF-8') . "!</h2>
+        <p>Ваш аккаунт в " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . " успешно активирован.</p>
+        <p>Теперь вы можете войти в систему и начать работу.</p>
+        <div style='text-align:center;margin:24px 0;'>
+            <a href='{$baseUrl}' style='display:inline-block;padding:12px 24px;background-color:#22c55e;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Перейти в панель</a>
         </div>
-    </body>
-    </html>
+        <p style='margin:0;'>Если у вас возникнут вопросы, не стесняйтесь обращаться в нашу службу поддержки.</p>
     ";
+    $message = buildEmailTemplate('Добро пожаловать', $body, $adminPanel);
     
     // Отправка email с выбором метода
-    return sendEmail($email, $subject, $message, $AdminPanel);
+    return sendEmail($email, $subject, $message, $adminPanel);
 }
 
 /**
@@ -232,9 +330,9 @@ function sendWelcomeEmail($email, $firstName, $AdminPanel) {
  * @param string $firstName Имя пользователя для персонализации письма
  * @return bool Возвращает true если письмо отправлено успешно, false в случае ошибки
  */
-function sendAccountEmail($email, $password, $AdminPanel, $firstName = '') {
+function sendAccountEmail($email, $password, $adminPanel, $firstName = '') {
     // Тема письма
-    $subject = "Данные вашего аккаунта - " . $AdminPanel;
+    $subject = "Данные вашего аккаунта - " . $adminPanel;
     
     // Правильное формирование URL
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
@@ -242,61 +340,28 @@ function sendAccountEmail($email, $password, $AdminPanel, $firstName = '') {
     $scriptPath = dirname($_SERVER['PHP_SELF']);
     $baseUrl = rtrim($protocol . "://" . $host . $scriptPath, '/');
 
-    // HTML-шаблон письма с данными аккаунта
-    $message = "
-    <html>
-    <head>
-        <title>Данные вашего аккаунта</title>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #007bff; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f9f9f9; }
-            .credentials { background: #fff; border: 2px solid #007bff; border-radius: 8px; padding: 20px; margin: 20px 0; }
-            .credential-item { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-            .warning { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin: 15px 0; }
-            .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>" . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . "</h1>
-                <h2>Данные вашего аккаунта</h2>
-            </div>
-            <div class='content'>
-                <h2>Здравствуйте" . ($firstName ? ", " . htmlspecialchars($firstName, ENT_QUOTES | ENT_HTML5, 'UTF-8') : "") . "!</h2>
-                <p>Ваш аккаунт был создан/обновлен в системе " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ".</p>
-                <div class='credentials'>
-                    <h3>Ваши данные для входа:</h3>
-                    <div class='credential-item'>
-                        <strong>Email:</strong> " . htmlspecialchars($email, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "
-                    </div>
-                    <div class='credential-item'>
-                        <strong>Пароль:</strong> " . htmlspecialchars($password, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "
-                    </div>
-                </div>
-                <div class='warning'>
-                    <strong>Важно!</strong>
-                    <p>Рекомендуем сменить пароль после первого входа в систему для обеспечения безопасности.</p>
-                </div>
-                <p style='text-align: center;'>
-                    <a href='" . htmlspecialchars($baseUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "' class='button'>Войти в систему</a>
-                </p>
-                <p>Если кнопка не работает, перейдите по ссылке: <a href='" . htmlspecialchars($baseUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "'>" . htmlspecialchars($baseUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "</a></p>
-            </div>
-            <div class='footer'>
-                <p>Если вы не ожидали это письмо, пожалуйста, проигнорируйте его.</p>
-                <p>&copy; " . date('Y') . " " . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . ". Все права защищены.</p>
-            </div>
+    $safeBaseUrl = htmlspecialchars($baseUrl, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $body = "
+        <h2 style='margin-top:0;'>Здравствуйте" . ($firstName ? ", " . htmlspecialchars($firstName, ENT_QUOTES | ENT_HTML5, 'UTF-8') : "") . "!</h2>
+        <p>Ваш аккаунт был создан/обновлен в системе " . htmlspecialchars($adminPanel, ENT_QUOTES, 'UTF-8') . ".</p>
+        <div style='background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:20px 0;'>
+            <h3 style='margin:0 0 12px;'>Ваши данные для входа:</h3>
+            <p style='margin:0 0 8px;'><strong>Email:</strong> " . htmlspecialchars($email, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "</p>
+            <p style='margin:0;'><strong>Пароль:</strong> " . htmlspecialchars($password, ENT_QUOTES | ENT_HTML5, 'UTF-8') . "</p>
         </div>
-    </body>
-    </html>
+        <div style='background-color:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-bottom:16px;color:#92400e;'>
+            <strong>Важно:</strong> Рекомендуем сменить пароль после первого входа в систему.
+        </div>
+        <div style='text-align:center;margin:24px 0;'>
+            <a href='{$safeBaseUrl}' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Войти в систему</a>
+        </div>
+        <p style='margin:0;'>Если кнопка не работает, перейдите по ссылке: <a href='{$safeBaseUrl}' style='color:#0d6efd;text-decoration:none;'>{$safeBaseUrl}</a></p>
+        <p style='margin:16px 0 0;'>Если вы не ожидали это письмо, пожалуйста, проигнорируйте его.</p>
     ";
+    $message = buildEmailTemplate('Данные вашего аккаунта', $body, $adminPanel);
     
     // Отправка email
-    return sendEmail($email, $subject, $message, $AdminPanel);
+    return sendEmail($email, $subject, $message, $adminPanel);
 }
 
 /**
@@ -307,10 +372,10 @@ function sendAccountEmail($email, $password, $AdminPanel, $firstName = '') {
  * @param string $subject Тема обращения (если новое)
  * @param string $ticketId ID тикета
  * @param bool $isNewTicket Создано ли новое обращение
- * @param string $AdminPanel Название админ-панели
+ * @param string $adminPanel Название админ-панели
  * @return bool Успешность отправки
  */
-function sendAdminSupportNotification($adminEmail, $userEmail, $subject, $ticketId, $AdminPanel, $isNewTicket = false) {
+function sendAdminSupportNotification($adminEmail, $userEmail, $subject, $ticketId, $adminPanel, $isNewTicket = false) {
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
     $baseUrl = rtrim($protocol . '://' . $host, '/');
@@ -318,42 +383,30 @@ function sendAdminSupportNotification($adminEmail, $userEmail, $subject, $ticket
 
     if ($isNewTicket) {
         $subjectLine = "🆕 Новое обращение в поддержку (#{$ticketId})";
+        $title = 'Новое обращение в поддержку';
         $body = "
-<h2>Новое обращение от пользователя</h2>
-<p><strong>Пользователь:</strong> " . htmlspecialchars($userEmail, ENT_QUOTES, 'UTF-8') . "</p>
-<p><strong>Тема:</strong> " . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . "</p>
-<p><a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "' style='display:inline-block;padding:10px 20px;background:#007bff;color:white;text-decoration:none;border-radius:4px;'>Перейти к обращению</a></p>
+            <h2 style='margin-top:0;'>Новое обращение от пользователя</h2>
+            <p><strong>Пользователь:</strong> " . htmlspecialchars($userEmail, ENT_QUOTES, 'UTF-8') . "</p>
+            <p><strong>Тема:</strong> " . htmlspecialchars($subject, ENT_QUOTES, 'UTF-8') . "</p>
+            <div style='text-align:center;margin:24px 0;'>
+                <a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Перейти к обращению</a>
+            </div>
         ";
     } else {
         $subjectLine = "💬 Новое сообщение в обращении (#{$ticketId})";
+        $title = 'Новое сообщение в поддержке';
         $body = "
-<h2>Новое сообщение от пользователя</h2>
-<p><strong>Пользователь:</strong> " . htmlspecialchars($userEmail, ENT_QUOTES, 'UTF-8') . "</p>
-<p><a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "' style='display:inline-block;padding:10px 20px;background:#007bff;color:white;text-decoration:none;border-radius:4px;'>Перейти к переписке</a></p>
+            <h2 style='margin-top:0;'>Новое сообщение от пользователя</h2>
+            <p><strong>Пользователь:</strong> " . htmlspecialchars($userEmail, ENT_QUOTES, 'UTF-8') . "</p>
+            <div style='text-align:center;margin:24px 0;'>
+                <a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Перейти к переписке</a>
+            </div>
         ";
     }
 
-    $message = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 20px auto; padding: 20px; }
-        .header { background: #007bff; color: white; padding: 15px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; border-radius: 8px; margin-top: 10px; }
-        .button { display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'><h2>" . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . " — Поддержка</h2></div>
-        <div class='content'>{$body}</div>
-    </div>
-</body>
-</html>
-    ";
+    $message = buildEmailTemplate($title, $body, $adminPanel);
 
-    return sendEmail($adminEmail, $subjectLine, $message, $AdminPanel);
+    return sendEmail($adminEmail, $subjectLine, $message, $adminPanel);
 }
 
 /**
@@ -362,10 +415,10 @@ function sendAdminSupportNotification($adminEmail, $userEmail, $subject, $ticket
  * @param string $userEmail Email пользователя
  * @param string $adminMessage Текст ответа от админа
  * @param int $ticketId ID тикета
- * @param string $AdminPanel Название админ-панели
+ * @param string $adminPanel Название админ-панели
  * @return bool Успешность отправки
  */
-function sendUserSupportReply($userEmail, $adminMessage, $ticketId, $AdminPanel) {
+function sendUserSupportReply($userEmail, $adminMessage, $ticketId, $adminPanel) {
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
     $baseUrl = rtrim($protocol . '://' . $host, '/');
@@ -373,33 +426,16 @@ function sendUserSupportReply($userEmail, $adminMessage, $ticketId, $AdminPanel)
 
     $subjectLine = "📨 Ответ от техподдержки (обращение #{$ticketId})";
     $body = "
-<h2>Получен ответ от техподдержки</h2>
-<blockquote style='border-left: 4px solid #007bff; padding-left: 15px; margin: 15px 0; font-style: italic;'>
-    " . nl2br(htmlspecialchars($adminMessage, ENT_QUOTES, 'UTF-8')) . "
-</blockquote>
-<p>Вы можете продолжить переписку в <a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "'>личном кабинете</a>.</p>
+        <h2 style='margin-top:0;'>Получен ответ от техподдержки</h2>
+        <blockquote style='border-left:4px solid #0d6efd;padding-left:15px;margin:15px 0;font-style:italic;color:#334155;'>
+            " . nl2br(htmlspecialchars($adminMessage, ENT_QUOTES, 'UTF-8')) . "
+        </blockquote>
+        <p>Вы можете продолжить переписку в <a href='" . htmlspecialchars($ticketUrl, ENT_QUOTES, 'UTF-8') . "' style='color:#0d6efd;text-decoration:none;'>личном кабинете</a>.</p>
     ";
 
-    $message = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 20px auto; padding: 20px; }
-        .header { background: #28a745; color: white; padding: 15px; text-align: center; }
-        .content { padding: 20px; background: #f9f9f9; border-radius: 8px; margin-top: 10px; }
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'><h2>" . htmlspecialchars($AdminPanel, ENT_QUOTES, 'UTF-8') . " — Поддержка</h2></div>
-        <div class='content'>{$body}</div>
-    </div>
-</body>
-</html>
-    ";
+    $message = buildEmailTemplate('Ответ техподдержки', $body, $adminPanel);
 
-    return sendEmail($userEmail, $subjectLine, $message, $AdminPanel);
+    return sendEmail($userEmail, $subjectLine, $message, $adminPanel);
 }
 
 
@@ -411,48 +447,26 @@ function sendUserSupportReply($userEmail, $adminMessage, $ticketId, $AdminPanel)
  * @param string $adminPanelName Название системы
  * @return bool Успешность отправки
  */
-function sendEmailChangeConfirmationLink($to, $confirmLink, $adminPanelName, $AdminPanel) {
+function sendEmailChangeConfirmationLink($to, $confirmLink, $adminPanelName, $adminPanel) {
     $subject = "Подтверждение смены email — " . $adminPanelName;
-    $message = "
-    <html>
-    <head>
-        <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #007bff; color: white; padding: 20px; text-align: center; }
-            .content { padding: 20px; background: #f9f9f9; }
-            .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin: 20px 0; }
-            .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-    </head>
-    <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>" . htmlspecialchars($adminPanelName, ENT_QUOTES, 'UTF-8') . "</h1>
-                <h2>Смена email</h2>
-            </div>
-            <div class='content'>
-                <p>Вы запросили смену email-адреса.</p>
-                <p>Чтобы подтвердить новый email, перейдите по ссылке ниже:</p>
-                <div style='text-align: center;'>
-                    <a href='" . htmlspecialchars($confirmLink, ENT_QUOTES, 'UTF-8') . "' class='button'>Подтвердить email</a>
-                </div>
-                <p>Если кнопка не работает, скопируйте ссылку в браузер:</p>
-                <p style='word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px;'>
-                    <a href='" . htmlspecialchars($confirmLink, ENT_QUOTES, 'UTF-8') . "'>" . htmlspecialchars($confirmLink, ENT_QUOTES, 'UTF-8') . "</a>
-                </p>
-                <p>Ссылка действительна в течение 1 часа.</p>
-                <p>Если вы не запрашивали смену email, просто проигнорируйте это письмо.</p>
-            </div>
-            <div class='footer'>
-                <p>&copy; " . date('Y') . " " . htmlspecialchars($adminPanelName, ENT_QUOTES, 'UTF-8') . "</p>
-            </div>
+    $safeConfirmLink = htmlspecialchars($confirmLink, ENT_QUOTES, 'UTF-8');
+    $body = "
+        <h2 style='margin-top:0;'>Смена email</h2>
+        <p>Вы запросили смену email-адреса.</p>
+        <p>Чтобы подтвердить новый email, перейдите по ссылке ниже:</p>
+        <div style='text-align:center;margin:24px 0;'>
+            <a href='{$safeConfirmLink}' style='display:inline-block;padding:12px 24px;background-color:#0d6efd;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;'>Подтвердить email</a>
         </div>
-    </body>
-    </html>
+        <p style='margin:0 0 12px;'>Если кнопка не работает, скопируйте ссылку в браузер:</p>
+        <p style='word-break:break-all;background-color:#f1f5f9;padding:12px;border-radius:8px;margin:0 0 16px;'>
+            <a href='{$safeConfirmLink}' style='color:#0d6efd;text-decoration:none;'>{$safeConfirmLink}</a>
+        </p>
+        <p style='margin:0;'><strong>Ссылка действительна в течение 1 часа.</strong></p>
+        <p style='margin:16px 0 0;'>Если вы не запрашивали смену email, просто проигнорируйте это письмо.</p>
     ";
+    $message = buildEmailTemplate('Подтверждение смены email', $body, $adminPanel);
 
-    return sendEmail($to, $subject, $message, $AdminPanel);
+    return sendEmail($to, $subject, $message, $adminPanel);
 }
 
 
@@ -468,21 +482,55 @@ function sendEmailChangeConfirmationLink($to, $confirmLink, $adminPanelName, $Ad
  * @param string $message HTML-содержимое письма
  * @return bool Результат отправки
  */
-function sendEmail($to, $subject, $message, $AdminPanel) {
+function sendEmail($to, $subject, $message, $adminPanel) {
+    if (preg_match("/[\r\n]/", $to) || preg_match("/[\r\n]/", $subject)) {
+        return false;
+    }
+
+    $domain = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $domain = preg_replace('/:\d+$/', '', $domain);
+    $domain = preg_replace('/[^a-zA-Z0-9\.\-]/', '', $domain);
+    $domain = trim($domain, '.-');
+    if ($domain === '') {
+        $domain = 'localhost';
+    }
+    $boundary = '==Multipart_Boundary_x' . getRandomToken(12) . 'x';
+    $encodedSubject = function_exists('mb_encode_mimeheader')
+        ? mb_encode_mimeheader($subject, 'UTF-8', 'B', "\r\n")
+        : $subject;
+    $fromName = function_exists('mb_encode_mimeheader')
+        ? mb_encode_mimeheader($adminPanel, 'UTF-8', 'B', "\r\n")
+        : $adminPanel;
+    $plainText = buildPlainTextEmail($message);
+
     // Формируем базовые заголовки
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type: text/html; charset=utf-8" . "\r\n";
-    $headers .= "From: " . $AdminPanel . " <" . MAIL_FROM_EMAIL . ">" . "\r\n";
+    $headers = "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
+    $headers .= "From: {$fromName} <" . MAIL_FROM_EMAIL . ">\r\n";
     $headers .= "Reply-To: " . MAIL_FROM_EMAIL . "\r\n";
-    $headers .= "X-Mailer: PHP/" . phpversion();
+    $headers .= "Return-Path: " . MAIL_FROM_EMAIL . "\r\n";
+    $headers .= "Date: " . date(DATE_RFC2822) . "\r\n";
+    $messageTimestamp = str_replace('.', '_', sprintf('%.6f', microtime(true)));
+    $headers .= "Message-ID: <{$messageTimestamp}." . getRandomToken(8) . "@{$domain}>\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+
+    $emailBody = "--{$boundary}\r\n";
+    $emailBody .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $emailBody .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $emailBody .= $plainText . "\r\n";
+    $emailBody .= "--{$boundary}\r\n";
+    $emailBody .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $emailBody .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $emailBody .= $message . "\r\n";
+    $emailBody .= "--{$boundary}--";
     
     // Проверяем, настроен ли SMTP
     if (!empty(MAIL_SMTP_USER) && !empty(MAIL_SMTP_PASS)) {
         // Используем SMTP отправку
-        return sendSmtpEmail($to, $subject, $message, $headers);
+        return sendSmtpEmail($to, $encodedSubject, $emailBody, $headers);
     } else {
         // Используем стандартную функцию mail()
-        return mail($to, $subject, $message, $headers);
+        return mail($to, $encodedSubject, $emailBody, $headers, '-f ' . MAIL_FROM_EMAIL);
     }
 }
 
@@ -499,7 +547,7 @@ function sendSmtpEmail($to, $subject, $message, $headers) {
     // TODO: Реализовать отправку через PHPMailer или SwiftMailer
     // Пока используем стандартную функцию как fallback
     
-    error_log("SMTP sending requested but not implemented. Using mail() fallback.");
+    error_log("Запрошена отправка через SMTP, но не реализована. Используется резервный вариант mail().");
     return mail($to, $subject, $message, $headers);
 }
 
@@ -519,5 +567,3 @@ function getMailConfigInfo() {
 }
 
  */
-
-?>

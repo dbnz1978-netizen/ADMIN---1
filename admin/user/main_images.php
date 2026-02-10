@@ -1,137 +1,147 @@
 <?php
+
 /**
- * Файл: /admin/user/main_images.php
- * 
- * Админ-панель — Библиотека файлов
+ * Название файла:      main_images.php
+ * Назначение:          Отображает медиа-библиотеку (галерею изображений) для администратора
+ *                      Поддерживает загрузку, просмотр и редактирование метаданных изображений
+ * Автор:               User
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/** 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-*/
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// Запретить прямой доступ ко всем .php файлам
-define('APP_ACCESS', true);
+$config = [
+    'display_errors'  => false,  // Включение отображения ошибок (true/false)
+    'set_encoding'    => true,   // Включение кодировки UTF-8
+    'db_connect'      => true,   // Подключение к базе данных
+    'auth_check'      => true,   // Подключение функций авторизации
+    'file_log'        => true,   // Подключение системы логирования
+    'display_alerts'  => true,   // Подключение отображения сообщений
+    'sanitization'    => true,   // Подключение валидации/экранирования
+    'csrf_token'      => true,   // Генерация CSRF-токена
+];
 
-// Устанавливаем кодировку
-mb_internal_encoding('UTF-8');
-mb_http_output('UTF-8');
-header('Content-Type: text/html; charset=utf-8');
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
 
-// Подключаем системные компоненты
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';          // База данных
-require_once __DIR__ . '/../functions/auth_check.php';               // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                 // Система логирования
-require_once __DIR__ . '/../functions/display_alerts.php';           // Отображения сообщений
-require_once __DIR__ . '/../functions/sanitization.php';             // Валидация экранирование 
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
 
-// Получаем настройки администратора
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
-    // Ошибка: admin не найден / ошибка БД / некорректный JSON
+    // Ошибка: администратор не найден / ошибка БД / некорректный JSON
     header("Location: ../logout.php");
     exit;
 }
 
+// ========================================
+// НАСТРОЙКИ СТРАНИЦЫ
+// ========================================
+
+$titlemeta = 'Библиотека файлов';  // Заголовок страницы
+
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
+
 // Включаем/отключаем логирование. Глобальные константы.
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
-define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);  // Логировать успешные события true/false
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);  // Логировать ошибки true/false
+
+// ========================================
+// ПРОВЕРКА АВТОРИЗАЦИИ И ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+// ========================================
 
 try {
     // Проверка авторизации
     $user = requireAuth($pdo);
     if (!$user) {
-        logEvent("Неавторизованный доступ — IP: {$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}", LOG_INFO_ENABLED, 'info');
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
+        logEvent(
+            "Неавторизованный доступ — IP: {$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}",
+            LOG_INFO_ENABLED,
+            'info'
+        );
         header("Location: ../logout.php");
         exit;
     }
 
     // Получение данных пользователя
     $userDataAdmin = getUserData($pdo, $user['id']);
+    
     // Проверка ошибки
     if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        $msg = $userDataAdmin['message'];
-        $level = $userDataAdmin['level']; // 'info' или 'error'
-        $logEnabled = match($level) {'info'  => LOG_INFO_ENABLED, 'error' => LOG_ERROR_ENABLED, default => LOG_ERROR_ENABLED};
+        $msg        = $userDataAdmin['message'];
+        $level      = $userDataAdmin['level'];
+        $logEnabled = match($level) {
+            'info'  => LOG_INFO_ENABLED,
+            'error' => LOG_ERROR_ENABLED,
+            default => LOG_ERROR_ENABLED
+        };
         logEvent($msg, $logEnabled, $level);
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
         header("Location: ../logout.php");
         exit;
     }
 
-    // Успех
+    // Декодируем JSON-данные администратора
     $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-    
+
     // Разрешить загрузку фотографий для пользователей Нет/Да
     if (!$adminData['allow_photo_upload'] && $userDataAdmin['author'] !== 'admin') {
         header("Location: ../logout.php");
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
         exit;
     }
 
 } catch (Exception $e) {
     logEvent("Ошибка при инициализации админ-панели: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
     header("Location: ../logout.php");
     exit;
 }
 
-// Проверка CSRF токена для AJAX запросов
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+// ========================================
+// ЗАГРУЗКА FLASH-СООБЩЕНИЙ ИЗ СЕССИИ
+// ========================================
+
+$successMessages = [];
+$errors          = [];
+
+if (!empty($_SESSION['flash_messages'])) {
+    $successMessages = $_SESSION['flash_messages']['success'] ?? [];
+    $errors          = $_SESSION['flash_messages']['error'] ?? [];
+    // Удаляем их, чтобы не показывались при повторной загрузке
+    unset($_SESSION['flash_messages']);
 }
-$csrf_token = $_SESSION['csrf_token'];
 
-// Получает логотип
-$logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg');
-$titlemeta = 'Библиотека файлов';
+// ========================================
+// ПОЛУЧЕНИЕ ЛОГОТИПА АДМИНИСТРАТОРА
+// ========================================
 
-// Закрываем соединение при завершении скрипта
-register_shutdown_function(function() {
-    if (isset($pdo)) {
-        $pdo = null; 
-    }
-});
+$adminUserId  = getAdminUserId($pdo);
+$logoProfile  = getFileVersionFromList(
+    $pdo,
+    $adminData['profile_logo'] ?? '',
+    'thumbnail',
+    '../img/avatar.svg',
+    $adminUserId
+);
+
 ?>
 
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="csrf-token" content="<?php echo htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="csrf-token" content="<?= escape($_SESSION['csrf_token']) ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Админ-панель управления системой">
     <meta name="author" content="Админ-панель">
-    <title><?php echo $titlemeta; ?></title>
+    <title><?php echo escape($titlemeta); ?></title>
+    
+    <!-- Автоматическое применение сохраненной темы -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -140,14 +150,13 @@ register_shutdown_function(function() {
             }
         })();
     </script>
-    <!-- Bootstrap CSS -->
+    
+    <!-- Подключение стилей -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Локальные стили -->
     <link rel="stylesheet" href="../css/main.css">
-    <!-- Медиа-библиотека -->
     <link rel="stylesheet" href="../user_images/css/main.css">
-    <link rel="icon" href="<?php echo escape($logo_profile); ?>" type="image/x-icon">
+    <link rel="icon" href="<?php echo escape($logoProfile); ?>" type="image/x-icon">
 </head>
 <body>
     <div class="container-fluid">
@@ -161,37 +170,116 @@ register_shutdown_function(function() {
 
             <!-- Динамический контент -->
             <div class="content-area">
+                <!-- Отображение сообщений -->
+                <?php displayAlerts(
+                    $successMessages,  // Массив сообщений об успехе
+                    $errors,           // Массив сообщений об ошибках
+                    true               // Показывать сообщения как toast-уведомления
+                );
+                ?>
 
-                <!-- Галерея №1 -->
+                <!-- ========================================
+                     ГАЛЕРЕЯ №1
+                     ======================================== -->
                 <?php
-                // === Параметры галереи ===
-                $sectionId = 'profile_images'; // Уникальное имя секции
+                // ========================================
+                // ПАРАМЕТРЫ ГАЛЕРЕИ
+                // ========================================
+                
+                $sectionId = 'profile_images';  // Уникальное имя секции
 
                 // Лимит загрузки файлов на пользователя
-                $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0; 
+                $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
+                // ========================================
+                // НАСТРОЙКИ РАЗМЕРОВ ИЗОБРАЖЕНИЙ
+                // ========================================
+                
                 // Настройки размеров изображений: [ширина, высота, режим]
+                // Режимы: "cover" — обрезка, "contain" — сохранение пропорций
                 $imageSizes = [
                     "thumbnail" => [100, 100, "cover"],
-                    "small"     => [300, 'auto', "contain"], // Обязательное имя small
+                    "small"     => [300, 'auto', "contain"],  // Обязательное имя small
                     "medium"    => [600, 'auto', "contain"],
                     "large"     => [1200, 'auto', "contain"]
                 ];
 
-                // Сохраняем настройки в сессии
+                // Сохраняем настройки в сессии для использования в JS-модуле
                 $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                 ?>
 
-                <!-- Контейнер для уведомлений -->
+                <!-- Контейнер для уведомлений (ошибки, успехи) -->
                 <div id="notify_<?php echo $sectionId; ?>"></div>
 
                 <!-- Контейнер галереи -->
-                <div id="image-management-section_<?php echo $sectionId; ?>"></div>
+                <div class="form-section">
+                    <div id="image-management-section_<?php echo $sectionId; ?>">
+                        <!-- Зона drag-and-drop будет добавлена здесь при инициализации -->
+                        <!-- Индикатор загрузки (показывается до появления галереи) -->
+                        <div class="w-100 d-flex justify-content-center align-items-center" style="min-height: 170px;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- Скрытый input для загрузки файлов -->
-                <input type="file" id="fileInput_<?php echo $sectionId; ?>" multiple accept="image/*" style="display: none;">
+                <!-- Скрытый input для загрузки файлов (активируется через drag-and-drop или кнопку) -->
+                <input type="file"
+                       id="fileInput_<?php echo $sectionId; ?>"
+                       multiple
+                       accept="image/jpeg,image/png,image/gif,image/webp,image/avif,image/jxl"
+                       style="display: none;">
+
+                <!-- ========================================
+                     ИНИЦИАЛИЗАЦИЯ ГАЛЕРЕИ И ЗАГРУЗКИ ФАЙЛОВ
+                     ======================================== -->
+                <script>
+                    // Инициализация улучшенной загрузки файлов с прогресс-баром и drag-and-drop
+                    document.addEventListener('DOMContentLoaded', function() {
+                        if (typeof initEnhancedUpload === 'function') {
+                            initEnhancedUpload('<?php echo $sectionId; ?>');
+                        }
+
+                        // Инициализация галереи после создания зоны загрузки
+                        loadImageSection('<?php echo $sectionId; ?>');
+                    });
+
+                    // Переопределение функции loadImageSection для обеспечения сохранения зоны загрузки
+                    // при обновлении галереи (например, после загрузки новых файлов)
+                    const originalLoadImageSection = typeof loadImageSection !== 'undefined' ? loadImageSection : null;
+
+                    if (originalLoadImageSection) {
+                        window.originalLoadImageSection = originalLoadImageSection;
+
+                        window.loadImageSection = function(sectionId, offset = 0) {
+                            // Если это первая загрузка (offset = 0), то сохраняем зону загрузки перед обновлением
+                            if (offset === 0) {
+                                const dropZone = document.getElementById(`upload-drop-zone-${sectionId}`);
+                                if (dropZone) {
+                                    // Удаляем зону загрузки перед обновлением галереи
+                                    dropZone.remove();
+                                }
+
+                                // Выполняем оригинальную загрузку
+                                originalLoadImageSection(sectionId, offset);
+
+                                // После загрузки снова инициализируем зону загрузки
+                                setTimeout(() => {
+                                    if (typeof initEnhancedUpload === 'function') {
+                                        initEnhancedUpload(sectionId);
+                                    }
+                                }, 100);
+                            } else {
+                                // Для дозагрузки (бесконечная прокрутка) просто используем оригинальную функцию
+                                originalLoadImageSection(sectionId, offset);
+                            }
+                        };
+                    }
+                </script>
 
                 <!-- Модальное окно редактирования метаданных фото -->
+                <?php defined('APP_ACCESS') || define('APP_ACCESS', true); ?>
                 <?php require_once __DIR__ . '/../user_images/photo_info.php'; ?>
                 <!-- /Галерея №1 -->
 
@@ -199,22 +287,20 @@ register_shutdown_function(function() {
         </main>
     </div>
 
-    <!-- jQuery -->
+    <!-- ========================================
+         ПОДКЛЮЧЕНИЕ JAVASCRIPT БИБЛИОТЕК
+         ======================================== -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
-    <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    <!-- Модульный JS admin -->
     <script type="module" src="../js/main.js"></script>
-    <!-- Модульный JS галереи -->
     <script type="module" src="../user_images/js/main.js"></script>
 
-    <!-- Инициализация галереи -->
+    <!-- Инициализация галереи (дублируется как fallback, если не сработало выше) -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        loadImageSection('profile_images');
-    });
+        document.addEventListener('DOMContentLoaded', function() {
+            loadImageSection('profile_images');
+        });
     </script>
 </body>
 </html>

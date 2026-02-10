@@ -1,15 +1,270 @@
-  /* Стили панели инструментов редактора*/
+  /* Стили панели инструментов редактора */
+.editor-toolbar {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem 0.375rem 0 0;
+  padding: 0.75rem 1rem !important;
+  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 50px;
+}
+
+.editor-toolbar-controls,
+.editor-toolbar-toggle {
+  /* Prevent flex items from overflowing in narrow layouts */
+  min-width: 0;
+}
+
+.editor-toolbar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.0rem;
+  flex: 1 1 auto;
+}
+
+.editor-toolbar-toggle {
+  margin-left: auto;
+}
+
+.editor-toolbar.is-html-mode .editor-toolbar-controls {
+  display: none;
+}
+
+.editor-toolbar.is-html-mode .editor-toolbar-toggle {
+  margin-left: 0;
+}
+
+/* Адаптивные стили для панели инструментов */
+@media (max-width: 768px) {
   .editor-toolbar {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 0.375rem 0.375rem 0 0;
-    padding: 0.75rem 1rem !important;
-    gap: 0.5rem;
+    /* Keep row layout for masonry-like wrapping on small screens */
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.0rem;
   }
+  
+  .editor-toolbar .btn-group {
+    margin-bottom: 0.25rem;
+  }
+  
+  .editor-toolbar .btn-group:last-child {
+    margin-left: 0 !important;
+  }
+
+  .editor-toolbar-controls {
+    flex: 1 1 100%;
+    row-gap: 0.0rem;
+  }
+
+  .editor-toolbar-toggle {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+}
+
+.editor-toolbar .btn {
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+  min-width: 36px;
+  height: 36px;
+}
+
+/* Адаптивные стили для кнопок */
+@media (max-width: 576px) {
   .editor-toolbar .btn {
-    padding: 0.375rem 0.5rem;
-    font-size: 0.875rem;
+    padding: 0.25rem 0.375rem;
+    font-size: 0.8rem;
+    min-width: 32px;
+    height: 32px;
   }
+  
+  .editor-toolbar .btn i.bi {
+    font-size: 0.9rem;
+  }
+
+  .editor-toolbar .btn-group {
+    margin-bottom: 0.2rem;
+  }
+
+  .editor-toolbar {
+    padding: 0.5rem 0.6rem !important;
+    min-height: 44px;
+  }
+}
+
+/* Улучшенные стили для групп кнопок */
+.editor-toolbar .btn-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+/* Поддержка различных браузеров */
+.editor-toolbar {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: start;
+  -ms-flex-pack: start;
+  justify-content: flex-start;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.editor-toolbar .btn-group {
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+/* Улучшенная поддержка для мобильных устройств */
+@media (max-width: 480px) {
+  .editor-toolbar .btn {
+    padding: 0.2rem 0.3rem;
+    min-width: 30px;
+    height: 30px;
+  }
+  
+  .editor-toolbar .btn i.bi {
+    font-size: 0.8rem;
+  }
+  
+  .editor-toolbar .btn span {
+    display: none;
+  }
+  
+  .editor-appearance-setting label {
+    font-size: 0.8rem;
+  }
+  
+  .editor-appearance-setting select {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.25rem;
+  }
+}
+
+/* Сброс стилей для лучшей совместимости */
+.editor-content {
+  position: relative;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Стили для скроллбара (Firefox) */
+@-moz-document url-prefix() {
+  .editor-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--input-bg);
+  }
+}
+
+/* Улучшенные стили для скроллбара */
+.editor-content::-webkit-scrollbar {
+  width: 12px;
+}
+
+.editor-content::-webkit-scrollbar-track {
+  background: var(--input-bg);
+  border-radius: 6px;
+}
+
+.editor-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 6px;
+  border: 2px solid var(--input-bg);
+}
+
+.editor-content::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+/* Улучшенные стили для кнопок */
+.editor-toolbar .btn {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Улучшенная анимация для активных состояний */
+.editor-toolbar .btn.active {
+  -webkit-transition: all 0.2s ease;
+  -o-transition: all 0.2s ease;
+  transition: all 0.2s ease;
+  -webkit-transform: translateY(-1px);
+  -ms-transform: translateY(-1px);
+  transform: translateY(-1px);
+}
+
+/* Плавные переходы для всего редактора */
+.editor-content,
+.editor-toolbar,
+.editor-appearance-settings {
+  -webkit-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+/* Улучшенные стили для фокуса */
+.editor-content:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Стили для состояния загрузки */
+.editor-loading {
+  position: relative;
+}
+.editor-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Стили для настроек внешнего вида */
+.appearance-controls {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--input-bg);
+}
+
+.appearance-controls select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-size: 0.875rem;
+}
+
+.appearance-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  white-space: nowrap;
+}
 
   .editor-content {
     min-height: 250px;
@@ -20,10 +275,90 @@
     color: var(--text-color);
     border-radius: 0 0 0.375rem 0.375rem;
     overflow: auto;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    font-size: inherit;
   }
   .editor-content:focus {
     outline: none;
     box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+  }
+
+  /* Адаптивные стили для области редактирования */
+  @media (max-width: 768px) {
+    .editor-content {
+      min-height: 200px;
+      padding: 0.75rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .editor-content {
+      min-height: 150px;
+      padding: 0.5rem;
+    }
+  }
+
+  /* Стили для настроек внешнего вида */
+.editor-appearance-settings {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--input-bg);
+  margin-bottom: 0.5rem;
+}
+
+.editor-appearance-setting {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
+
+.editor-appearance-settings.is-hidden {
+  display: none;
+}
+
+  .editor-appearance-setting select,
+  .editor-appearance-setting input {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.875rem;
+  }
+
+  /* Адаптивные стили для настроек внешнего вида */
+@media (max-width: 768px) {
+  .editor-appearance-settings {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+    
+    .editor-appearance-setting {
+      justify-content: space-between;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .editor-appearance-setting {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .editor-appearance-setting label {
+      margin-bottom: 0.25rem;
+    }
+  }
+
+  .editor-appearance-setting input[type="range"] {
+    width: 80px;
   }
 
   /* Стили таблицы — ТОЛЬКО внутри редактора */
@@ -42,9 +377,111 @@
     height: 32px !important;
     vertical-align: top !important;
   }
-  .editor-content table td:empty::before {
-    content: "\00a0";
+.editor-content table td:empty::before {
+  content: "\00a0";
+}
+
+/* ===== Адаптивная сетка ===== */
+.editor-content .wysiwyg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.editor-content .wysiwyg-grid__item {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px dashed var(--text-muted);
+  padding: 0.5rem;
+  box-sizing: border-box;
+}
+
+.editor-content .wysiwyg-grid-1 .wysiwyg-grid__item {
+  flex-basis: 100%;
+}
+
+.editor-content .wysiwyg-grid-2 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 1rem) / 2);
+}
+
+.editor-content .wysiwyg-grid-3 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 2rem) / 3);
+}
+
+.editor-content .wysiwyg-grid-4 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 3rem) / 4);
+}
+
+.editor-content .wysiwyg-grid-5 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 4rem) / 5);
+}
+
+.editor-content .wysiwyg-grid-6 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 5rem) / 6);
+}
+
+.editor-content .wysiwyg-grid-7 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 6rem) / 7);
+}
+
+.editor-content .wysiwyg-grid-8 .wysiwyg-grid__item {
+  flex-basis: calc((100% - 7rem) / 8);
+}
+
+@media (max-width: 992px) {
+  .editor-content .wysiwyg-grid-1 .wysiwyg-grid__item {
+    flex-basis: 100%;
   }
+
+  .editor-content .wysiwyg-grid-3 .wysiwyg-grid__item {
+    flex-basis: 100%;
+  }
+
+  .editor-content .wysiwyg-grid-4 .wysiwyg-grid__item {
+    flex-basis: calc((100% - 1rem) / 2);
+  }
+
+  .editor-content .wysiwyg-grid-5 .wysiwyg-grid__item {
+    flex-basis: calc((100% - 2rem) / 3);
+  }
+
+  .editor-content .wysiwyg-grid-5 .wysiwyg-grid__item:nth-child(n + 4) {
+    flex-basis: calc((100% - 1rem) / 2);
+  }
+
+  .editor-content .wysiwyg-grid-6 .wysiwyg-grid__item {
+    flex-basis: calc((100% - 2rem) / 3);
+  }
+
+  .editor-content .wysiwyg-grid-7 .wysiwyg-grid__item {
+    flex-basis: calc((100% - 3rem) / 4);
+  }
+
+  .editor-content .wysiwyg-grid-7 .wysiwyg-grid__item:nth-child(n + 5) {
+    flex-basis: calc((100% - 2rem) / 3);
+  }
+
+  .editor-content .wysiwyg-grid-8 .wysiwyg-grid__item {
+    flex-basis: calc((100% - 3rem) / 4);
+  }
+}
+
+@media (max-width: 576px) {
+  .editor-content .wysiwyg-grid-1 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-2 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-3 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-4 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-5 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-7 .wysiwyg-grid__item {
+    flex: 0 0 100%;
+  }
+
+  .editor-content .wysiwyg-grid-6 .wysiwyg-grid__item,
+  .editor-content .wysiwyg-grid-8 .wysiwyg-grid__item {
+    flex: 0 0 calc((100% - 1rem) / 2);
+  }
+}
 
   /* Стиль для input[type="color"] */
   input[type="color"]::-webkit-color-swatch {
@@ -64,6 +501,42 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.color-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.color-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.color-swatch {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-swatch:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.color-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .color-panel .btn {
   color: var(--text-color);
   border-color: var(--border-color);
@@ -78,6 +551,37 @@
 .color-panel .btn-primary:hover {
   background-color: var(--primary-dark);
   border-color: var(--primary-dark);
+}
+
+/* Панель добавления ссылки */
+.link-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.link-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.link-panel .form-control {
+  background: var(--input-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.link-panel .form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.25rem rgba(74, 108, 247, 0.25);
+}
+
+[data-theme="dark"] .link-panel .form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(93, 123, 247, 0.35);
 }
 
 /* Стиль для поля выбора цвета */
@@ -182,4 +686,236 @@ textarea.form-control::-webkit-scrollbar-thumb:hover {
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) var(--input-bg);
   }
+}
+
+/* ===== Стили для изменения размера изображений ===== */
+
+/* Контейнер для изображения с ручками изменения размера */
+.editor-content .image-resize-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* Выделенное изображение в редакторе */
+.editor-content img.selected-image {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  cursor: default;
+}
+
+/* Ручки изменения размера (resize handles) */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border: 1px solid #fff;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Углы - adjusted for outline-offset: 2px */
+.resize-handle.nw {
+  top: -7px;
+  left: -7px;
+  cursor: nw-resize;
+}
+
+.resize-handle.ne {
+  top: -7px;
+  right: -7px;
+  cursor: ne-resize;
+}
+
+.resize-handle.sw {
+  bottom: -7px;
+  left: -7px;
+  cursor: sw-resize;
+}
+
+.resize-handle.se {
+  bottom: -7px;
+  right: -7px;
+  cursor: se-resize;
+}
+
+/* Середины сторон - adjusted for outline-offset: 2px */
+.resize-handle.n {
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: n-resize;
+}
+
+.resize-handle.s {
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: s-resize;
+}
+
+.resize-handle.w {
+  top: 50%;
+  left: -7px;
+  transform: translateY(-50%);
+  cursor: w-resize;
+}
+
+.resize-handle.e {
+  top: 50%;
+  right: -7px;
+  transform: translateY(-50%);
+  cursor: e-resize;
+}
+
+/* Контейнер ручек (wrapper для всех handles) */
+.resize-handles-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Стиль изображений в редакторе для предотвращения искажений */
+.editor-content img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Стили для обтекания текста вокруг изображений */
+.editor-content img.float-left {
+  float: left;
+  margin: 5px 15px 10px 0;
+}
+
+.editor-content img.float-right {
+  float: right;
+  margin: 5px 0 10px 15px;
+}
+
+.editor-content img.float-none {
+  float: none;
+  margin: 10px 0;
+  display: block;
+}
+
+/* ===== Стили для модального окна просмотра изображений ===== */
+
+/* Модальное окно для просмотра увеличенного изображения */
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Фоновая подложка */
+.image-preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+}
+
+/* Контейнер с изображением */
+.image-preview-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90vh;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Увеличенное изображение */
+.image-preview-content img {
+  max-width: 100%;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Кнопка закрытия */
+.image-preview-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #333;
+  transition: all 0.3s ease;
+  z-index: 10002;
+}
+
+.image-preview-close:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: rotate(90deg);
+}
+
+.image-preview-close i {
+  pointer-events: none;
+}
+
+/* Анимация появления */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+  .image-preview-content {
+    max-width: 95%;
+    max-height: 85vh;
+  }
+  
+  .image-preview-content img {
+    max-height: 85vh;
+  }
+  
+  .image-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 1.25rem;
+  }
+}
+
+/* Курсор для изображений со ссылками */
+.editor-content a > img {
+  cursor: pointer;
+  border: 1px dashed red;
 }

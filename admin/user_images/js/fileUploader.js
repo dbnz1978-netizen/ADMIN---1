@@ -9,6 +9,7 @@
  * - Отображает прогресс загрузки на кнопке
  * - Показывает уведомления об успехе/ошибке
  * - Обновляет галерею после завершения
+ * - Поддерживает форматы: JPEG, PNG, GIF, WebP, AVIF, JPEG XL
  * 
  * Зависимости:
  * - jQuery ($) — для работы с кнопкой (можно заменить на чистый JS при необходимости)
@@ -63,7 +64,12 @@ export function uploadFiles(sectionId) {
     async function handleFiles(e) {
         // === 4.1. ФИЛЬТРАЦИЯ И ПРОВЕРКА ФАЙЛОВ ===
         const files = Array.from(e.target.files).filter(file =>
-            file.type.startsWith('image/')
+            file.type === 'image/jpeg' || 
+            file.type === 'image/png' || 
+            file.type === 'image/gif' || 
+            file.type === 'image/webp' || 
+            file.type === 'image/avif' || 
+            file.type === 'image/jxl'
         );
         if (files.length === 0) {
             console.warn('[handleFiles] Выбраны не изображения или отмена выбора');
@@ -75,7 +81,12 @@ export function uploadFiles(sectionId) {
         const originalText = $button.length ? $button.html() : 'Добавить медиа файл';
         $button.prop('disabled', true);
 
-        // === 4.3. ИНИЦИАЛИЗАЦИЯ СЧЁТЧИКОВ ===
+        // === 4.3. ПОКАЗАТЬ ИНДИКАТОР ЗАГРУЗКИ ===
+        if (typeof showSpinner === 'function') {
+            showSpinner(sectionId);
+        }
+
+        // === 4.4. ИНИЦИАЛИЗАЦИЯ СЧЁТЧИКОВ ===
         let successCount = 0;
         const totalFiles = files.length;
 
@@ -116,7 +127,7 @@ export function uploadFiles(sectionId) {
             formData.append('csrf_token', csrfToken);
 
             try {
-                const response = await fetch('../user_images/upload-handler.php', {
+                const response = await fetch('/admin/user_images/upload-handler.php', {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -168,7 +179,12 @@ export function uploadFiles(sectionId) {
             }, 1500); // плавное восстановление через 1.5 сек
         }
 
-        // === 4.6. ОБНОВЛЕНИЕ ГАЛЕРЕИ И ОЧИСТКА ===
+        // === 4.6. СКРЫТЬ ИНДИКАТОР ЗАГРУЗКИ ===
+        if (typeof hideSpinner === 'function') {
+            hideSpinner(sectionId);
+        }
+
+        // === 4.7. ОБНОВЛЕНИЕ ГАЛЕРЕИ И ОЧИСТКА ===
         try {
             if (typeof loadImageSection === 'function') {
                 await loadImageSection(sectionId);
@@ -222,7 +238,12 @@ export function showNotification(sectionId, message, type = 'success', persisten
 
     alertDiv.className = alertClass;
     alertDiv.setAttribute('role', 'alert');
-    alertDiv.innerHTML = `<i class="${iconClass}"></i> ${message}`;
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.setAttribute('aria-hidden', 'true');
+    const messageNode = document.createElement('span');
+    messageNode.textContent = message;
+    alertDiv.append(icon, document.createTextNode(' '), messageNode);
 
     // Добавляем кнопку закрытия ТОЛЬКО для persistent-уведомлений
     if (persistent) {

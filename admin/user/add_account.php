@@ -1,114 +1,145 @@
 <?php
+
 /**
- * Файл: /admin/user/add_account.php
- * 
- * Админ-панель - Добавление/редактирование аккаунта
+ * Название файла:      add_account.php
+ * Назначение:          Админ-панель — Добавление и редактирование пользовательских аккаунтов
+ *                      Основные функции:
+ *                      - Создание нового аккаунта пользователя (роль "user")
+ *                      - Редактирование существующего аккаунта
+ *                      - Генерация случайного пароля при создании или смене email
+ *                      - Отправка email с учётными данными
+ *                      - Управление аватаром через медиа-библиотеку
+ *                      - Валидация всех полей формы (имя, фамилия, email, телефон, доп. поле)
+ *                      - Проверка уникальности email
+ *                      - Защита от CSRF-атак
+ *                      - Логирование всех операций
+ * Автор:               User
+ * Версия:              1.0
+ * Дата создания:       2026-02-10
+ * Последнее изменение: 2026-02-10
  */
 
-// === Безопасные настройки отображения ошибок (ТОЛЬКО в разработке!) ===
-/**
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
- */
+// ========================================
+// КОНФИГУРАЦИЯ СКРИПТА
+// ========================================
 
-// Запретить прямой доступ ко всем .php файлам
-define('APP_ACCESS', true);
+$config = [
+    'display_errors' => false,  // Включение отображения ошибок (true/false)
+    'set_encoding'   => true,   // Включение кодировки UTF-8
+    'db_connect'     => true,   // Подключение к базе данных
+    'auth_check'     => true,   // Подключение функций авторизации
+    'file_log'       => true,   // Подключение системы логирования
+    'display_alerts' => true,   // Подключение отображения сообщений
+    'sanitization'   => true,   // Подключение валидации/экранирования
+    'mailer'         => true,   // Подключение отправки email уведомлений
+    'jsondata'       => true,   // Подключение обновления JSON данных пользователя
+    'csrf_token'     => true,   // Генерация CSRF-токена
+    'start_session'  => true,   // Запуск Session
+];
 
-// Устанавливаем кодировку
-mb_internal_encoding('UTF-8');
-mb_http_output('UTF-8');
-header('Content-Type: text/html; charset=utf-8');
+// Подключаем центральную инициализацию
+require_once __DIR__ . '/../functions/init.php';
 
-// Подключаем системные компоненты
-require_once $_SERVER['DOCUMENT_ROOT'] . '/connect/db.php';          // База данных
-require_once __DIR__ . '/../functions/auth_check.php';               // Авторизация и получения данных пользователей
-require_once __DIR__ . '/../functions/file_log.php';                 // Система логирования
-require_once __DIR__ . '/../functions/jsondata.php';                 // Обновление JSON данных пользователя
-require_once __DIR__ . '/../functions/display_alerts.php';           // Отображения сообщений
-require_once __DIR__ . '/../functions/mailer.php';                   // Отправка email уведомлений 
-require_once __DIR__ . '/../functions/sanitization.php';             // Валидация экранирование 
 
-// Безопасный запуск сессии
-startSessionSafe();
+// ========================================
+// ПОЛУЧЕНИЕ НАСТРОЕК АДМИНИСТРАТОРА
+// ========================================
 
-// Получаем настройки администратора
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
-    // Закрываем соединение при завершении скрипта
-    register_shutdown_function(function() {
-        if (isset($pdo)) {
-            $pdo = null; 
-        }
-    });
-    // Ошибка: admin не найден / ошибка БД / некорректный JSON
+    // Ошибка: администратор не найден / ошибка БД / некорректный JSON
     header("Location: ../logout.php");
     exit;
 }
 
-// Название Админ-панели
-$AdminPanel = $adminData['AdminPanel'] ?? 'AdminPanel';
+// ========================================
+// НАСТРОЙКИ СТРАНИЦЫ
+// ========================================
+
+$userData           = null;
+$defaultNameFirst   = '';
+$defaultLastName    = '';
+$defaultPhone       = '';
+$defaultEmail       = '';
+$defaultStatus      = 1;
+$defaultCustomField = '';
+$profileImages      = '';
+$maxDigits          = 2;  // Ограничение на количество изображений
+$adminPanel         = $adminData['AdminPanel'] ?? 'AdminPanel';  // Название админ-панели для отправки email
+$titlemeta          = 'Пользователи';  // Заголовок страницы
+
+// ========================================
+// НАСТРОЙКА ЛОГИРОВАНИЯ
+// ========================================
 
 // Включаем/отключаем логирование. Глобальные константы.
-define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);    // Логировать успешные события true/false
-define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);    // Логировать ошибки true/false
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);  // Логировать успешные события true/false
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);  // Логировать ошибки true/false
+
+// ========================================
+// ПРОВЕРКА АВТОРИЗАЦИИ И ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+// ========================================
 
 try {
     // Проверка авторизации
     $user = requireAuth($pdo);
     if (!$user) {
         $redirectTo = '../logout.php';
-        logEvent("Неавторизованный доступ — перенаправление на: $redirectTo — IP: {$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}", LOG_INFO_ENABLED, 'info');
-        // Закрываем соединение при завершении скрипта
-        register_shutdown_function(function() {
-            if (isset($pdo)) {
-                $pdo = null; 
-            }
-        });
+        $logMessage = "Неавторизованный доступ — перенаправление на: $redirectTo — IP: "
+            . "{$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}";
+        logEvent($logMessage, LOG_INFO_ENABLED, 'info');
+
         header("Location: $redirectTo");
         exit;
     }
 
-    // Получение данных пользователя
+    // Получение данных текущего администратора
     $userDataAdmin = getUserData($pdo, $user['id']);
+    
     // Проверка ошибки
     if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        $msg = $userDataAdmin['message'];
-        $level = $userDataAdmin['level']; // 'info' или 'error'
-        $logEnabled = match($level) {
+        $msg        = $userDataAdmin['message'];
+        $level      = $userDataAdmin['level'];  // 'info' или 'error'
+        $logEnabled = match ($level) {
             'info'  => LOG_INFO_ENABLED,
             'error' => LOG_ERROR_ENABLED,
-            default => LOG_ERROR_ENABLED
+            default => LOG_ERROR_ENABLED,
         };
         logEvent($msg, $logEnabled, $level);
         header("Location: ../logout.php");
         exit;
     }
-    
-    // Успех
+
+    // Декодируем JSON-данные администратора
     $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
-    // Закрываем страницу от user
-    // Перенаправляем на страницу входа если не Admin
+    // Закрываем страницу от обычных пользователей
     if ($userDataAdmin['author'] !== 'admin') {
         header("Location: ../logout.php");
         exit;
     }
 
 } catch (Exception $e) {
-    logEvent("Ошибка при инициализации админ-панели: " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+    $logMessage = "Ошибка при инициализации админ-панели: " . $e->getMessage()
+        . " — ID админа: " . ($user['id'] ?? 'unknown')
+        . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    logEvent($logMessage, LOG_ERROR_ENABLED, 'error');
     header("Location: ../logout.php");
     exit;
 }
 
-// Валидация CSRF токена для формы
-function validateCsrfToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
-}
+// ========================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ========================================
 
-// Генерация случайного пароля
+/**
+ * Генерирует случайный надёжный пароль заданной длины
+ *
+ * @param int $length Длина пароля (по умолчанию 12)
+ * @return string Сгенерированный пароль
+ */
 function generateRandomPassword($length = 12) {
-    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+    $chars    = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
     $password = '';
     for ($i = 0; $i < $length; $i++) {
         $password .= $chars[random_int(0, strlen($chars) - 1)];
@@ -116,114 +147,160 @@ function generateRandomPassword($length = 12) {
     return $password;
 }
 
-$errors = [];
-$successMessages = [];
-$isEditMode = isset($_GET['id']);
-$userId = $isEditMode ? (int)$_GET['id'] : null;
-$redirectAfterCreate = false;
-$newUserId = null;
+// ========================================
+// ОПРЕДЕЛЕНИЕ РЕЖИМА РАБОТЫ
+// ========================================
 
-// Загрузка данных пользователя для редактирования
-$userData = null;
-$defaultNameFirst = '';
-$defaultLastName = '';
-$defaultPhone = '';
-$defaultEmail = '';
-$defaultStatus = 1;
-$defaultCustomField = '';
+$isEditMode         = isset($_GET['id']);
+$userId             = $isEditMode ? (int) $_GET['id'] : null;
+$redirectAfterCreate = false;
+$newUserId          = null;
+
+// ========================================
+// ЗАГРУЗКА FLASH-СООБЩЕНИЙ ИЗ СЕССИИ
+// ========================================
+
+$successMessages = [];
+$errors          = [];
+
+// Загружаем flash-сообщения из сессии (если есть)
+if (!empty($_SESSION['flash_messages'])) {
+    $successMessages = $_SESSION['flash_messages']['success'] ?? [];
+    $errors          = $_SESSION['flash_messages']['error'] ?? [];
+    // Удаляем их, чтобы не показывались при повторной загрузке
+    unset($_SESSION['flash_messages']);
+}
+
+// ========================================
+// ЗАГРУЗКА ДАННЫХ ПРИ РЕДАКТИРОВАНИИ
+// ========================================
 
 if ($isEditMode && $userId) {
     try {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt     = $pdo->prepare("SELECT * FROM users WHERE id = ?");
         $stmt->execute([$userId]);
         $userData = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($userData) {
-            $currentDatauser = json_decode($userData['data'] ?? '{}', true) ?? [];
+            $currentDatauser  = json_decode($userData['data'] ?? '{}', true) ?? [];
             $defaultNameFirst = $currentDatauser['first_name'] ?? '';
-            $defaultLastName = $currentDatauser['last_name'] ?? '';
-            $defaultPhone = $currentDatauser['phone'] ?? '';
-            $profile_images = $currentDatauser['profile_images'] ?? '';
-            $defaultEmail = $userData['email'] ?? '';
-            $defaultStatus = $userData['status'] ?? 1;
+            $defaultLastName  = $currentDatauser['last_name'] ?? '';
+            $defaultPhone     = $currentDatauser['phone'] ?? '';
+            $profileImages    = $currentDatauser['profile_images'] ?? '';
+            $defaultEmail     = $userData['email'] ?? '';
+            $defaultStatus    = $userData['status'] ?? 1;
             $defaultCustomField = $currentDatauser['custom_field'] ?? '';
         } else {
             $errors[] = 'Пользователь не найден';
         }
     } catch (PDOException $e) {
         $errors[] = 'Ошибка при загрузке данных пользователя';
-        logEvent("Ошибка базы данных при загрузке данных пользователя с ID $userId: " . $e->getMessage() . " — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+        logEvent(
+            "Ошибка базы данных при загрузке данных пользователя с ID $userId: " . $e->getMessage() .
+            " — ID админа: " . $user['id'] .
+            " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            LOG_ERROR_ENABLED,
+            'error'
+        );
     }
 }
 
-// Обработка формы
+// ========================================
+// ОБРАБОТКА ФОРМЫ
+// ========================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Валидация CSRF токена
+    
+    // ========================================
+    // ВАЛИДАЦИЯ CSRF ТОКЕНА
+    // ========================================
+    
     $csrfToken = $_POST['csrf_token'] ?? '';
     if (!validateCsrfToken($csrfToken)) {
         $errors[] = 'Недействительная форма. Пожалуйста, обновите страницу.';
-        logEvent("Проверка CSRF-токена не пройдена — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+        logEvent(
+            "Проверка CSRF-токена не пройдена — ID админа: " . $user['id'] .
+            " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            LOG_ERROR_ENABLED,
+            'error'
+        );
     } else {
-
-        // Получаем и очищаем данные из формы
-        $phone = trim($_POST['phone'] ?? '');
-        $status = isset($_POST['status']) ? 1 : 0;
+        
+        // ========================================
+        // ПОЛУЧЕНИЕ И ОЧИСТКА ДАННЫХ ИЗ ФОРМЫ
+        // ========================================
+        
+        $phone       = trim($_POST['phone'] ?? '');
+        $status      = isset($_POST['status']) ? 1 : 0;
         $customField = trim($_POST['custom_field'] ?? '');
 
-        // Валидация строки вида "123,456,789"
-        $maxDigits = 1; // Макс. количество элементов
-        $result_images = validateIdList(trim($_POST['profile_images'] ?? ''), $maxDigits);
-        if ($result_images['valid']) {
-            $profile_images = $result_images['value']; // '123,456,789,0001'
+        // ========================================
+        // ВАЛИДАЦИЯ СТРОКИ ID ИЗОБРАЖЕНИЙ
+        // ========================================
+        
+        // Валидация строки вида "123,456,789" для аватара
+        $resultImages = validateIdList(trim($_POST['profile_images'] ?? ''), $maxDigits);
+        if ($resultImages['valid']) {
+            $profileImages = $resultImages['value'];  // '123,456,789,0001'
         } else {
-            $errors[] = $result_images['error'];
-            $profile_images = false;
+            $errors[]      = $resultImages['error'];
+            $profileImages = false;
         }
 
-        // === РАСШИРЕННАЯ ВАЛИДАЦИЯ (как в personal_data.php) ===
+        // ========================================
+        // РАСШИРЕННАЯ ВАЛИДАЦИЯ ПОЛЕЙ ФОРМЫ
+        // ========================================
+        
         // Валидация текстового поля (имя)
         $resultfirst = validateNameField(trim($_POST['firstName'] ?? ''), 2, 50, 'Имя');
         if ($resultfirst['valid']) {
-            $firstName = ($resultfirst['value']);
+            $firstName = $resultfirst['value'];
         } else {
-            $errors[] = ($resultfirst['error']);
+            $errors[]  = $resultfirst['error'];
             $firstName = false;
         }
 
         // Валидация текстового поля (фамилия)
         $resultlast = validateNameField(trim($_POST['lastName'] ?? ''), 2, 50, 'Фамилия');
         if ($resultlast['valid']) {
-            $lastName = ($resultlast['value']);
+            $lastName = $resultlast['value'];
         } else {
-            $errors[] = ($resultlast['error']);
+            $errors[] = $resultlast['error'];
             $lastName = false;
         }
 
         // Валидация email-адреса
-        $result_email = validateEmail(trim($_POST['email'] ?? ''));
-        if ($result_email['valid']) {
-            $email =  $result_email['email'];
+        $resultEmail = validateEmail(trim($_POST['email'] ?? ''));
+        if ($resultEmail['valid']) {
+            $email = $resultEmail['email'];
         } else {
-            $errors[] = $result_email['error'];
-            $email = false;
+            $errors[] = $resultEmail['error'];
+            $email    = false;
         }
 
+        // ========================================
+        // ВАЛИДАЦИЯ ТЕЛЕФОНА
+        // ========================================
+        
         // Телефон (если указан)
         if (empty($errors) && !empty($phone)) {
-            // Валидация телефонного номера
             $resultPhone = validatePhone(trim($_POST['phone'] ?? ''));
             if ($resultPhone['valid']) {
                 $phone = $resultPhone['value'] ?? '';
             } else {
                 $errors[] = $resultPhone['error'];
-                $phone = false;
+                $phone    = false;
             }
         }
 
+        // ========================================
+        // ПРОВЕРКА УНИКАЛЬНОСТИ EMAIL
+        // ========================================
+        
         // Проверка уникальности email (кроме текущего пользователя при редактировании)
-        if (empty($errors)) {
+        if (empty($errors) && isset($email)) {
             try {
-                $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?" . ($isEditMode && $userId ? " AND id != ?" : ""));
+                $stmt   = $pdo->prepare("SELECT id FROM users WHERE email = ?" . ($isEditMode && $userId ? " AND id != ?" : ""));
                 $params = [$email];
                 if ($isEditMode && $userId) {
                     $params[] = $userId;
@@ -234,97 +311,194 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } catch (PDOException $e) {
                 $errors[] = 'Ошибка при проверке email. Пожалуйста, попробуйте позже.';
-                logEvent("Ошибка базы данных при проверке уникальности email: " . $e->getMessage() . " — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+                logEvent(
+                    "Ошибка базы данных при проверке уникальности email: " . $e->getMessage() .
+                    " — ID админа: " . $user['id'] .
+                    " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                    LOG_ERROR_ENABLED,
+                    'error'
+                );
             }
         }
 
+        // ========================================
+        // ВАЛИДАЦИЯ ДОПОЛНИТЕЛЬНОГО ПОЛЯ
+        // ========================================
+        
         // Дополнительная информация (если указана)
         if (empty($errors) && !empty($customField)) {
-            // Валидация текстового поля (Дополнительная информация)
             $resultield = validateTextareaField($customField, 1, 300, 'Дополнительная информация');
             if ($resultield['valid']) {
-                $customField = ($resultield['value']);
+                $customField = $resultield['value'];
             } else {
-                $errors[] = ($resultield['error']);
+                $errors[]    = $resultield['error'];
                 $customField = false;
             }
         }
 
-        // === Сохранение, если нет ошибок ===
+        // ========================================
+        // СОХРАНЕНИЕ ДАННЫХ, ЕСЛИ НЕТ ОШИБОК
+        // ========================================
+        
         if (empty($errors)) {
             try {
                 $userJsonData = [
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'phone' => $phone,
-                    'profile_images' => $profile_images,
-                    'custom_field' => $customField
+                    'first_name'     => $firstName,
+                    'last_name'      => $lastName,
+                    'phone'          => $phone,
+                    'profile_images' => $profileImages,
+                    'custom_field'   => $customField
                 ];
 
+                // Обновляем JSON-данные (используется ID администратора для совместимости с функцией)
                 $jsonData = updateUserJsonData($pdo, $user['id'], $userJsonData);
 
                 if ($isEditMode && $userId) {
-                    // Режим обновления
+                    // ========================================
+                    // РЕЖИМ ОБНОВЛЕНИЯ СУЩЕСТВУЮЩЕГО АККАУНТА
+                    // ========================================
+                    
                     $emailChanged = ($email !== $defaultEmail);
                     if ($emailChanged) {
+                        // При смене email — генерируем новый пароль и отправляем его
                         $generatedPassword = generateRandomPassword();
-                        $hash = password_hash($generatedPassword, PASSWORD_DEFAULT);
-                        $update = $pdo->prepare("UPDATE users SET email = ?, password = ?, data = ?, status = ?, updated_at = NOW() WHERE id = ?");
+                        $hash              = password_hash($generatedPassword, PASSWORD_DEFAULT);
+                        $update            = $pdo->prepare("UPDATE users SET email = ?, password = ?, data = ?, status = ?, updated_at = NOW() WHERE id = ?");
                         $update->execute([$email, $hash, $jsonData, $status, $userId]);
 
-                        if (sendAccountEmail($email, $generatedPassword, $firstName, $firstName)) {
+                        if (sendAccountEmail($email, $generatedPassword, $adminPanel, $firstName)) {
                             $successMessages[] = 'Данные успешно обновлены! Новый пароль отправлен на email.';
-                            logEvent("Аккаунт обновлён, email с паролем отправлен: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_INFO_ENABLED, 'info');
+                            logEvent(
+                                "Аккаунт обновлён, email с паролем отправлен: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email .
+                                " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                                LOG_INFO_ENABLED,
+                                'info'
+                            );
                         } else {
                             $successMessages[] = 'Данные успешно обновлены, но не удалось отправить email с паролем.';
-                            logEvent("Аккаунт обновлён, но email не отправлен: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_INFO_ENABLED, 'info');
+                            logEvent(
+                                "Аккаунт обновлён, но email не отправлен: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email .
+                                " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                                LOG_INFO_ENABLED,
+                                'info'
+                            );
                         }
                     } else {
+                        // Email не менялся — обновляем без пароля
                         $update = $pdo->prepare("UPDATE users SET email = ?, data = ?, status = ?, updated_at = NOW() WHERE id = ?");
                         $update->execute([$email, $jsonData, $status, $userId]);
                         $successMessages[] = 'Данные успешно обновлены!';
-                        logEvent("Аккаунт пользователя обновлён: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_INFO_ENABLED, 'info');
+                        logEvent(
+                            "Аккаунт пользователя обновлён: ID админа {$user['id']}, ID пользователя $userId, Email: " . $email .
+                            " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                            LOG_INFO_ENABLED,
+                            'info'
+                        );
                     }
                 } else {
-                    // Режим добавления
+                    // ========================================
+                    // РЕЖИМ СОЗДАНИЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
+                    // ========================================
+                    
                     $generatedPassword = generateRandomPassword();
-                    $hash = password_hash($generatedPassword, PASSWORD_DEFAULT);
-                    $insert = $pdo->prepare("INSERT INTO users (author, email, password, email_verified, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                    $hash              = password_hash($generatedPassword, PASSWORD_DEFAULT);
+                    $insert            = $pdo->prepare("INSERT INTO users (author, email, password, email_verified, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
                     $insert->execute(['user', $email, $hash, 1, $jsonData, $status]);
                     $newUserId = $pdo->lastInsertId();
 
-                    if (sendAccountEmail($email, $generatedPassword, $AdminPanel, $firstName)) {
+                    if (sendAccountEmail($email, $generatedPassword, $adminPanel, $firstName)) {
                         $successMessages[] = 'Аккаунт успешно создан! Пароль отправлен на email.';
-                        logEvent("Создан новый аккаунт, email с паролем отправлен: ID админа {$user['id']}, новый ID пользователя $newUserId, Email: " . $email . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_INFO_ENABLED, 'info');
+                        logEvent(
+                            "Создан новый аккаунт, email с паролем отправлен: ID админа {$user['id']}, новый ID пользователя $newUserId, Email: " . $email .
+                            " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                            LOG_INFO_ENABLED,
+                            'info'
+                        );
                     } else {
                         $successMessages[] = 'Аккаунт успешно создан, но не удалось отправить email с паролем.';
-                        logEvent("Создан новый аккаунт, но email не отправлен: ID админа {$user['id']}, новый ID пользователя $newUserId, Email: " . $email . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_INFO_ENABLED, 'info');
+                        logEvent(
+                            "Создан новый аккаунт, но email не отправлен: ID админа {$user['id']}, новый ID пользователя $newUserId, Email: " . $email .
+                            " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                            LOG_INFO_ENABLED,
+                            'info'
+                        );
                     }
                     $redirectAfterCreate = true;
                 }
             } catch (PDOException $e) {
                 $errors[] = 'Ошибка при сохранении данных. Пожалуйста, попробуйте позже.';
-                logEvent("Ошибка базы данных при " . ($isEditMode ? 'обновлении' : 'создании') . " аккаунта: " . $e->getMessage() . " — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+                logEvent(
+                    "Ошибка базы данных при " . ($isEditMode ? 'обновлении' : 'создании') . " аккаунта: " . $e->getMessage() .
+                    " — ID админа: " . $user['id'] .
+                    " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                    LOG_ERROR_ENABLED,
+                    'error'
+                );
             } catch (JsonException $e) {
                 $errors[] = 'Ошибка при обработке данных. Пожалуйста, попробуйте позже.';
-                logEvent("Ошибка кодирования JSON: " . $e->getMessage() . " — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+                logEvent(
+                    "Ошибка кодирования JSON: " . $e->getMessage() .
+                    " — ID админа: " . $user['id'] .
+                    " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                    LOG_ERROR_ENABLED,
+                    'error'
+                );
             } catch (Exception $e) {
                 $errors[] = 'Неизвестная ошибка. Пожалуйста, попробуйте позже.';
-                logEvent("Неожиданная ошибка: " . $e->getMessage() . " — ID админа: " . $user['id'] . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
+                logEvent(
+                    "Неожиданная ошибка: " . $e->getMessage() .
+                    " — ID админа: " . $user['id'] .
+                    " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+                    LOG_ERROR_ENABLED,
+                    'error'
+                );
             }
         }
     }
+
+    // ========================================
+    // СОХРАНЕНИЕ СООБЩЕНИЙ В СЕССИЮ
+    // ========================================
+    
+    // Сохраняем сообщения в сессию для отображения после редиректа
+    if (!empty($errors) || !empty($successMessages)) {
+        $_SESSION['flash_messages'] = [
+            'success' => $successMessages,
+            'error'   => $errors
+        ];
+    }
+
+    // ========================================
+    // ПЕРЕНАПРАВЛЕНИЕ ПОСЛЕ ОБРАБОТКИ ФОРМЫ
+    // ========================================
+    
+    // Перенаправление после создания
+    if ($redirectAfterCreate) {
+        header("Location: add_account.php?id=" . urlencode($newUserId));
+        exit;
+    } else {
+        // Перезагрузка текущей страницы для отображения сообщений
+        header("Location: " . $_SERVER['REQUEST_URI']);
+        exit;
+    }
 }
 
-// Проверка CSRF токена для AJAX запросов
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+// ========================================
+// ПОДГОТОВКА ДАННЫХ ДЛЯ ШАБЛОНА
+// ========================================
 
 // Получает логотип
-$logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../img/avatar.svg');
-$titlemeta = 'Управления пользователями';
+$adminUserId = getAdminUserId($pdo);
+$logoProfile = getFileVersionFromList(
+    $pdo,
+    $adminData['profile_logo'] ?? '',
+    'thumbnail',
+    '../img/avatar.svg',
+    $adminUserId
+);
+
 ?>
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -334,22 +508,23 @@ $titlemeta = 'Управления пользователями';
     <meta name="description" content="Админ-панель управления системой">
     <meta name="author" content="Админ-панель">
     <title><?= escape($titlemeta) ?></title>
+    
+    <!-- Автоматическое применение сохраненной темы -->
     <script>
-        (function() {
+        (function () {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
         })();
     </script>
-    <!-- Bootstrap CSS -->
+    
+    <!-- Подключение стилей -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Подключение кастомных стилей -->
     <link rel="stylesheet" href="../css/main.css">
-    <!-- Медиа-библиотека -->
     <link rel="stylesheet" href="../user_images/css/main.css">
-    <link rel="icon" href="<?php echo escape($logo_profile); ?>" type="image/x-icon">
+    <link rel="icon" href="<?php echo escape($logoProfile); ?>" type="image/x-icon">
 </head>
 
 <body>
@@ -365,15 +540,21 @@ $titlemeta = 'Управления пользователями';
                         <i class="bi <?= $isEditMode ? 'bi-pencil-square' : 'bi-person-plus' ?>" aria-hidden="true"></i>
                         <?= $isEditMode ? escape('Редактирование аккаунта') : escape('Добавление нового аккаунта') ?>
                     </h3>
-
+                    
                     <!-- Отображение сообщений -->
-                    <?php displayAlerts($successMessages, $errors, 'escape'); ?>
-
+                    <?php displayAlerts(
+                        $successMessages,  // Массив сообщений об успехе
+                        $errors,           // Массив сообщений об ошибках
+                        true               // Показывать сообщения как toast-уведомления
+                    ); 
+                    ?>
+                    
+                    <!-- CSRF Protection -->
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="firstName" class="form-label">Имя<span class="text-danger">*</span></label>
+                            <label for="firstName" class="form-label">Имя <span class="text-danger">*</span></label>
                             <input type="text"
                                    class="form-control"
                                    id="firstName"
@@ -448,42 +629,44 @@ $titlemeta = 'Управления пользователями';
                                 Аватар профиля
                             </h3>
 
-                            <!---------------------------------------------------- Галерея №1 ---------------------------------------------------->
+                            <!-- ========================================
+                                 ГАЛЕРЕЯ №1
+                                 ======================================== -->
 
                             <?php
-                            // Настройка галереи
-                            $sectionId = 'profile_images';         // Уникальное имя галереи
-                            $image_ids = $profile_images;          // ID изображений галереи
+                            $sectionId = 'profile_images';
+                            $imageIds  = $profileImages;
 
-                            // Лимит загрузки файлов на пользователя
-                            $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0; 
+                            $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
-                            // Настройки размеров изображений: [ширина, высота, режим]
                             $imageSizes = [
                                 "thumbnail" => [100, 100, "cover"],
-                                "small"     => [300, 'auto', "contain"], // Обязательное имя small
+                                "small"     => [300, 'auto', "contain"],
                                 "medium"    => [600, 'auto', "contain"],
                                 "large"     => [1200, 'auto', "contain"]
                             ];
 
-                            // Сохраняем настройки в сессии
                             $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                             ?>
 
-                            <!-- Скрытое поле для выбранных изображений  №1-->
-                            <input type="hidden" id="selectedImages_<?php echo $sectionId; ?>" name="<?php echo $sectionId; ?>" value="<?php echo isset($image_ids) ? $image_ids : ''; ?>">
+                            <input type="hidden" id="selectedImages_<?php echo $sectionId; ?>" name="<?php echo $sectionId; ?>"
+                                   value="<?php echo escape(isset($imageIds) ? $imageIds : ''); ?>">
+
                             <div id="image-management-section-<?php echo $sectionId; ?>">
-
-                                <!-- Контент будет загружен сюда  №1 -->
                                 <div id="loading-content-<?php echo $sectionId; ?>"></div>
-
-                                <button type="button" class="btn btn-outline-primary load-more-files" data-bs-toggle="modal" data-bs-target="#<?php echo $sectionId; ?>" onclick="storeSectionId('<?php echo $sectionId; ?>')">
-                                    <i class="bi bi-plus-circle me-1"></i> Добавить медиа файл
-                                </button>
-                                <div class="form-text">Не более 1 шт</div>
+                                <div class="selected-images-section d-flex flex-wrap gap-2">
+                                    <div id="selectedImagesPreview_<?php echo $sectionId; ?>" class="selected-images-preview">
+                                        <!-- Индикатор загрузки -->
+                                        <div class="w-100 d-flex justify-content-center align-items-center" style="min-height: 170px;">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Загрузка...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-text">Не более: <?= escape($maxDigits) ?> шт</div>
+                                </div>
                             </div>
 
-                            <!-- Модальные окна с библиотекай файлов -->
                             <div class="modal fade" id="<?php echo $sectionId; ?>" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-fullscreen-custom">
                                     <div class="modal-content">
@@ -492,23 +675,14 @@ $titlemeta = 'Управления пользователями';
                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <!-- Контейнер для уведомлений -->
                                             <div id="notify_<?php echo $sectionId; ?>"></div>
-
-                                            <!-- Контейнер галереи -->
                                             <div id="image-management-section_<?php echo $sectionId; ?>"></div>
-
-                                            <!-- Скрытый input для загрузки файлов -->
                                             <input type="file" id="fileInput_<?php echo $sectionId; ?>" multiple accept="image/*" style="display: none;">
-
-                                            <!-- Модальное окно редактирования метаданных фото -->
-                                            <?php require_once __DIR__ . '/../user_images/photo_info.php'; ?>
-                                            <!-- /Галерея №1 -->
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                            <button type="button" id="saveButton" class="btn btn-primary" 
-                                                    data-section-id="<?php echo htmlspecialchars($sectionId, ENT_QUOTES); ?>"
+                                            <button type="button" id="saveButton" class="btn btn-primary"
+                                                    data-section-id="<?php echo escape($sectionId); ?>"
                                                     onclick="handleSelectButtonClick()"
                                                     data-bs-dismiss="modal">
                                                 Выбрать
@@ -517,11 +691,12 @@ $titlemeta = 'Управления пользователями';
                                     </div>
                                 </div>
                             </div>
-                            <!---------------------------------------------------- /Галерея №1 ---------------------------------------------------->
+
+                            <!-- ========================================
+                                 /ГАЛЕРЕЯ №1
+                                 ======================================== -->
                         </div>
-
                     <?php } ?>
-
                 </div>
 
                 <div class="row mb-3">
@@ -533,7 +708,7 @@ $titlemeta = 'Управления пользователями';
                                    name="status"
                                    value="1"
                                    <?= ($status ?? $defaultStatus) ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="status"><?= escape('Нет/Да') ?></label>
+                            <label class="form-check-label" for="status"><?= escape('Активен') ?></label>
                         </div>
                         <div class="form-text"><?= escape('Аккаунт будет доступен для входа в систему') ?></div>
                     </div>
@@ -551,29 +726,36 @@ $titlemeta = 'Управления пользователями';
         </main>
     </div>
 
-    <!-- jQuery -->
+    <!-- Глобальное модальное окно с информацией о фотографии (используется всеми галереями) -->
+    <?php if (!isset($GLOBALS['photo_info_included'])): ?>
+        <?php defined('APP_ACCESS') || define('APP_ACCESS', true); ?>
+        <?php require_once __DIR__ . '/../user_images/photo_info.php'; ?>
+        <?php $GLOBALS['photo_info_included'] = true; ?>
+    <?php endif; ?>
+    
+    <!-- Подключение JavaScript библиотек -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Popper.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+            integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"></script>
 
-    <!-- Модульный JS admin -->
     <script type="module" src="../js/main.js"></script>
-    <!-- Модульный JS галереи -->
     <script type="module" src="../user_images/js/main.js"></script>
 
     <!-- Инициализация галереи -->
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
 
-        // Загружаем галерею при старте №1
-        loadGallery('profile_images');
+            // Загружаем галерею при старте №1
+            loadGallery('profile_images');
 
-        // Загружаем библиотеку файлов
-        loadImageSection('profile_images');
+            // Загружаем библиотеку файлов
+            loadImageSection('profile_images');
 
-    });
+        });
     </script>
 </body>
 </html>

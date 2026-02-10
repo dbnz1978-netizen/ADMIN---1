@@ -88,6 +88,7 @@ function plugin_install($pdo)
             `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
             `users_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID пользователя, создавшего контент',
             `news_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID связанной новости',
+            `title` VARCHAR(255) NOT NULL COMMENT 'Заголовок дополнительного контента',
             `content` LONGTEXT NOT NULL COMMENT 'Дополнительный контент',
             `image` VARCHAR(255) NULL COMMENT 'Изображение для дополнительного контента',
             `sorting` INT DEFAULT 0 COMMENT 'Порядок сортировки',

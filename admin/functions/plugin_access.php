@@ -35,6 +35,9 @@ if (!defined('APP_ACCESS')) {
     exit('Прямой доступ запрещён');
 }
 
+// Константа для редиректа при отказе в доступе
+define('PLUGIN_ACCESS_DENIED_REDIRECT', '/admin/logout.php');
+
 /**
  * Получает настройки доступа к плагинам из данных администратора
  * 
@@ -154,16 +157,16 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
     $user = requireAuth($pdo);
     
     if (!$user) {
-        http_response_code(403);
-        exit('Доступ запрещён: требуется авторизация');
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
+        exit;
     }
     
     // Получаем полные данные пользователя
     $userDataResult = getUserData($pdo, $user['id']);
     
     if (isset($userDataResult['error']) && $userDataResult['error'] === true) {
-        http_response_code(403);
-        exit('Доступ запрещён: ошибка получения данных пользователя');
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
+        exit;
     }
     
     $userRole = $userDataResult['author'] ?? 'user';
@@ -180,8 +183,8 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
                 );
             }
             
-            http_response_code(403);
-            exit('Доступ запрещён: недостаточно прав');
+            header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
+            exit;
         }
     }
     
@@ -196,8 +199,8 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
             );
         }
         
-        http_response_code(403);
-        exit('Доступ запрещён: у вас нет прав для доступа к этому разделу');
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
+        exit;
     }
     
     return $userDataResult;

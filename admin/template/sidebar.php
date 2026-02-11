@@ -233,81 +233,103 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                     </div>
                 </li>
 
-                <?php
-                // ========================================
-                // ДИНАМИЧЕСКОЕ МЕНЮ ПЛАГИНОВ
-                // ========================================
-                
-                // Подключаем менеджер плагинов если ещё не подключен
-                if (!function_exists('getPluginMenus')) {
-                    $pluginManagerPath = __DIR__ . '/../functions/plugin_manager.php';
-                    if (file_exists($pluginManagerPath)) {
-                        require_once $pluginManagerPath;
-                    }
-                }
-                
-                // Подключаем систему управления доступом к плагинам
-                if (!function_exists('filterPluginMenusByAccess')) {
-                    $pluginAccessPath = __DIR__ . '/../functions/plugin_access.php';
-                    if (file_exists($pluginAccessPath)) {
-                        require_once $pluginAccessPath;
-                    }
-                }
-                
-                // Получаем меню включенных плагинов, если функция доступна
-                $pluginMenus = function_exists('getPluginMenus') ? getPluginMenus($pdo) : [];
-                
-                // Фильтруем меню плагинов на основе прав доступа пользователя
-                if (function_exists('filterPluginMenusByAccess')) {
-                    $userRole = $userDataAdmin['author'] ?? 'user';
-                    $pluginMenus = filterPluginMenusByAccess($pdo, $pluginMenus, $userRole);
-                }
-                
-                // Отображаем меню каждого плагина
-                foreach ($pluginMenus as $index => $menu):
-                    $menuId              = 'pluginSubmenu_' . $index;
-                    $menuTitle           = $menu['menu_title'] ?? 'Plugin Menu';
-                    $menuIcon            = $menu['menu_icon'] ?? 'bi-puzzle';
-                    $submenuItems        = $menu['submenu'] ?? [];
-                    
-                    // Определяем, находится ли пользователь в этом подменю
-                    $isInThisPluginMenu = false;
-                    foreach ($submenuItems as $item) {
-                        if (isset($item['url']) && strpos($currentPath, $item['url']) !== false) {
-                            $isInThisPluginMenu = true;
-                            break;
-                        }
-                    }
-                ?>
-                
-                <!-- Меню плагина: <?= escape($menuTitle) ?> -->
-                <li class="nav-item">
-                    <a href="#<?= escape($menuId) ?>" 
-                       class="nav-link <?= $isInThisPluginMenu ? '' : 'collapsed' ?>"
-                       data-bs-toggle="submenu" 
-                       aria-expanded="<?= $isInThisPluginMenu ? 'true' : 'false' ?>">
-                        <i class="<?= escape($menuIcon) ?>"></i>
-                        <span><?= escape($menuTitle) ?></span>
-                        <i class="bi bi-chevron-down ms-auto"></i>
-                    </a>
-                    <div class="submenu collapse <?= $isInThisPluginMenu ? 'show' : '' ?>" id="<?= escape($menuId) ?>">
-                        <?php foreach ($submenuItems as $item): ?>
-                            <?php
-                            $itemTitle  = $item['title'] ?? 'Item';
-                            $itemIcon   = $item['icon'] ?? 'bi-circle';
-                            $itemUrl    = $item['url'] ?? '#';
-                            $isActive   = strpos($currentPath, $itemUrl) !== false;
-                            ?>
-                            <a href="<?= escape($itemUrl) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
-                                <i class="<?= escape($itemIcon) ?>"></i>
-                                <span><?= escape($itemTitle) ?></span>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </li>
-                
-                <?php endforeach; ?>
             <?php endif; ?>
+            
+            <?php
+            // ========================================
+            // ДИНАМИЧЕСКОЕ МЕНЮ ПЛАГИНОВ
+            // ========================================
+            
+            // Подключаем менеджер плагинов если ещё не подключен
+            if (!function_exists('getPluginMenus')) {
+                $pluginManagerPath = __DIR__ . '/../functions/plugin_manager.php';
+                if (file_exists($pluginManagerPath)) {
+                    require_once $pluginManagerPath;
+                }
+            }
+            
+            // Подключаем систему управления доступом к плагинам
+            if (!function_exists('filterPluginMenusByAccess')) {
+                $pluginAccessPath = __DIR__ . '/../functions/plugin_access.php';
+                if (file_exists($pluginAccessPath)) {
+                    require_once $pluginAccessPath;
+                }
+            }
+            
+            // Получаем меню включенных плагинов, если функция доступна
+            $pluginMenus = function_exists('getPluginMenus') ? getPluginMenus($pdo) : [];
+            
+            // Фильтруем меню плагинов на основе прав доступа пользователя
+            if (function_exists('filterPluginMenusByAccess')) {
+                $userRole = $userDataAdmin['author'] ?? 'user';
+                $pluginMenus = filterPluginMenusByAccess($pdo, $pluginMenus, $userRole);
+            }
+            
+            // Отображаем меню каждого плагина
+            foreach ($pluginMenus as $index => $menu):
+                $menuId              = 'pluginSubmenu_' . $index;
+                $menuTitle           = $menu['menu_title'] ?? 'Plugin Menu';
+                $menuIcon            = $menu['menu_icon'] ?? 'bi-puzzle';
+                $submenuItems        = $menu['submenu'] ?? [];
+                
+                // Фильтруем элементы подменю: страница настроек доступна только для admin
+                $filteredSubmenuItems = [];
+                $currentUserRole = $userDataAdmin['author'] ?? 'user';
+                foreach ($submenuItems as $item) {
+                    $itemUrl = $item['url'] ?? '';
+                    // Если это страница настроек (содержит /settings/ в URL), показываем только админам
+                    if (strpos($itemUrl, '/settings/') !== false) {
+                        if ($currentUserRole === 'admin') {
+                            $filteredSubmenuItems[] = $item;
+                        }
+                    } else {
+                        // Остальные пункты меню доступны всем
+                        $filteredSubmenuItems[] = $item;
+                    }
+                }
+                
+                // Пропускаем меню, если нет доступных пунктов
+                if (empty($filteredSubmenuItems)) {
+                    continue;
+                }
+                
+                // Определяем, находится ли пользователь в этом подменю
+                $isInThisPluginMenu = false;
+                foreach ($filteredSubmenuItems as $item) {
+                    if (isset($item['url']) && strpos($currentPath, $item['url']) !== false) {
+                        $isInThisPluginMenu = true;
+                        break;
+                    }
+                }
+            ?>
+            
+            <!-- Меню плагина: <?= escape($menuTitle) ?> -->
+            <li class="nav-item">
+                <a href="#<?= escape($menuId) ?>" 
+                   class="nav-link <?= $isInThisPluginMenu ? '' : 'collapsed' ?>"
+                   data-bs-toggle="submenu" 
+                   aria-expanded="<?= $isInThisPluginMenu ? 'true' : 'false' ?>">
+                    <i class="<?= escape($menuIcon) ?>"></i>
+                    <span><?= escape($menuTitle) ?></span>
+                    <i class="bi bi-chevron-down ms-auto"></i>
+                </a>
+                <div class="submenu collapse <?= $isInThisPluginMenu ? 'show' : '' ?>" id="<?= escape($menuId) ?>">
+                    <?php foreach ($filteredSubmenuItems as $item): ?>
+                        <?php
+                        $itemTitle  = $item['title'] ?? 'Item';
+                        $itemIcon   = $item['icon'] ?? 'bi-circle';
+                        $itemUrl    = $item['url'] ?? '#';
+                        $isActive   = strpos($currentPath, $itemUrl) !== false;
+                        ?>
+                        <a href="<?= escape($itemUrl) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
+                            <i class="<?= escape($itemIcon) ?>"></i>
+                            <span><?= escape($itemTitle) ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </li>
+            
+            <?php endforeach; ?>
         </ul>
     </div>
 

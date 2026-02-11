@@ -278,10 +278,10 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                     $itemUrl = $item['url'] ?? '';
                     // Парсим URL для получения только пути без query string и fragment
                     $parsedUrl = parse_url($itemUrl);
-                    $itemPath = $parsedUrl['path'] ?? '';
+                    $itemPath = ($parsedUrl !== false && isset($parsedUrl['path'])) ? $parsedUrl['path'] : '';
                     
                     // Если путь содержит /settings/ как сегмент, показываем только админам
-                    if (preg_match('#/settings/#', $itemPath)) {
+                    if ($itemPath && preg_match('#/settings/#', $itemPath)) {
                         if ($userRole === 'admin') {
                             $filteredSubmenuItems[] = $item;
                         }
@@ -301,7 +301,7 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                 foreach ($filteredSubmenuItems as $item) {
                     if (isset($item['url'])) {
                         $itemParsedUrl = parse_url($item['url']);
-                        $itemPath = $itemParsedUrl['path'] ?? '';
+                        $itemPath = ($itemParsedUrl !== false && isset($itemParsedUrl['path'])) ? $itemParsedUrl['path'] : '';
                         // Сравниваем пути точно
                         if ($itemPath && strpos($currentPath, $itemPath) !== false) {
                             $isInThisPluginMenu = true;
@@ -328,7 +328,7 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                         $itemIcon   = $item['icon'] ?? 'bi-circle';
                         $itemUrl    = $item['url'] ?? '#';
                         $itemParsedUrl = parse_url($itemUrl);
-                        $itemPath = $itemParsedUrl['path'] ?? '';
+                        $itemPath = ($itemParsedUrl !== false && isset($itemParsedUrl['path'])) ? $itemParsedUrl['path'] : '';
                         $isActive   = $itemPath && strpos($currentPath, $itemPath) !== false;
                         ?>
                         <a href="<?= escape($itemUrl) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">

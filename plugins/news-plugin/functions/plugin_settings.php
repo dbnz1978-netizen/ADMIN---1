@@ -7,12 +7,23 @@
  * Настройки хранятся в колонке settings (TEXT, JSON) для записи с name='news-plugin'.
  * Структура JSON:
  * {
- *   "image_sizes": { "thumbnail": [100, 100, "cover"] },
+ *   "image_sizes": {
+ *     "thumbnail": [100, 100, "cover"],
+ *     "small": [300, "auto", "contain"],
+ *     "medium": [600, "auto", "contain"],
+ *     "large": [1200, "auto", "contain"]
+ *   },
  *   "limits": {
+ *     "add_category": { "maxDigits": 1 },
  *     "add_article": { "maxDigits": 50 },
  *     "add_extra": { "maxDigits": 50 }
  *   }
  * }
+ * 
+ * Примечания:
+ * - В image_sizes значения ширины/высоты могут быть числом или строкой "auto"
+ * - Для thumbnail оба значения должны быть числами (не "auto")
+ * - Режим может быть "cover" или "contain"
  * 
  * Автор:               Команда разработки
  * Версия:              1.0
@@ -127,8 +138,9 @@ function savePluginSettings($pdo, $pluginName, $settings) {
 /**
  * Получает размеры изображений с учётом переопределений плагина
  * 
- * Возвращает глобальные размеры изображений, где thumbnail может быть
- * переопределён настройками плагина.
+ * Возвращает глобальные размеры изображений, переопределённые настройками плагина
+ * (если они есть). Плагин может переопределить любой из размеров:
+ * thumbnail, small, medium, large.
  * 
  * @param PDO $pdo Объект подключения к БД
  * @param string $pluginName Имя плагина (например: 'news-plugin')
@@ -146,25 +158,40 @@ function getPluginImageSizes($pdo, $pluginName) {
     // Получаем настройки плагина
     $pluginSettings = getPluginSettings($pdo, $pluginName);
     
-    // Если настройки плагина существуют и содержат переопределение thumbnail
+    // Если настройки плагина существуют и содержат переопределения размеров
     if (is_array($pluginSettings) && 
-        isset($pluginSettings['image_sizes']['thumbnail']) && 
-        is_array($pluginSettings['image_sizes']['thumbnail'])) {
+        isset($pluginSettings['image_sizes']) && 
+        is_array($pluginSettings['image_sizes'])) {
         
-        $thumbnailOverride = $pluginSettings['image_sizes']['thumbnail'];
+        $sizeNames = ['thumbnail', 'small', 'medium', 'large'];
         
-        // Валидируем переопределение thumbnail
-        if (count($thumbnailOverride) === 3) {
-            list($width, $height, $mode) = $thumbnailOverride;
-            
-            // Проверяем валидность
-            $isValidWidth = is_int($width) && $width > 0;
-            $isValidHeight = is_int($height) && $height > 0;
-            $isValidMode = in_array($mode, ['cover', 'contain'], true);
-            
-            if ($isValidWidth && $isValidHeight && $isValidMode) {
-                // Применяем переопределение
-                $imageSizes['thumbnail'] = $thumbnailOverride;
+        foreach ($sizeNames as $sizeName) {
+            if (isset($pluginSettings['image_sizes'][$sizeName]) && 
+                is_array($pluginSettings['image_sizes'][$sizeName])) {
+                
+                $sizeOverride = $pluginSettings['image_sizes'][$sizeName];
+                
+                // Валидируем переопределение
+                if (count($sizeOverride) === 3) {
+                    list($width, $height, $mode) = $sizeOverride;
+                    
+                    // Проверяем валидность ширины
+                    $isValidWidth = ($width === 'auto') || (is_int($width) && $width > 0);
+                    // Проверяем валидность высоты
+                    $isValidHeight = ($height === 'auto') || (is_int($height) && $height > 0);
+                    // Проверяем валидность режима
+                    $isValidMode = in_array($mode, ['cover', 'contain'], true);
+                    
+                    // Для thumbnail требуем оба числа (не 'auto')
+                    if ($sizeName === 'thumbnail' && ($width === 'auto' || $height === 'auto')) {
+                        continue;
+                    }
+                    
+                    if ($isValidWidth && $isValidHeight && $isValidMode) {
+                        // Применяем переопределение
+                        $imageSizes[$sizeName] = $sizeOverride;
+                    }
+                }
             }
         }
     }

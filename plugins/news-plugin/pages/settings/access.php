@@ -98,34 +98,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $allowUser = isset($_POST['allow_user']);
     
     // =============================================================================
-    // ВАЛИДАЦИЯ НАСТРОЕК THUMBNAIL
+    // ВАЛИДАЦИЯ НАСТРОЕК РАЗМЕРОВ ИЗОБРАЖЕНИЙ
     // =============================================================================
     
-    $thumbnailWidth = trim($_POST['thumbnail_width'] ?? '');
-    $thumbnailHeight = trim($_POST['thumbnail_height'] ?? '');
-    $thumbnailFit = $_POST['thumbnail_fit'] ?? '';
+    $imageSizesResult = validateImageSizesFromPost($_POST);
     
-    // Валидация ширины
-    if (!ctype_digit($thumbnailWidth) || (int)$thumbnailWidth < 1) {
-        $validationErrors[] = 'Ширина thumbnail должна быть положительным целым числом';
+    if (!$imageSizesResult['valid']) {
+        $validationErrors = array_merge($validationErrors, $imageSizesResult['errors']);
     }
     
-    // Валидация высоты
-    if (!ctype_digit($thumbnailHeight) || (int)$thumbnailHeight < 1) {
-        $validationErrors[] = 'Высота thumbnail должна быть положительным целым числом';
-    }
-    
-    // Валидация режима fit
-    if (!in_array($thumbnailFit, ['cover', 'contain'], true)) {
-        $validationErrors[] = 'Режим fit должен быть cover или contain';
-    }
+    $imageSizes = $imageSizesResult['sizes'] ?? [];
     
     // =============================================================================
     // ВАЛИДАЦИЯ ЛИМИТОВ MAXDIGITS
     // =============================================================================
     
+    $maxDigitsAddCategory = trim($_POST['max_digits_add_category'] ?? '');
     $maxDigitsAddArticle = trim($_POST['max_digits_add_article'] ?? '');
     $maxDigitsAddExtra = trim($_POST['max_digits_add_extra'] ?? '');
+    
+    // Валидация maxDigits для add_category
+    if (!ctype_digit($maxDigitsAddCategory) || (int)$maxDigitsAddCategory < 0 || (int)$maxDigitsAddCategory > 1000) {
+        $validationErrors[] = 'Лимит изображений для категорий должен быть от 0 до 1000';
+    }
     
     // Валидация maxDigits для add_article
     if (!ctype_digit($maxDigitsAddArticle) || (int)$maxDigitsAddArticle < 0 || (int)$maxDigitsAddArticle > 1000) {
@@ -162,10 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Формируем настройки плагина
         $pluginSettings = [
-            'image_sizes' => [
-                'thumbnail' => [(int)$thumbnailWidth, (int)$thumbnailHeight, $thumbnailFit]
-            ],
+            'image_sizes' => $imageSizes,
             'limits' => [
+                'add_category' => ['maxDigits' => (int)$maxDigitsAddCategory],
                 'add_article' => ['maxDigits' => (int)$maxDigitsAddArticle],
                 'add_extra' => ['maxDigits' => (int)$maxDigitsAddExtra]
             ]
@@ -177,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($accessResult && $pluginResult) {
             logEvent(
                 "Настройки плагина 'news-plugin' обновлены — user: " . ($allowUser ? 'да' : 'нет') . 
-                ", thumbnail: [{$thumbnailWidth}x{$thumbnailHeight}, {$thumbnailFit}]" .
-                ", limits: [add_article={$maxDigitsAddArticle}, add_extra={$maxDigitsAddExtra}] — ID: {$userDataAdmin['id']}",
+                ", image_sizes: " . json_encode($imageSizes) .
+                ", limits: [add_category={$maxDigitsAddCategory}, add_article={$maxDigitsAddArticle}, add_extra={$maxDigitsAddExtra}] — ID: {$userDataAdmin['id']}",
                 LOG_INFO_ENABLED,
                 'info'
             );
@@ -220,19 +214,17 @@ $allowUser = $accessSettings['news-plugin']['user'] ?? true;
 // Загружаем настройки плагина
 $pluginSettings = getPluginSettings($pdo, 'news-plugin');
 
-// Извлекаем настройки thumbnail или используем значения по умолчанию из глобальных
+// Извлекаем настройки размеров изображений или используем значения по умолчанию из глобальных
 if (!function_exists('getGlobalImageSizes')) {
     require_once __DIR__ . '/../../../../admin/functions/image_sizes.php';
 }
 $globalImageSizes = getGlobalImageSizes($pdo);
-$defaultThumbnail = $globalImageSizes['thumbnail'] ?? [100, 100, 'cover'];
 
-$thumbnailSettings = $pluginSettings['image_sizes']['thumbnail'] ?? $defaultThumbnail;
-$thumbnailWidth = $thumbnailSettings[0] ?? 100;
-$thumbnailHeight = $thumbnailSettings[1] ?? 100;
-$thumbnailFit = $thumbnailSettings[2] ?? 'cover';
+// Получаем настройки изображений из плагина, или используем глобальные как значения по умолчанию
+$currentImageSizes = $pluginSettings['image_sizes'] ?? $globalImageSizes;
 
 // Извлекаем лимиты maxDigits или используем значения по умолчанию
+$maxDigitsAddCategory = $pluginSettings['limits']['add_category']['maxDigits'] ?? 1;
 $maxDigitsAddArticle = $pluginSettings['limits']['add_article']['maxDigits'] ?? 50;
 $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
 
@@ -329,36 +321,80 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                     <div class="mb-4">
                         <p>
                             <i class="bi bi-info-circle"></i>
-                            Настройте размеры thumbnail для плагина. Если не указано, будут использоваться глобальные настройки.
+                            Настройте размеры изображений для плагина. Если не указано, будут использоваться глобальные настройки.
                             Эти настройки применяются только к плагину "Новости" и не влияют на другие разделы системы.
+                        </p>
+                        <p>
+                            <strong>Режимы обработки:</strong><br>
+                            • <strong>cover</strong> — обрезка изображения с сохранением пропорций (заполняет весь размер)<br>
+                            • <strong>contain</strong> — вписывание изображения с сохранением пропорций (может быть меньше размера)
                         </p>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <h5>Thumbnail</h5>
-                        </div>
-                    </div>
+                    <?php
+                    $sizeLabels = [
+                        'thumbnail' => 'Thumbnail (миниатюра)',
+                        'small'     => 'Small (маленький)',
+                        'medium'    => 'Medium (средний)',
+                        'large'     => 'Large (большой)'
+                    ];
 
+                    foreach ($sizeLabels as $sizeName => $sizeLabel):
+                        // Проверяем наличие размера в конфигурации
+                        if (!isset($currentImageSizes[$sizeName]) || !is_array($currentImageSizes[$sizeName])) {
+                            continue; // Пропускаем, если размер отсутствует или некорректен
+                        }
+                        
+                        $sizeConfig = $currentImageSizes[$sizeName];
+                        
+                        // Проверяем, что массив содержит 3 элемента
+                        if (count($sizeConfig) !== 3) {
+                            continue; // Пропускаем некорректную конфигурацию
+                        }
+                        
+                        $width = $sizeConfig[0];
+                        $height = $sizeConfig[1];
+                        $mode = $sizeConfig[2];
+                    ?>
                     <div class="row mb-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Ширина (px)</label>
-                            <input type="number" class="form-control" name="thumbnail_width" 
-                                   min="1" step="1" value="<?= escape((string)$thumbnailWidth) ?>" required>
+                        <div class="col-12">
+                            <label class="form-label fw-bold"><?= escape($sizeLabel) ?></label>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Высота (px)</label>
-                            <input type="number" class="form-control" name="thumbnail_height" 
-                                   min="1" step="1" value="<?= escape((string)$thumbnailHeight) ?>" required>
+                            <label for="img_<?= $sizeName ?>_width" class="form-label">Ширина (px)</label>
+                            <input type="text" class="form-control" id="img_<?= $sizeName ?>_width"
+                                   name="img_<?= $sizeName ?>_width" 
+                                   value="<?= escape((string)$width) ?>" 
+                                   placeholder="auto или число"
+                                   <?= $sizeName === 'thumbnail' ? 'required' : '' ?>>
+                            <?php if ($sizeName === 'thumbnail'): ?>
+                            <div class="form-text">Только число для thumbnail</div>
+                            <?php else: ?>
+                            <div class="form-text">Число или 'auto'</div>
+                            <?php endif; ?>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Режим обработки</label>
-                            <select class="form-select" name="thumbnail_fit">
-                                <option value="cover" <?= $thumbnailFit === 'cover' ? 'selected' : '' ?>>cover (обрезка)</option>
-                                <option value="contain" <?= $thumbnailFit === 'contain' ? 'selected' : '' ?>>contain (вписывание)</option>
+                            <label for="img_<?= $sizeName ?>_height" class="form-label">Высота (px)</label>
+                            <input type="text" class="form-control" id="img_<?= $sizeName ?>_height"
+                                   name="img_<?= $sizeName ?>_height" 
+                                   value="<?= escape((string)$height) ?>" 
+                                   placeholder="auto или число"
+                                   <?= $sizeName === 'thumbnail' ? 'required' : '' ?>>
+                            <?php if ($sizeName === 'thumbnail'): ?>
+                            <div class="form-text">Только число для thumbnail</div>
+                            <?php else: ?>
+                            <div class="form-text">Число или 'auto'</div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="img_<?= $sizeName ?>_mode" class="form-label">Режим обработки</label>
+                            <select class="form-select" id="img_<?= $sizeName ?>_mode" name="img_<?= $sizeName ?>_mode">
+                                <option value="cover" <?= $mode === 'cover' ? 'selected' : '' ?>>cover (обрезка)</option>
+                                <option value="contain" <?= $mode === 'contain' ? 'selected' : '' ?>>contain (вписывание)</option>
                             </select>
                         </div>
                     </div>
+                    <?php endforeach; ?>
                 </div>
 
                 <!-- ========================================
@@ -378,6 +414,12 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                     </div>
 
                     <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Категории (add_category.php)</label>
+                            <input type="number" class="form-control" name="max_digits_add_category" 
+                                   min="0" max="1000" step="1" value="<?= escape((string)$maxDigitsAddCategory) ?>" required>
+                            <div class="form-text">Максимум изображений при добавлении категории</div>
+                        </div>
                         <div class="col-md-4">
                             <label class="form-label">Добавление новости (add_article.php)</label>
                             <input type="number" class="form-control" name="max_digits_add_article" 

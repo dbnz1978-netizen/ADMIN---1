@@ -1,6 +1,6 @@
 <?php
 /**
- * Файл: /plugins/news-plugin/functions/plugin_helper.php
+ * Файл: /plugins/pages-plugin/functions/plugin_helper.php
  * 
  * Вспомогательные функции для автоматического определения имени плагина.
  * Это позволяет дублировать плагин без изменения кода.
@@ -22,11 +22,11 @@ if (!defined('APP_ACCESS')) {
  * Функция анализирует путь к текущему файлу и извлекает имя директории плагина.
  * Это позволяет дублировать плагин, просто переименовав его директорию.
  * 
- * @return string Имя плагина (например: 'news-plugin')
+ * @return string Имя плагина (например: 'pages-plugin')
  * 
  * @example
- * // Для файла /plugins/news-plugin/pages/articles/add_article.php
- * $pluginName = getPluginName(); // Вернёт 'news-plugin'
+ * // Для файла /plugins/pages-plugin/pages/articles/add_article.php
+ * $pluginName = getPluginName(); // Вернёт 'pages-plugin'
  * 
  * // Для файла /plugins/my-custom-plugin/pages/settings/access.php  
  * $pluginName = getPluginName(); // Вернёт 'my-custom-plugin'
@@ -43,7 +43,7 @@ function getPluginName() {
     
     if (count($parts) < 2) {
         // Если структура не соответствует ожидаемой, возвращаем значение по умолчанию
-        return 'news-plugin';
+        return 'pages-plugin';
     }
     
     // Берём часть после '/plugins/' и извлекаем первый сегмент (имя директории плагина)

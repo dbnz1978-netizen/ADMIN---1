@@ -534,7 +534,7 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
                                             $pdo,                      // Объект PDO для подключения к базе данных
                                             (int)$row['id'],           // ID записи
                                             $currentUserId,            // ID пользователя
-                                            $catalogTable              // Название таблицы (например: 'news_articles')
+                                            $catalogTable              // Название таблицы (например: 'pages_content')
                                         );
                                     ?>
 

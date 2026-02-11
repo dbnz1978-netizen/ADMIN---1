@@ -1,10 +1,10 @@
 <?php
 /**
- * Файл: /plugins/news-plugin/functions/plugin_settings.php
+ * Файл: /plugins/pages-plugin/functions/plugin_settings.php
  * 
- * Функции для работы с настройками плагина news-plugin, хранящимися в таблице plugins.
+ * Функции для работы с настройками плагина pages-plugin, хранящимися в таблице plugins.
  * 
- * Настройки хранятся в колонке settings (TEXT, JSON) для записи с name='news-plugin'.
+ * Настройки хранятся в колонке settings (TEXT, JSON) для записи с name='pages-plugin'.
  * Структура JSON:
  * {
  *   "image_sizes": {
@@ -40,7 +40,7 @@ if (!defined('APP_ACCESS')) {
  * Получает настройки плагина из таблицы plugins
  * 
  * @param PDO $pdo Объект подключения к БД
- * @param string $pluginName Имя плагина (например: 'news-plugin')
+ * @param string $pluginName Имя плагина (например: 'pages-plugin')
  * @return array|null Массив настроек или null при ошибке/отсутствии
  */
 function getPluginSettings($pdo, $pluginName) {
@@ -95,7 +95,7 @@ function getPluginSettings($pdo, $pluginName) {
  * Сохраняет настройки плагина в таблицу plugins
  * 
  * @param PDO $pdo Объект подключения к БД
- * @param string $pluginName Имя плагина (например: 'news-plugin')
+ * @param string $pluginName Имя плагина (например: 'pages-plugin')
  * @param array $settings Массив настроек для сохранения
  * @return bool Успешность операции
  */
@@ -143,7 +143,7 @@ function savePluginSettings($pdo, $pluginName, $settings) {
  * thumbnail, small, medium, large.
  * 
  * @param PDO $pdo Объект подключения к БД
- * @param string $pluginName Имя плагина (например: 'news-plugin')
+ * @param string $pluginName Имя плагина (например: 'pages-plugin')
  * @return array Массив размеров изображений
  */
 function getPluginImageSizes($pdo, $pluginName) {
@@ -203,7 +203,7 @@ function getPluginImageSizes($pdo, $pluginName) {
  * Получает лимит maxDigits для конкретной страницы плагина
  * 
  * @param PDO $pdo Объект подключения к БД
- * @param string $pluginName Имя плагина (например: 'news-plugin')
+ * @param string $pluginName Имя плагина (например: 'pages-plugin')
  * @param string $pageName Имя страницы (например: 'add_article', 'add_extra')
  * @param int $defaultValue Значение по умолчанию
  * @return int Лимит maxDigits

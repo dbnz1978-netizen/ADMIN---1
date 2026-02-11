@@ -223,7 +223,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                 $adminId = $user['id'] ?? 'unknown';
                 logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
             } catch (PDOException $e) {
-                $errors[] = 'Ошибка при выполнении операции';
+                // Проверка на ошибку foreign key constraint (код 23000 или 1451)
+                $errorCode = $e->getCode();
+                $errorInfo = $e->errorInfo ?? [];
+                $mysqlErrorCode = $errorInfo[1] ?? null;
+                
+                // Код 1451 - Cannot delete or update a parent row: a foreign key constraint fails
+                if ($errorCode == '23000' || $mysqlErrorCode == 1451) {
+                    if ($action === 'delete' && $isTrash) {
+                        $errors[] = 'Невозможно удалить категорию: на неё ссылаются статьи или другие записи. Сначала удалите или переместите связанные записи.';
+                    } else {
+                        $errors[] = 'Ошибка ограничения внешнего ключа: на данную запись ссылаются другие записи.';
+                    }
+                } else {
+                    $errors[] = 'Ошибка при выполнении операции';
+                }
                 logEvent("Ошибка БД при массовом действии '$action' ({$catalogTable}): " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
             }
         }

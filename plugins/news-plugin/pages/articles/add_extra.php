@@ -18,7 +18,7 @@
 
 // === КОНФИГУРАЦИЯ ===
 $config = [
-    'display_errors'  => true,         // включение отображения ошибок true/false
+    'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
     'db_connect'      => true,          // подключение к базе
     'auth_check'      => true,          // подключение функций авторизации

@@ -176,27 +176,19 @@ $allowUser = $accessSettings['news']['user'] ?? true;
             <?php require_once __DIR__ . '/../../../../admin/template/header.php'; ?>
 
             <!-- Контейнер страницы -->
-            <div class="page-container">
+            <div class="content-card mb-5">
                 
-                <!-- Заголовок страницы -->
-                <div class="page-header">
-                    <div>
-                        <h1><?= escape($titlemeta) ?></h1>
-                        <p class="page-subtitle"><?= escape($titlemetah3) ?></p>
-                    </div>
-                    <div class="page-actions">
-                        <a href="/plugins/news-plugin/pages/articles/article_list.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i>
-                            Назад к новостям
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Вывод сообщений -->
-                <?php displayAlerts($successMessages, $errors); ?>
+                <!-- Отображение сообщений -->
+                <?php displayAlerts(
+                    $successMessages,  // Массив сообщений об успехе
+                    $errors,           // Массив сообщений об ошибках
+                    true               // Показывать сообщения как toast-уведомления
+                ); 
+                ?>
 
                 <!-- Форма настроек доступа -->
-                <div class="card">
+                <div class="bordered-card">
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class="bi bi-shield-lock"></i>
@@ -217,7 +209,7 @@ $allowUser = $accessSettings['news']['user'] ?? true;
                             </div>
 
                             <!-- Настройка доступа для роли 'user' -->
-                            <div class="mb-4">
+                            <div class="mb-0">
                                 <div class="card">
                                     <div class="card-body">
                                         <div class="form-check form-switch">
@@ -240,6 +232,7 @@ $allowUser = $accessSettings['news']['user'] ?? true;
                                 </div>
                             </div>
 
+
                             <!-- Кнопки действий -->
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-primary">
@@ -251,11 +244,17 @@ $allowUser = $accessSettings['news']['user'] ?? true;
                                     Отмена
                                 </a>
                             </div>
+
                         </form>
                     </div>
                 </div>
 
             </div>
+
+
+
+
+
         </main>
     </div>
 

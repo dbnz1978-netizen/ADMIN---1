@@ -22,7 +22,7 @@
 
 // === КОНФИГУРАЦИЯ ===
 $config = [
-    'display_errors'  => true,         // включение отображения ошибок true/false
+    'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
     'db_connect'      => true,          // подключение к базе
     'auth_check'      => true,          // подключение функций авторизации
@@ -380,7 +380,9 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
     </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/admin/css/main.css"> 
+
+    <!-- Стили админки -->
+    <link rel="stylesheet" href="../../../../admin/css/main.css">
     <link rel="icon" href="<?php echo escape($logo_profile); ?>" type="image/x-icon">
 </head>
 <body>
@@ -655,6 +657,6 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <!-- Модульный JS admin -->
-    <script type="module" src="/admin/js/main.js"></script>
+    <script type="module" src="../../../../admin/js/main.js"></script>
 </body>
 </html>

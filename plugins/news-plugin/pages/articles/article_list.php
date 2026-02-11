@@ -160,7 +160,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
     } else {
         $action = null;
         if (is_string($_POST['action'])) {
-            $action = trim($_POST['action']);
+            // Валидация поля action
+            $actionRaw = trim($_POST['action']);
+            $actionResult = validateTextareaField($actionRaw, 1, 20, 'Действие');
+            if ($actionResult['valid']) {
+                $action = $actionResult['value'];
+            } else {
+                $errors[] = $actionResult['error'];
+            }
         }
 
         // Нормализуем и валидируем ID записей

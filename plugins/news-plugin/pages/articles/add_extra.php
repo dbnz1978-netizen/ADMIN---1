@@ -182,6 +182,9 @@ function validateCsrfToken($token) {
 // =============================================================================
 // Обработка формы (создание/обновление)
 // =============================================================================
+// Инициализация переменной для результата валидации (используется позже для form repopulation)
+$resultTitle = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfToken = $_POST['csrf_token'] ?? '';
 
@@ -199,8 +202,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Заголовок дополнительного контента
         $titlePost = trim($_POST['title'] ?? '');
-        if (empty($titlePost)) {
-            $errors[] = 'Заголовок дополнительного контента обязателен для заполнения.';
+        $resultTitle = validateTextareaField($titlePost, 1, 200, 'Заголовок дополнительного контента');
+        if ($resultTitle['valid']) {
+            $titlePost = $resultTitle['value'];
+            logEvent("Успешная валидация поля 'Заголовок дополнительного контента'", LOG_INFO_ENABLED, 'info');
+        } else {
+            $errors[] = $resultTitle['error'];
+            $titlePost = false;
+            logEvent("Ошибка валидации поля 'Заголовок дополнительного контента': " . $resultTitle['error'], LOG_ERROR_ENABLED, 'error');
         }
 
         // HTML контент
@@ -304,7 +313,16 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
 // Для повторного заполнения формы после ошибок
 $formSorting = isset($_POST['sorting']) ? (int)$_POST['sorting'] : (int)$defaultSorting;
 $formStatus = isset($_POST['status']) ? 1 : (int)$defaultStatus;
-$formTitle = isset($_POST['title']) ? trim($_POST['title']) : $title;
+
+// Используем валидированное значение если POST, иначе значение из базы
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && $resultTitle !== null && $resultTitle['valid']) {
+    // Если валидация прошла успешно, используем валидированное значение
+    $formTitle = $resultTitle['value'];
+} else {
+    // В остальных случаях используем значение из базы (это безопаснее чем неvalidированные данные)
+    $formTitle = $title;
+}
+
 $formContent = isset($_POST['content']) ? sanitizeHtmlFromEditor($_POST['content']) : $content;
 $formImage = $_POST['image'] ?? $image;
 ?>

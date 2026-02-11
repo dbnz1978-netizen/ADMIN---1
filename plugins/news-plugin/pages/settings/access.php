@@ -30,6 +30,9 @@ require_once __DIR__ . '/../../../../admin/functions/init.php';
 // Подключаем систему управления доступом к плагинам
 require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
 
+// Подключаем функции для работы с настройками плагина
+require_once __DIR__ . '/../../functions/plugin_settings.php';
+
 // =============================================================================
 // Проверка прав администратора
 // =============================================================================
@@ -89,43 +92,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    $validationErrors = [];
+    
     // Получаем значения из формы (чекбоксы)
     $allowUser = isset($_POST['allow_user']);
     
-    // Получаем текущие настройки доступа
-    $accessSettings = getPluginAccessSettings($pdo);
+    // =============================================================================
+    // ВАЛИДАЦИЯ НАСТРОЕК THUMBNAIL
+    // =============================================================================
     
-    if ($accessSettings === false) {
-        $accessSettings = [];
+    $thumbnailWidth = trim($_POST['thumbnail_width'] ?? '');
+    $thumbnailHeight = trim($_POST['thumbnail_height'] ?? '');
+    $thumbnailFit = $_POST['thumbnail_fit'] ?? '';
+    
+    // Валидация ширины
+    if (!ctype_digit($thumbnailWidth) || (int)$thumbnailWidth < 1) {
+        $validationErrors[] = 'Ширина thumbnail должна быть положительным целым числом';
     }
     
-    // Обновляем настройки для плагина 'news-plugin'
-    // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
-    // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
-    $accessSettings['news-plugin'] = [
-        'user' => $allowUser,
-        'admin' => true
-    ];
+    // Валидация высоты
+    if (!ctype_digit($thumbnailHeight) || (int)$thumbnailHeight < 1) {
+        $validationErrors[] = 'Высота thumbnail должна быть положительным целым числом';
+    }
     
-    // Сохраняем настройки
-    $result = savePluginAccessSettings($pdo, $accessSettings);
+    // Валидация режима fit
+    if (!in_array($thumbnailFit, ['cover', 'contain'], true)) {
+        $validationErrors[] = 'Режим fit должен быть cover или contain';
+    }
     
-    if ($result) {
-        logEvent(
-            "Настройки доступа к плагину 'news-plugin' обновлены — user: " . ($allowUser ? 'да' : 'нет') . " — ID: {$userDataAdmin['id']}",
-            LOG_INFO_ENABLED,
-            'info'
-        );
+    // =============================================================================
+    // ВАЛИДАЦИЯ ЛИМИТОВ MAXDIGITS
+    // =============================================================================
+    
+    $maxDigitsAddArticle = trim($_POST['max_digits_add_article'] ?? '');
+    $maxDigitsAddExtra = trim($_POST['max_digits_add_extra'] ?? '');
+    
+    // Валидация maxDigits для add_article
+    if (!ctype_digit($maxDigitsAddArticle) || (int)$maxDigitsAddArticle < 0 || (int)$maxDigitsAddArticle > 1000) {
+        $validationErrors[] = 'Лимит изображений для добавления новости должен быть от 0 до 1000';
+    }
+    
+    // Валидация maxDigits для add_extra
+    if (!ctype_digit($maxDigitsAddExtra) || (int)$maxDigitsAddExtra < 0 || (int)$maxDigitsAddExtra > 1000) {
+        $validationErrors[] = 'Лимит изображений для дополнительного контента должен быть от 0 до 1000';
+    }
+    
+    // =============================================================================
+    // СОХРАНЕНИЕ НАСТРОЕК
+    // =============================================================================
+    
+    if (empty($validationErrors)) {
+        // Получаем текущие настройки доступа
+        $accessSettings = getPluginAccessSettings($pdo);
         
-        $_SESSION['flash_messages']['success'][] = 'Настройки доступа успешно сохранены';
+        if ($accessSettings === false) {
+            $accessSettings = [];
+        }
+        
+        // Обновляем настройки для плагина 'news-plugin'
+        // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
+        // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
+        $accessSettings['news-plugin'] = [
+            'user' => $allowUser,
+            'admin' => true
+        ];
+        
+        // Сохраняем настройки доступа
+        $accessResult = savePluginAccessSettings($pdo, $accessSettings);
+        
+        // Формируем настройки плагина
+        $pluginSettings = [
+            'image_sizes' => [
+                'thumbnail' => [(int)$thumbnailWidth, (int)$thumbnailHeight, $thumbnailFit]
+            ],
+            'limits' => [
+                'add_article' => ['maxDigits' => (int)$maxDigitsAddArticle],
+                'add_extra' => ['maxDigits' => (int)$maxDigitsAddExtra]
+            ]
+        ];
+        
+        // Сохраняем настройки плагина
+        $pluginResult = savePluginSettings($pdo, 'news-plugin', $pluginSettings);
+        
+        if ($accessResult && $pluginResult) {
+            logEvent(
+                "Настройки плагина 'news-plugin' обновлены — user: " . ($allowUser ? 'да' : 'нет') . 
+                ", thumbnail: [{$thumbnailWidth}x{$thumbnailHeight}, {$thumbnailFit}]" .
+                ", limits: [add_article={$maxDigitsAddArticle}, add_extra={$maxDigitsAddExtra}] — ID: {$userDataAdmin['id']}",
+                LOG_INFO_ENABLED,
+                'info'
+            );
+            
+            $_SESSION['flash_messages']['success'][] = 'Настройки успешно сохранены';
+        } else {
+            logEvent(
+                "Ошибка сохранения настроек плагина 'news-plugin' — ID: {$userDataAdmin['id']}",
+                LOG_ERROR_ENABLED,
+                'error'
+            );
+            
+            $_SESSION['flash_messages']['error'][] = 'Ошибка при сохранении настроек';
+        }
     } else {
-        logEvent(
-            "Ошибка сохранения настроек доступа к плагину 'news-plugin' — ID: {$userDataAdmin['id']}",
-            LOG_ERROR_ENABLED,
-            'error'
-        );
-        
-        $_SESSION['flash_messages']['error'][] = 'Ошибка при сохранении настроек';
+        // Добавляем ошибки валидации
+        foreach ($validationErrors as $error) {
+            $_SESSION['flash_messages']['error'][] = $error;
+        }
     }
     
     // Редирект для предотвращения повторной отправки формы
@@ -144,6 +216,25 @@ if ($accessSettings === false) {
 
 // Получаем настройки для плагина 'news-plugin' (по умолчанию доступ разрешён)
 $allowUser = $accessSettings['news-plugin']['user'] ?? true;
+
+// Загружаем настройки плагина
+$pluginSettings = getPluginSettings($pdo, 'news-plugin');
+
+// Извлекаем настройки thumbnail или используем значения по умолчанию из глобальных
+if (!function_exists('getGlobalImageSizes')) {
+    require_once __DIR__ . '/../../../../admin/functions/image_sizes.php';
+}
+$globalImageSizes = getGlobalImageSizes($pdo);
+$defaultThumbnail = $globalImageSizes['thumbnail'] ?? [100, 100, 'cover'];
+
+$thumbnailSettings = $pluginSettings['image_sizes']['thumbnail'] ?? $defaultThumbnail;
+$thumbnailWidth = $thumbnailSettings[0] ?? 100;
+$thumbnailHeight = $thumbnailSettings[1] ?? 100;
+$thumbnailFit = $thumbnailSettings[2] ?? 'cover';
+
+// Извлекаем лимиты maxDigits или используем значения по умолчанию
+$maxDigitsAddArticle = $pluginSettings['limits']['add_article']['maxDigits'] ?? 50;
+$maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
 
 ?>
 <!DOCTYPE html>
@@ -222,6 +313,82 @@ $allowUser = $accessSettings['news-plugin']['user'] ?? true;
                                     <div class="form-text">Разрешить доступ пользователям</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================
+                     НАСТРОЙКИ РАЗМЕРОВ ИЗОБРАЖЕНИЙ
+                     ======================================== -->
+                <div class="form-section mb-5">
+                    <h3 class="card-title">
+                        <i class="bi bi-image"></i>
+                        Настройки размеров изображений
+                    </h3>
+
+                    <div class="mb-4">
+                        <p>
+                            <i class="bi bi-info-circle"></i>
+                            Настройте размеры thumbnail для плагина. Если не указано, будут использоваться глобальные настройки.
+                            Эти настройки применяются только к плагину "Новости" и не влияют на другие разделы системы.
+                        </p>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <h5>Thumbnail</h5>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Ширина (px)</label>
+                            <input type="number" class="form-control" name="thumbnail_width" 
+                                   min="1" step="1" value="<?= escape((string)$thumbnailWidth) ?>" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Высота (px)</label>
+                            <input type="number" class="form-control" name="thumbnail_height" 
+                                   min="1" step="1" value="<?= escape((string)$thumbnailHeight) ?>" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Режим обработки</label>
+                            <select class="form-select" name="thumbnail_fit">
+                                <option value="cover" <?= $thumbnailFit === 'cover' ? 'selected' : '' ?>>cover (обрезка)</option>
+                                <option value="contain" <?= $thumbnailFit === 'contain' ? 'selected' : '' ?>>contain (вписывание)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================
+                     НАСТРОЙКИ ЛИМИТОВ ИЗОБРАЖЕНИЙ
+                     ======================================== -->
+                <div class="form-section mb-5">
+                    <h3 class="card-title">
+                        <i class="bi bi-image-fill"></i>
+                        Лимиты количества изображений
+                    </h3>
+
+                    <div class="mb-4">
+                        <p>
+                            <i class="bi bi-info-circle"></i>
+                            Настройте максимальное количество изображений, которое можно загрузить на каждой странице плагина.
+                        </p>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Добавление новости (add_article.php)</label>
+                            <input type="number" class="form-control" name="max_digits_add_article" 
+                                   min="0" max="1000" step="1" value="<?= escape((string)$maxDigitsAddArticle) ?>" required>
+                            <div class="form-text">Максимум изображений при добавлении новости</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Дополнительный контент (add_extra.php)</label>
+                            <input type="number" class="form-control" name="max_digits_add_extra" 
+                                   min="0" max="1000" step="1" value="<?= escape((string)$maxDigitsAddExtra) ?>" required>
+                            <div class="form-text">Максимум изображений в доп. контенте</div>
                         </div>
                     </div>
                 </div>

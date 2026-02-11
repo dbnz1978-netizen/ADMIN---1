@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
         logEvent(
-            "Попытка сохранения настроек доступа к плагину 'news-plugin' с невалидным CSRF токеном — ID: {$userDataAdmin['id']} — IP: {$_SERVER['REMOTE_ADDR']}",
+            "Попытка сохранения настроек доступа к плагину '$pluginName' с невалидным CSRF токеном — ID: {$userDataAdmin['id']} — IP: {$_SERVER['REMOTE_ADDR']}",
             LOG_ERROR_ENABLED,
             'error'
         );
@@ -148,10 +148,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $accessSettings = [];
         }
         
-        // Обновляем настройки для плагина 'news-plugin'
+        // Обновляем настройки для плагина
         // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
         // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
-        $accessSettings['news-plugin'] = [
+        $accessSettings[$pluginName] = [
             'user' => $allowUser,
             'admin' => true
         ];
@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($accessResult && $pluginResult) {
             logEvent(
-                "Настройки плагина 'news-plugin' обновлены — user: " . ($allowUser ? 'да' : 'нет') . 
+                "Настройки плагина '$pluginName' обновлены — user: " . ($allowUser ? 'да' : 'нет') . 
                 ", image_sizes: " . json_encode($imageSizes) .
                 ", limits: [add_category={$maxDigitsAddCategory}, add_article={$maxDigitsAddArticle}, add_extra={$maxDigitsAddExtra}] — ID: {$userDataAdmin['id']}",
                 LOG_INFO_ENABLED,
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['flash_messages']['success'][] = 'Настройки успешно сохранены';
         } else {
             logEvent(
-                "Ошибка сохранения настроек плагина 'news-plugin' — ID: {$userDataAdmin['id']}",
+                "Ошибка сохранения настроек плагина '$pluginName' — ID: {$userDataAdmin['id']}",
                 LOG_ERROR_ENABLED,
                 'error'
             );
@@ -212,8 +212,8 @@ if ($accessSettings === false) {
     $accessSettings = [];
 }
 
-// Получаем настройки для плагина 'news-plugin' (по умолчанию доступ разрешён)
-$allowUser = $accessSettings['news-plugin']['user'] ?? true;
+// Получаем настройки для плагина (по умолчанию доступ разрешён)
+$allowUser = $accessSettings[$pluginName]['user'] ?? true;
 
 // Загружаем настройки плагина
 $pluginSettings = getPluginSettings($pdo, $pluginName);

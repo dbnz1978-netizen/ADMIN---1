@@ -276,8 +276,12 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                 $filteredSubmenuItems = [];
                 foreach ($submenuItems as $item) {
                     $itemUrl = $item['url'] ?? '';
-                    // Если это страница настроек (содержит /settings/ как отдельный сегмент пути), показываем только админам
-                    if (preg_match('#/settings/#', $itemUrl)) {
+                    // Парсим URL для получения только пути без query string и fragment
+                    $parsedUrl = parse_url($itemUrl);
+                    $itemPath = $parsedUrl['path'] ?? '';
+                    
+                    // Если путь содержит /settings/ как сегмент, показываем только админам
+                    if (preg_match('#/settings/#', $itemPath)) {
                         if ($userRole === 'admin') {
                             $filteredSubmenuItems[] = $item;
                         }
@@ -295,9 +299,14 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                 // Определяем, находится ли пользователь в этом подменю
                 $isInThisPluginMenu = false;
                 foreach ($filteredSubmenuItems as $item) {
-                    if (isset($item['url']) && strpos($currentPath, $item['url']) !== false) {
-                        $isInThisPluginMenu = true;
-                        break;
+                    if (isset($item['url'])) {
+                        $itemParsedUrl = parse_url($item['url']);
+                        $itemPath = $itemParsedUrl['path'] ?? '';
+                        // Сравниваем пути точно
+                        if ($itemPath && strpos($currentPath, $itemPath) !== false) {
+                            $isInThisPluginMenu = true;
+                            break;
+                        }
                     }
                 }
             ?>

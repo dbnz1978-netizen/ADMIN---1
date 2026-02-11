@@ -41,7 +41,8 @@ $config = [
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
-require_once __DIR__ . '/../../functions/category_path.php'; // Функция для построения полного пути категории
+require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина
+require_once __DIR__ . '/../../functions/category_path.php';         // Функция для построения полного пути категории
 
 // Подключаем систему управления доступом к плагинам
 require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
@@ -81,13 +82,14 @@ if ($adminData === false) {
 }
 
 // === НАСТРОЙКИ ===
+$pluginName = getPluginName();                    // Автоматическое определение имени плагина из структуры директорий
 $titlemeta = 'Новости';                       // Название заголовка H1 для раздела
 $titlemetah3 = 'Редактирование новости';      // Название заголовка H2 для раздела
 $titlemeta_h3 = 'Добавление новости';         // Название заголовка H2 для раздела
 $catalogTable = 'news_articles';              // Название таблицы новостей
 $categoryTable = 'news_categories';           // Название таблицы категорий
 $categoryUrlPrefix = 'news';                  // Префикс URL категории
-$maxDigits = getPluginMaxDigits($pdo, 'news-plugin', 'add_article', 50);  // Ограничение на количество изображений из настроек плагина
+$maxDigits = getPluginMaxDigits($pdo, $pluginName, 'add_article', 50);  // Ограничение на количество изображений из настроек плагина
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -99,7 +101,7 @@ $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 // =============================================================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================
@@ -687,7 +689,7 @@ if (isset($_POST['category_name'])) {
                         $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
                         // Получаем настройки размеров изображений с учётом переопределений плагина
-                        $imageSizes = getPluginImageSizes($pdo, 'news-plugin');
+                        $imageSizes = getPluginImageSizes($pdo, $pluginName);
 
                         $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                     ?>

@@ -40,7 +40,7 @@ $config = [
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
-require_once __DIR__ . '/../../functions/get_user_avatar.php';       // Подключение  функции getUserAvatar
+require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина
 require_once __DIR__ . '/../../functions/pagination.php';            // Функция для генерации HTML пагинации
 require_once __DIR__ . '/../../functions/get_record_avatar.php';     // Функция для получения изображения записи
 
@@ -71,7 +71,8 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // =============================================================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
+$pluginName = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================

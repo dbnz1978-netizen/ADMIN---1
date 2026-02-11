@@ -154,16 +154,16 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
     $user = requireAuth($pdo);
     
     if (!$user) {
-        http_response_code(403);
-        exit('Доступ запрещён: требуется авторизация');
+        header("Location: /admin/logout.php");
+        exit;
     }
     
     // Получаем полные данные пользователя
     $userDataResult = getUserData($pdo, $user['id']);
     
     if (isset($userDataResult['error']) && $userDataResult['error'] === true) {
-        http_response_code(403);
-        exit('Доступ запрещён: ошибка получения данных пользователя');
+        header("Location: /admin/logout.php");
+        exit;
     }
     
     $userRole = $userDataResult['author'] ?? 'user';
@@ -180,8 +180,8 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
                 );
             }
             
-            http_response_code(403);
-            exit('Доступ запрещён: недостаточно прав');
+            header("Location: /admin/logout.php");
+            exit;
         }
     }
     
@@ -196,8 +196,8 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
             );
         }
         
-        http_response_code(403);
-        exit('Доступ запрещён: у вас нет прав для доступа к этому разделу');
+        header("Location: /admin/logout.php");
+        exit;
     }
     
     return $userDataResult;

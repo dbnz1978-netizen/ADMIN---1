@@ -36,6 +36,7 @@ $config = [
     'csrf_token'      => true,          // генерация CSRF-токена
 ];
 
+// Подключаем центральную инициализацию
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
@@ -613,8 +614,13 @@ if (isset($_POST['category_name'])) {
                         </div>
                     </div>
 
-                    <!-- Сообщения об ошибках/успехе -->
-                    <?php displayAlerts($successMessages, $errors); ?>
+                    <!-- Отображение сообщений -->
+                    <?php displayAlerts(
+                        $successMessages,  // Массив сообщений об успехе
+                        $errors,           // Массив сообщений об ошибках
+                        true               // Показывать сообщения как toast-уведомления
+                    ); 
+                    ?>
 
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 

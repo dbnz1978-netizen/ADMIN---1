@@ -36,6 +36,7 @@ $config = [
     'csrf_token'      => true,          // генерация CSRF-токена
 ];
 
+// Подключаем центральную инициализацию
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
@@ -418,8 +419,13 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
                     </a>
                 </div>
             </div>
-            <!-- Сообщения об ошибках/успехе -->
-            <?php displayAlerts($successMessages ?? [], $errors ?? []); ?>
+            <!-- Отображение сообщений -->
+            <?php displayAlerts(
+                $successMessages,  // Массив сообщений об успехе
+                $errors,           // Массив сообщений об ошибках
+                true               // Показывать сообщения как toast-уведомления
+            ); 
+            ?>
 
             <?php if (!$isTrash): ?>
                 <?php

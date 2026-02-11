@@ -30,6 +30,7 @@ $config = [
     'start_session'   => true,          // запуск Session
 ];
 
+// Подключаем центральную инициализацию
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
@@ -379,8 +380,13 @@ $formImage = $_POST['image'] ?? $image;
                         <?= escape($isEditMode ? $titlemetah3 : $titlemeta_h3) ?>
                     </h3>
 
-                    <!-- Сообщения об ошибках/успехе -->
-                    <?php displayAlerts($successMessages, $errors); ?>
+                    <!-- Отображение сообщений -->
+                    <?php displayAlerts(
+                        $successMessages,  // Массив сообщений об успехе
+                        $errors,           // Массив сообщений об ошибках
+                        true               // Показывать сообщения как toast-уведомления
+                    ); 
+                    ?>
 
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 

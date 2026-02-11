@@ -16,6 +16,12 @@
  * @return string - URL изображения или путь к изображению по умолчанию
  */
 
+// Разрешить доступ только через include, но не напрямую
+if (!defined('APP_ACCESS')) {
+    http_response_code(403);
+    exit('Прямой доступ запрещён');
+}
+
 function getUserAvatar($pdo, $images, $defaultAvatar = 'img/photo.svg') {
     // Если нет изображений - возвращаем аватар по умолчанию
     if (empty($images)) {

@@ -70,16 +70,16 @@ if (empty($sidebarLogoLight) && empty($sidebarLogoDark)) {
 // ========================================
 
 // Извлекаем настройки для пользователей
-$allowPhotoUpload = $adminData['allow_photo_upload'] ?? false;  // Разрешить загрузку фотографий для главного admin
+$allowPhotoUploadSidebar = $adminData['allow_photo_upload'] ?? false;  // Разрешить загрузку фотографий для главного admin
 
 // Всегда разрешить загрузку фотографий для главного admin
 if ($userDataAdmin['author'] == 'admin') {
-    $allowPhotoUpload = true;
+    $allowPhotoUploadSidebar = true;
 }
 
 $defaultAvatar = '/admin/img/avatar.svg';
 
-if ($allowPhotoUpload === true) {
+if ($allowPhotoUploadSidebar === true) {
     // Получает первое и второе изображения из строки ID для светлой/тёмной темы
     $avatarPaths      = getThemeLogoPaths($pdo, $selectedImages, 'thumbnail');
     $userAvatarLight  = $avatarPaths['light'] ?? '';

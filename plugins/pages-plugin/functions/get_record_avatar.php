@@ -7,7 +7,7 @@
  * @param PDO $pdo              Объект PDO для подключения к базе данных
  * @param int $recordId         ID записи
  * @param int $userId           ID пользователя (для проверки прав доступа)
- * @param string $tableName     Название таблицы (например: 'news_categories')
+ * @param string $tableName     Название таблицы (например: 'pages_categories')
  * @param string $defaultImage  Путь к изображению по умолчанию
  * @return string               Путь к изображению
  */
@@ -27,14 +27,14 @@ function getRecordAvatar(PDO $pdo, int $recordId, int $userId, string $tableName
     // Use explicit query selection instead of string interpolation
     $query = null;
     switch ($tableName) {
-        case 'news_categories':
-            $query = "SELECT image FROM news_categories WHERE id = ? AND users_id = ?";
+        case 'pages_categories':
+            $query = "SELECT image FROM pages_categories WHERE id = ? AND users_id = ?";
             break;
-        case 'news_articles':
-            $query = "SELECT image FROM news_articles WHERE id = ? AND users_id = ?";
+        case 'pages_content':
+            $query = "SELECT image FROM pages_content WHERE id = ? AND users_id = ?";
             break;
-        case 'news_extra_content':
-            $query = "SELECT image FROM news_extra_content WHERE id = ? AND users_id = ?";
+        case 'pages_extra_content':
+            $query = "SELECT image FROM pages_extra_content WHERE id = ? AND users_id = ?";
             break;
         default:
             if (defined('LOG_ERROR_ENABLED')) {

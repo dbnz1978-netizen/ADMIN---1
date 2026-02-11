@@ -2,7 +2,7 @@
 
 /**
  * Название файла:      access.php
- * Назначение:          Страница настроек доступа к плагину "Новости" по ролям пользователей.
+ * Назначение:          Страница настроек доступа к плагину "Страницы" по ролям пользователей.
  *                      Управление правами доступа для роли 'user'.
  *                      Доступ к странице только для пользователей с ролью 'admin'.
  * Автор:               Команда разработки
@@ -55,7 +55,7 @@ if ($adminData === false) {
 
 $pluginName    = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
 $titlemeta     = 'Настройки';
-$titlemetah3   = 'Управление доступом к плагину "Новости"';
+$titlemetah3   = 'Управление доступом к плагину "Страницы"';
 
 // Включаем/отключаем логирование
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -305,7 +305,7 @@ $maxDigitsAddExtra    = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 5
                     <div class="mb-4">
                         <p>
                             <i class="bi bi-info-circle"></i>
-                            Настройте доступ для пользователей с ролью "user" к разделам плагина "Новости".
+                            Настройте доступ для пользователей с ролью "user" к разделам плагина "Страницы".
                             При отключении доступа пользователи не увидят меню плагина и не смогут открыть страницы напрямую.
                             Администраторы (роль "admin") всегда имеют полный доступ к плагину.
                         </p>
@@ -345,7 +345,7 @@ $maxDigitsAddExtra    = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 5
                         <p>
                             <i class="bi bi-info-circle"></i>
                             Настройте размеры изображений для плагина. Если не указано, будут использоваться глобальные настройки.
-                            Эти настройки применяются только к плагину "Новости" и не влияют на другие разделы системы.
+                            Эти настройки применяются только к плагину "Страницы" и не влияют на другие разделы системы.
                         </p>
                         <p>
                             <strong>Режимы обработки:</strong><br>
@@ -465,7 +465,7 @@ $maxDigitsAddExtra    = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 5
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-lg" aria-hidden="true"></i> Сохранить настройки
                     </button>
-                    <a href="/plugins/news-plugin/pages/articles/article_list.php" class="btn btn-outline-secondary">
+                    <a href="/plugins/pages-plugin/pages/articles/article_list.php" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle"></i>
                         Отмена
                     </a>

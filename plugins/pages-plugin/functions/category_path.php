@@ -11,7 +11,7 @@
  * 
  * Требования:
  * - MySQL 8.0+ (поддержка WITH RECURSIVE)
- * - Таблица news_categories с колонками: id, parent_id, url, users_id
+ * - Таблица pages_categories с колонками: id, parent_id, url, users_id
  * 
  * @author Команда разработки
  * @version 1.0
@@ -45,7 +45,7 @@ function buildNewsCategoryPath(
                 parent_id,
                 url,
                 0 AS level
-            FROM news_categories
+            FROM pages_categories
             WHERE id = ?
                 AND users_id = ?
             UNION ALL
@@ -54,7 +54,7 @@ function buildNewsCategoryPath(
                 t.parent_id,
                 t.url,
                 h.level + 1
-            FROM news_categories t
+            FROM pages_categories t
             INNER JOIN hierarchy h ON t.id = h.parent_id
             WHERE h.level < ?
                 AND h.parent_id IS NOT NULL

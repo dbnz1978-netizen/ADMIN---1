@@ -138,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Валидация maxDigits для add_article
     if (!ctype_digit($maxDigitsAddArticle) || (int)$maxDigitsAddArticle < 0 || (int)$maxDigitsAddArticle > 1000) {
-        $validationErrors[] = 'Лимит изображений для добавления новости должен быть от 0 до 1000';
+        $validationErrors[] = 'Лимит изображений для добавления страницы должен быть от 0 до 1000';
     }
     
     // Валидация maxDigits для add_extra
@@ -444,10 +444,10 @@ $maxDigitsAddExtra    = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 5
                             <div class="form-text">Максимум изображений при добавлении категории</div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Добавление новости (add_article.php)</label>
+                            <label class="form-label">Добавление страницы (add_article.php)</label>
                             <input type="number" class="form-control" name="max_digits_add_article" 
                                    min="0" max="1000" step="1" value="<?= escape((string)$maxDigitsAddArticle) ?>" required>
-                            <div class="form-text">Максимум изображений при добавлении новости</div>
+                            <div class="form-text">Максимум изображений при добавлении страницы</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Дополнительный контент (add_extra.php)</label>

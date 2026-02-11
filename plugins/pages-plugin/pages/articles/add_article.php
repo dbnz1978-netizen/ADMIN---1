@@ -323,16 +323,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 1) ВАЛИДАЦИЯ ОСНОВНЫХ ПОЛЕЙ ФОРМЫ
         // ========================================
 
-        // Название новости
+        // Название страницы
         $title = trim($_POST['title'] ?? '');
-        $result = validateTextareaField($title, 1, 200, 'Название новости');
+        $result = validateTextareaField($title, 1, 200, 'Название страницы');
         if ($result['valid']) {
             $title = $result['value'];
-            logEvent("Успешная валидация поля 'Название новости'", LOG_INFO_ENABLED, 'info');
+            logEvent("Успешная валидация поля 'Название страницы'", LOG_INFO_ENABLED, 'info');
         } else {
             $errors[] = $result['error'];
             $title = false;
-            logEvent("Ошибка валидации поля 'Название новости': " . $result['error'], LOG_ERROR_ENABLED, 'error');
+            logEvent("Ошибка валидации поля 'Название страницы': " . $result['error'], LOG_ERROR_ENABLED, 'error');
         }
 
         // Meta Title (SEO)
@@ -527,7 +527,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             } catch (PDOException $e) {
                 $errors[] = 'Ошибка сохранения данных';
-                logEvent("Ошибка сохранения новости {$catalogTable}: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+                logEvent("Ошибка сохранения страницы {$catalogTable}: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
             }
         }
     }
@@ -615,7 +615,7 @@ if (isset($_POST['category_name'])) {
                             <?php if ($isEditMode && $itemId && $categoryFullPath): ?>
                                 <a href="/<?= escape($categoryUrlPrefix) ?>/<?= escape($categoryFullPath) ?>/<?= escape($defaultUrl) ?>" target="_blank"
                                     class="btn btn-outline-primary"
-                                    title="Открыть страницу новости в новом окне">
+                                    title="Открыть страницу страницы в новом окне">
                                     <i class="bi bi-box-arrow-up-right"></i> Просмотр
                                 </a>
                             <?php endif; ?>
@@ -635,7 +635,7 @@ if (isset($_POST['category_name'])) {
                     <!-- Название -->
                     <div class="row mb-3">
                         <div class="col-12">
-                            <label class="form-label">Название новости <span class="text-danger">*</span></label>
+                            <label class="form-label">Название страницы <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="title" required maxlength="255"
                                 value="<?= escape($title ?? $defaultTitle) ?>">
                         </div>
@@ -777,13 +777,13 @@ if (isset($_POST['category_name'])) {
                     </div>
                 </div>
 
-                <!-- Содержимое новости -->
+                <!-- Содержимое страницы -->
                 <div class="mb-5">
                     <h3 class="card-title">
                         <i class="bi bi-card-checklist"></i>
-                        Содержимое новости
+                        Содержимое страницы
                     </h3>
-                    <div class="form-text">Полное содержимое новости.</div>
+                    <div class="form-text">Полное содержимое страницы.</div>
                     <?php renderHtmlEditor('content', $content); ?>
                 </div>
 
@@ -795,7 +795,7 @@ if (isset($_POST['category_name'])) {
                                 <?= ($status ?? $defaultStatus) ? 'checked' : '' ?>>
                             <label class="form-check-label" for="status">Активна</label>
                         </div>
-                        <div class="form-text">Показывать новость на сайте</div>
+                        <div class="form-text">Показывать страницу на сайте</div>
                     </div>
                 </div>
 

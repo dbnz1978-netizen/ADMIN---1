@@ -327,7 +327,9 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                         $itemTitle  = $item['title'] ?? 'Item';
                         $itemIcon   = $item['icon'] ?? 'bi-circle';
                         $itemUrl    = $item['url'] ?? '#';
-                        $isActive   = strpos($currentPath, $itemUrl) !== false;
+                        $itemParsedUrl = parse_url($itemUrl);
+                        $itemPath = $itemParsedUrl['path'] ?? '';
+                        $isActive   = $itemPath && strpos($currentPath, $itemPath) !== false;
                         ?>
                         <a href="<?= escape($itemUrl) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
                             <i class="<?= escape($itemIcon) ?>"></i>

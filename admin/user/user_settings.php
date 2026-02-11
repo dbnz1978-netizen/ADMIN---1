@@ -205,12 +205,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ОБНОВЛЕНИЕ БУЛЕВЫХ ФЛАГОВ
         // ========================================
         
-        $allowRegistration = isset($_POST['allow_registration']);
-        $allowPhotoUpload  = isset($_POST['allow_photo_upload']);
-        $allowOnlineChat   = isset($_POST['allow_online_chat']);
-        $logInfoEnabled    = isset($_POST['log_info_enabled']);
-        $logErrorEnabled   = isset($_POST['log_error_enabled']);
-        $notifications     = isset($_POST['notifications']);
+        $allowRegistration = isset($_POST['allow_registration']) && $_POST['allow_registration'] == '1';
+        $allowPhotoUpload  = isset($_POST['allow_photo_upload']) && $_POST['allow_photo_upload'] == '1';
+        $allowOnlineChat   = isset($_POST['allow_online_chat']) && $_POST['allow_online_chat'] == '1';
+        $logInfoEnabled    = isset($_POST['log_info_enabled']) && $_POST['log_info_enabled'] == '1';
+        $logErrorEnabled   = isset($_POST['log_error_enabled']) && $_POST['log_error_enabled'] == '1';
+        $notifications     = isset($_POST['notifications']) && $_POST['notifications'] == '1';
         $imageLimit        = (int)($_POST['image_limit'] ?? 0);
 
         // Санитизация HTML-редакторов
@@ -514,7 +514,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="allow_registration" name="allow_registration" <?= $allowRegistration ? 'checked' : '' ?>>
+                                            <input class="form-check-input" type="checkbox" id="allow_registration" name="allow_registration" value="1" <?= $allowRegistration ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="allow_registration">Нет/Да</label>
                                         </div>
                                         <div class="form-text">Разрешить регистрацию пользователей</div>
@@ -525,7 +525,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="allow_photo_upload" name="allow_photo_upload" <?= $allowPhotoUpload ? 'checked' : '' ?>>
+                                            <input class="form-check-input" type="checkbox" id="allow_photo_upload" name="allow_photo_upload" value="1" <?= $allowPhotoUpload ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="allow_photo_upload">Нет/Да</label>
                                         </div>
                                         <div class="form-text">Разрешить загрузку фотографий для пользователей</div>
@@ -536,7 +536,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="allow_online_chat" name="allow_online_chat" <?= $allowOnlineChat ? 'checked' : '' ?>>
+                                            <input class="form-check-input" type="checkbox" id="allow_online_chat" name="allow_online_chat" value="1" <?= $allowOnlineChat ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="allow_online_chat">Нет/Да</label>
                                         </div>
                                         <div class="form-text">Разрешить чат онлайн с администратором</div>
@@ -547,7 +547,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="log_info_enabled" name="log_info_enabled" <?= $logInfoEnabled ? 'checked' : '' ?>>
+                                            <input class="form-check-input" type="checkbox" id="log_info_enabled" name="log_info_enabled" value="1" <?= $logInfoEnabled ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="log_info_enabled">Нет/Да</label>
                                         </div>
                                         <div class="form-text">Включить логирование (успешные события)</div>
@@ -558,7 +558,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="log_error_enabled" name="log_error_enabled" <?= $logErrorEnabled ? 'checked' : '' ?>>
+                                            <input class="form-check-input" type="checkbox" id="log_error_enabled" name="log_error_enabled" value="1" <?= $logErrorEnabled ? 'checked' : '' ?>>
                                             <label class="form-check-label" for="log_error_enabled">Нет/Да</label>
                                         </div>
                                         <div class="form-text">Включить логирование (ошибки)</div>
@@ -654,7 +654,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                         Уведомления
                     </h3>
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="notifications" name="notifications" <?= $notifications ? 'checked' : '' ?>>
+                        <input class="form-check-input" type="checkbox" id="notifications" name="notifications" value="1" <?= $notifications ? 'checked' : '' ?>>
                         <label class="form-check-label" for="notifications">Нет/Да</label>
                     </div>
                     <div class="form-text">Включить уведомления</div>

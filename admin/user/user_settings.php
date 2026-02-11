@@ -70,15 +70,8 @@ $titlemeta   = 'Настройки для пользователей';         /
 // ========================================
 
 // Включаем/отключаем логирование. Глобальные константы.
-define(
-    'LOG_INFO_ENABLED',
-    ($adminData['log_info_enabled'] ?? false) === true
-);
-
-define(
-    'LOG_ERROR_ENABLED',
-    ($adminData['log_error_enabled'] ?? false) === true
-);
+define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled'] ?? false) === true);  // Логировать успешные события
+define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true); // Логировать ошибки
 
 // ========================================
 // ЗАГРУЗКА FLASH-СООБЩЕНИЙ
@@ -169,10 +162,6 @@ $logInfoEnabled    = (bool)($currentSettings['log_info_enabled'] ?? true);
 $logErrorEnabled   = (bool)($currentSettings['log_error_enabled'] ?? true);
 $notifications     = (bool)($currentSettings['notifications'] ?? true);
 
-// Debug: Log the value being loaded
-// TODO: Remove this debug logging after verifying the fix works correctly
-$debugMsgLoad = "Загрузка настроек: allow_photo_upload = " . var_export($allowPhotoUpload, true);
-logEvent($debugMsgLoad, true, 'info');
 
 $imageLimit   = !empty($currentSettings['image_limit']) ? (int)$currentSettings['image_limit'] : 0;
 $adminPanel   = $currentSettings['AdminPanel'] ?? 'AdminPanel';
@@ -218,12 +207,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notifications     = isset($_POST['notifications']) && $_POST['notifications'] === '1';
         $imageLimit        = (int)($_POST['image_limit'] ?? 0);
         
-        // Debug: Log the POST value
-        // TODO: Remove this debug logging after verifying the fix works correctly
-        $debugMsgPost = "POST обработка: allow_photo_upload isset=" . var_export(isset($_POST['allow_photo_upload']), true) . 
-                        ", value=" . var_export($_POST['allow_photo_upload'] ?? 'НЕТ', true) . 
-                        ", result=" . var_export($allowPhotoUpload, true);
-        logEvent($debugMsgPost, true, 'info');
 
         // Санитизация HTML-редакторов
         $editor1 = sanitizeHtmlFromEditor($_POST['editor_1']);
@@ -306,10 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Кодируем в JSON с проверкой ошибок
                 $jsonData = json_encode($updatedSettings, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
                 
-                // Debug: Log the value being saved
-                // TODO: Remove this debug logging after verifying the fix works correctly
-                $debugMsg = "Сохранение настроек: allow_photo_upload = " . var_export($updatedSettings['allow_photo_upload'] ?? 'НЕ ЗАДАНО', true);
-                logEvent($debugMsg, true, 'info');
 
                 // Сохраняем в БД
                 $update = $pdo->prepare(

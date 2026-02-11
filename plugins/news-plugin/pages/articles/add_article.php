@@ -367,6 +367,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = isset($_POST['status']) ? 1 : 0;
         $category_id = isset($_POST['category_id']) && $_POST['category_id'] !== '' ? (int)$_POST['category_id'] : 0;
 
+        // Валидация категории (обязательное поле)
+        if ($category_id <= 0) {
+            $errors[] = 'Необходимо выбрать категорию';
+            logEvent("Ошибка валидации: категория не выбрана", LOG_ERROR_ENABLED, 'error');
+        }
+
         // Изображения (ID из медиа-библиотеки)
         $result_images = validateIdList(trim($_POST['image'] ?? ''), $maxDigits);
         if ($result_images['valid']) {
@@ -624,7 +630,7 @@ if (isset($_POST['category_name'])) {
                     <!-- Категория -->
                     <div class="row mb-3">
                         <div class="col-12">
-                            <label class="form-label">Категория</label>
+                            <label class="form-label">Категория <span class="text-danger">*</span></label>
                             <input type="hidden" name="category_id" id="category_id" value="<?= escape((string)$formCategoryId) ?>">
                             <input type="hidden" name="category_name" id="category_name" value="<?= escape((string)$formCategoryName) ?>">
 
@@ -646,7 +652,7 @@ if (isset($_POST['category_name'])) {
                             </div>
 
                             <div class="form-text">
-                                Показывается до 6 совпадений. Можно оставить пустым (без категории).
+                                Показывается до 6 совпадений. Обязательное поле.
                             </div>
                         </div>
                     </div>

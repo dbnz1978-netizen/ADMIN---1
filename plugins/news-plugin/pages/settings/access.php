@@ -175,81 +175,70 @@ $allowUser = $accessSettings['news-plugin']['user'] ?? true;
         <main class="main-content">
             <?php require_once __DIR__ . '/../../../../admin/template/header.php'; ?>
 
-            <!-- Контейнер страницы -->
-            <div class="content-card mb-5">
-                
+            <!-- Отображение сообщений -->
+            <?php displayAlerts(
+                $successMessages,  // Массив сообщений об успехе
+                $errors,           // Массив сообщений об ошибках
+                true               // Показывать сообщения как toast-уведомления
+            ); 
+            ?>
 
-                <!-- Отображение сообщений -->
-                <?php displayAlerts(
-                    $successMessages,  // Массив сообщений об успехе
-                    $errors,           // Массив сообщений об ошибках
-                    true               // Показывать сообщения как toast-уведомления
-                ); 
-                ?>
+            <!-- Форма настроек доступа -->
+            <form method="POST" action="<?= escape($_SERVER['PHP_SELF']) ?>">
+                <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
-                <!-- Форма настроек доступа -->
-                <div class="bordered-card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-shield-lock"></i>
-                            Настройки доступа по ролям
-                        </h5>
+                <!-- ========================================
+                     НАСТРОЙКИ ДОСТУПА ПО РОЛЯМ
+                     ======================================== -->
+                <div class="form-section mb-5">
+                    <h3 class="card-title">
+                        <i class="bi bi-shield-lock"></i>
+                        Настройки доступа по ролям
+                    </h3>
+
+                    <div class="mb-4">
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Настройте доступ для пользователей с ролью "user" к разделам плагина "Новости".
+                            При отключении доступа пользователи не увидят меню плагина и не смогут открыть страницы напрямую.
+                            Администраторы (роль "admin") всегда имеют полный доступ к плагину.
+                        </p>
                     </div>
-                    <div class="card-body">
-                        <form method="POST" action="<?= escape($_SERVER['PHP_SELF']) ?>">
-                            <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
 
-                            <div class="mb-4">
-                                <p class="text-muted">
-                                    <i class="bi bi-info-circle"></i>
-                                    Настройте доступ для пользователей с ролью "user" к разделам плагина "Новости".
-                                    При отключении доступа пользователи не увидят меню плагина и не смогут открыть страницы напрямую.
-                                    Администраторы (роль "admin") всегда имеют полный доступ к плагину.
-                                </p>
-                            </div>
-
-                            <!-- Настройка доступа для роли 'user' -->
-                            <div class="mb-0">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <div class="form-check form-switch">
-                                            <input 
-                                                class="form-check-input" 
-                                                type="checkbox" 
-                                                role="switch" 
-                                                id="allowUser" 
-                                                name="allow_user"
-                                                <?= $allowUser ? 'checked' : '' ?>
-                                            >
-                                            <label class="form-check-label" for="allowUser">
-                                                <strong>Разрешить доступ пользователям (роль: user)</strong>
-                                                <div class="text-muted small mt-1">
-                                                    Пользователи с ролью "user" смогут просматривать и редактировать новости
-                                                </div>
-                                            </label>
-                                        </div>
+                    <div class="row col-example-row">
+                        <div class="col-6">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input 
+                                            class="form-check-input" 
+                                            type="checkbox" 
+                                            id="allowUser" 
+                                            name="allow_user"
+                                            <?= $allowUser ? 'checked' : '' ?>
+                                        >
+                                        <label class="form-check-label" for="allowUser">Нет/Да</label>
                                     </div>
+                                    <div class="form-text">Разрешить доступ пользователям (роль: user)</div>
                                 </div>
                             </div>
-
-
-                            <!-- Кнопки действий -->
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save"></i>
-                                    Сохранить настройки
-                                </button>
-                                <a href="/plugins/news-plugin/pages/articles/article_list.php" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-circle"></i>
-                                    Отмена
-                                </a>
-                            </div>
-
-                        </form>
+                        </div>
                     </div>
                 </div>
 
-            </div>
+                <!-- ========================================
+                     КНОПКИ ДЕЙСТВИЙ
+                     ======================================== -->
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg" aria-hidden="true"></i> Сохранить настройки
+                    </button>
+                    <a href="/plugins/news-plugin/pages/articles/article_list.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i>
+                        Отмена
+                    </a>
+                </div>
+            </form>
 
 
 

@@ -144,6 +144,10 @@ if (!empty($config['plugin_manager'])) {
     require_once __DIR__ . '/plugin_manager.php'; // Менеджер плагинов
 }
 
+// === Подключение функции getUserAvatar ===
+// Всегда подключаем, так как она может использоваться на разных страницах
+require_once __DIR__ . '/get_user_avatar.php'; // Получение аватара пользователя из медиа-библиотеки
+
 // === Генерация и валидация CSRF-токена (если включено) ===
 if (!empty($config['csrf_token'])) {
     startSessionSafe();

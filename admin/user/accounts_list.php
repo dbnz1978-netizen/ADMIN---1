@@ -126,60 +126,6 @@ try {
 }
 
 // ========================================
-// ФУНКЦИЯ: ПОЛУЧЕНИЕ АВАТАРА ПОЛЬЗОВАТЕЛЯ
-// ========================================
-
-/**
- * Получение аватара пользователя из медиа-библиотеки
- *
- * @param PDO    $pdo          Объект подключения к базе данных
- * @param string $images       Строка с ID изображений через запятую
- * @param string $defaultAvatar Путь к аватару по умолчанию
- * @return string Путь к аватару пользователя
- */
-function getUserAvatar($pdo, $images, $defaultAvatar = 'img/photo.svg') {
-    // Если нет изображений - возвращаем аватар по умолчанию
-    if (empty($images)) {
-        return $defaultAvatar;
-    }
-    
-    // Разбираем строку с ID изображений
-    $imageIds    = explode(',', $images);
-    $lastImageId = end($imageIds);
-    $lastImageId = (int)$lastImageId;
-    
-    // Если ID невалидный - возвращаем аватар по умолчанию
-    if ($lastImageId <= 0) {
-        return $defaultAvatar;
-    }
-    
-    try {
-        // Получаем информацию о файле из медиа-библиотеки
-        $mediaStmt = $pdo->prepare("SELECT file_versions FROM media_files WHERE id = ?");
-        $mediaStmt->execute([$lastImageId]);
-        $mediaFile = $mediaStmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Если файл найден и есть версии
-        if ($mediaFile && !empty($mediaFile['file_versions'])) {
-            $fileVersions = json_decode($mediaFile['file_versions'], true);
-            // Используем thumbnail версию для аватара (150x150)
-            if (isset($fileVersions['thumbnail']['path'])) {
-                return '/uploads/' . $fileVersions['thumbnail']['path'];
-            }
-        }
-    } catch (PDOException $e) {
-        // В случае ошибки возвращаем аватар по умолчанию + логируем
-        logEvent(
-            "Ошибка загрузки аватара пользователя для изображения ID $lastImageId: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
-            LOG_ERROR_ENABLED,
-            'error'
-        );
-    }
-    
-    return $defaultAvatar;
-}
-
-// ========================================
 // ФУНКЦИЯ: УДАЛЕНИЕ МЕДИАФАЙЛОВ ПОЛЬЗОВАТЕЛЯ
 // ========================================
 

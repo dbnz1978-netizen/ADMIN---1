@@ -28,6 +28,8 @@ $config = [
     'sanitization'    => true,          // подключение валидации/экранирования
     'start_session'   => true,          // запуск Session
     'csrf_token'      => true,          // генерация CSRF-токена
+    'plugin_access'   => true,          // подключение систему управления доступом к плагинам
+    'mime_validation' => true,          // подключаем систему для проверки MIME-типов файлов
 ];
 
 // Подключаем центральную инициализацию
@@ -37,10 +39,7 @@ require_once __DIR__ . '/../../../../admin/functions/init.php';
 require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина
 require_once __DIR__ . '/../../functions/pagination.php';            // Функция для генерации HTML пагинации 
 require_once __DIR__ . '/../../functions/get_record_avatar.php';     // Функция для получения изображения записи
-require_once __DIR__ . '/../../../../admin/functions/mime_validation.php';    // Подключение функций валидации MIME-типов
 
-// Подключаем систему управления доступом к плагинам
-require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
 
 // =============================================================================
 // Проверка прав администратора

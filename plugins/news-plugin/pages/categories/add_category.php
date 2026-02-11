@@ -37,6 +37,7 @@ $config = [
     'htmleditor'      => true,          // подключение редактора WYSIWYG
     'csrf_token'      => true,          // генерация CSRF-токена
     'image_sizes'     => true,          // подключение модуля управления размерами изображений
+    'plugin_access'   => true,          // подключение систему управления доступом к плагинам
 ];
 
 // Подключаем центральную инициализацию
@@ -45,9 +46,6 @@ require_once __DIR__ . '/../../../../admin/functions/init.php';
 // Подключаем дополнительную инициализацию
 require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина
 require_once __DIR__ . '/../../functions/category_path.php';         // Функция для построения полного пути категории
-
-// Подключаем систему управления доступом к плагинам
-require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
 
 // Подключаем функции для работы с настройками плагина
 require_once __DIR__ . '/../../functions/plugin_settings.php';

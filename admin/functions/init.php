@@ -73,6 +73,8 @@ $defaultConfig = [
     'start_session'   => false,         // запуск Session
     'plugin_manager'  => false,         // подключение менеджера плагинов
     'image_sizes'     => false,         // подключение модуля управления размерами изображений
+    'plugin_access'   => false,         // подключаем систему управления доступом к плагинам
+    'mime_validation' => false,         // подключаем систему для проверки MIME-типов файлов
 ];
 
 // Если $config не задано на странице — создаём пустой массив
@@ -152,6 +154,14 @@ if (!empty($config['user_avatar'])) {
 
 if (!empty($config['image_sizes'])) {
     require_once __DIR__ . '/image_sizes.php'; // Модуль управления глобальными размерами изображений
+}
+
+if (!empty($config['plugin_access'])) {
+    require_once __DIR__ . '/plugin_access.php'; // Подключаем систему управления доступом к плагинам
+}
+
+if (!empty($config['mime_validation'])) {
+    require_once __DIR__ . '/mime_validation.php'; // Утилиты для проверки MIME-типов файлов
 }
 
 // === Генерация и валидация CSRF-токена (если включено) ===

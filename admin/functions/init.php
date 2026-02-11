@@ -72,6 +72,7 @@ $defaultConfig = [
     'csrf_token'      => false,         // генерация и валидация CSRF-токена
     'start_session'   => false,         // запуск Session
     'plugin_manager'  => false,         // подключение менеджера плагинов
+    'image_sizes'     => false,         // подключение модуля управления размерами изображений
 ];
 
 // Если $config не задано на странице — создаём пустой массив
@@ -147,6 +148,10 @@ if (!empty($config['plugin_manager'])) {
 
 if (!empty($config['user_avatar'])) {
     require_once __DIR__ . '/get_user_avatar.php'; // Получение аватара пользователя из медиа-библиотеки
+}
+
+if (!empty($config['image_sizes'])) {
+    require_once __DIR__ . '/image_sizes.php'; // Модуль управления глобальными размерами изображений
 }
 
 // === Генерация и валидация CSRF-токена (если включено) ===

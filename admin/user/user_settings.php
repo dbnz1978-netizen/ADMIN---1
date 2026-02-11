@@ -41,6 +41,7 @@ $config = [
     'sanitization'     => true,    // подключение валидации/экранирования
     'htmleditor'       => true,    // подключение редактора WYSIWYG
     'csrf_token'       => true,    // генерация CSRF-токена
+    'image_sizes'      => true,    // подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -172,6 +173,11 @@ $imageLimit   = !empty($currentSettings['image_limit']) ? (int)$currentSettings[
 $adminPanel   = $currentSettings['AdminPanel'] ?? 'AdminPanel';
 $profileLogo  = $currentSettings['profile_logo'] ?? '';
 
+// Загружаем глобальные настройки размеров изображений или используем defaults
+$currentImageSizes = isset($currentSettings['global_image_sizes']) && is_array($currentSettings['global_image_sizes'])
+    ? $currentSettings['global_image_sizes']
+    : getDefaultImageSizes();
+
 // Санитизация HTML-полей из редактора
 $editor1 = sanitizeHtmlFromEditor($currentSettings['editor_1'] ?? '');
 $terms   = sanitizeHtmlFromEditor($currentSettings['terms'] ?? '');
@@ -242,6 +248,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // ========================================
+        // ВАЛИДАЦИЯ НАСТРОЕК РАЗМЕРОВ ИЗОБРАЖЕНИЙ
+        // ========================================
+        
+        $imageSizesResult = validateImageSizesFromPost($_POST);
+        
+        if (!$imageSizesResult['valid']) {
+            $errors = array_merge($errors, $imageSizesResult['errors']);
+            $globalImageSizes = false;
+        } else {
+            $globalImageSizes = $imageSizesResult['sizes'];
+        }
+
+        // ========================================
         // СОХРАНЕНИЕ НАСТРОЕК
         // ========================================
         
@@ -261,6 +280,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'terms'              => $terms,
                     'privacy'            => $privacy,
                     'profile_logo'       => $profileLogo,
+                    'global_image_sizes' => $globalImageSizes,
                 ];
 
                 // ========================================
@@ -422,14 +442,9 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
 
                     $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0; // Устанавливаем лимит файлов на пользователя в сессию
 
-                    // Настройки размеров изображений: [ширина, высота, режим]
+                    // Получаем глобальные настройки размеров изображений
                     // Режимы: "cover" — обрезка, "contain" — сохранение пропорций
-                    $imageSizes = [
-                        "thumbnail" => [100, 100, "cover"],
-                        "small"     => [300, 'auto', "contain"],
-                        "medium"    => [600, 'auto', "contain"],
-                        "large"     => [1200, 'auto', "contain"]
-                    ];
+                    $imageSizes = getGlobalImageSizes($pdo);
 
                     $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;              // Сохраняем настройки в сессии для JS-модуля
                     ?>
@@ -559,6 +574,72 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                         <input type="number" class="form-control" id="imageLimit" name="image_limit" min="0" value="<?= (int)$imageLimit ?>">
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- ========================================
+                             НАСТРОЙКИ РАЗМЕРОВ ИЗОБРАЖЕНИЙ
+                             ======================================== -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h4 class="card-title mb-3">
+                                    <i class="bi bi-images"></i>
+                                    Глобальные настройки размеров изображений
+                                </h4>
+                                <p class="text-muted small mb-3">
+                                    Эти настройки применяются ко всем блокам загрузки изображений в системе.
+                                    <br><strong>Режимы:</strong>
+                                    <br>• <strong>cover</strong> — обрезка изображения с сохранением пропорций (заполняет весь размер)
+                                    <br>• <strong>contain</strong> — вписывание изображения с сохранением пропорций (может быть меньше размера)
+                                </p>
+
+                                <?php
+                                $sizeLabels = [
+                                    'thumbnail' => 'Thumbnail (миниатюра)',
+                                    'small'     => 'Small (маленький)',
+                                    'medium'    => 'Medium (средний)',
+                                    'large'     => 'Large (большой)'
+                                ];
+
+                                foreach ($sizeLabels as $sizeName => $sizeLabel):
+                                    $sizeConfig = $currentImageSizes[$sizeName];
+                                    $width = $sizeConfig[0];
+                                    $height = $sizeConfig[1];
+                                    $mode = $sizeConfig[2];
+                                ?>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold"><?= escape($sizeLabel) ?></label>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="img_<?= $sizeName ?>_width" class="form-label">Ширина</label>
+                                        <input type="text" class="form-control" 
+                                               id="img_<?= $sizeName ?>_width" 
+                                               name="img_<?= $sizeName ?>_width" 
+                                               value="<?= escape($width) ?>" 
+                                               placeholder="число или 'auto'"
+                                               <?= $sizeName === 'thumbnail' ? 'pattern="[0-9]+" title="Для thumbnail требуется число"' : '' ?>>
+                                        <div class="form-text">px или 'auto'<?= $sizeName === 'thumbnail' ? ' (только число)' : '' ?></div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="img_<?= $sizeName ?>_height" class="form-label">Высота</label>
+                                        <input type="text" class="form-control" 
+                                               id="img_<?= $sizeName ?>_height" 
+                                               name="img_<?= $sizeName ?>_height" 
+                                               value="<?= escape($height) ?>" 
+                                               placeholder="число или 'auto'"
+                                               <?= $sizeName === 'thumbnail' ? 'pattern="[0-9]+" title="Для thumbnail требуется число"' : '' ?>>
+                                        <div class="form-text">px или 'auto'<?= $sizeName === 'thumbnail' ? ' (только число)' : '' ?></div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="img_<?= $sizeName ?>_mode" class="form-label">Режим</label>
+                                        <select class="form-select" id="img_<?= $sizeName ?>_mode" name="img_<?= $sizeName ?>_mode">
+                                            <option value="cover" <?= $mode === 'cover' ? 'selected' : '' ?>>cover (обрезка)</option>
+                                            <option value="contain" <?= $mode === 'contain' ? 'selected' : '' ?>>contain (вписывание)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                     </div>

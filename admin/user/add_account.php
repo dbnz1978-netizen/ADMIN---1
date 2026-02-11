@@ -35,6 +35,7 @@ $config = [
     'jsondata'       => true,   // Подключение обновления JSON данных пользователя
     'csrf_token'     => true,   // Генерация CSRF-токена
     'start_session'  => true,   // Запуск Session
+    'image_sizes'    => true,   // Подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -639,12 +640,8 @@ $logoProfile = getFileVersionFromList(
 
                             $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
-                            $imageSizes = [
-                                "thumbnail" => [100, 100, "cover"],
-                                "small"     => [300, 'auto', "contain"],
-                                "medium"    => [600, 'auto', "contain"],
-                                "large"     => [1200, 'auto', "contain"]
-                            ];
+                            // Получаем глобальные настройки размеров изображений
+                            $imageSizes = getGlobalImageSizes($pdo);
 
                             $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                             ?>

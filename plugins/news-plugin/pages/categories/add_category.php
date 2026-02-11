@@ -36,6 +36,7 @@ $config = [
     'jsondata'        => true,          // подключение обновления JSON данных пользователя
     'htmleditor'      => true,          // подключение редактора WYSIWYG
     'csrf_token'      => true,          // генерация CSRF-токена
+    'image_sizes'     => true,          // подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -723,12 +724,8 @@ if (isset($_POST['parent_name'])) {
                     $sectionId = 'image';
                     $image_ids = $image;
                     $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
-                    $imageSizes = [
-                        "thumbnail" => [100, 100, "cover"],
-                        "small"     => [300, 'auto', "contain"],
-                        "medium"    => [600, 'auto', "contain"],
-                        "large"     => [1200, 'auto', "contain"]
-                    ];
+                    // Получаем глобальные настройки размеров изображений
+                    $imageSizes = getGlobalImageSizes($pdo);
                     $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                     ?>
                     

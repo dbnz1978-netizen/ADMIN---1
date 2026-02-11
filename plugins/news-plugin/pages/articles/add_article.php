@@ -501,7 +501,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $newId = (int)$pdo->lastInsertId();
                     $successMessages[] = 'Новость успешно создана';
-                    logEvent("Создана новая новость {$catalogTable} ID=$newId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
+                    logEvent("Создана новость {$catalogTable} ID=$newId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
                 }
 
                 // После успешного сохранения - перенаправляем

@@ -182,6 +182,9 @@ function validateCsrfToken($token) {
 // =============================================================================
 // Обработка формы (создание/обновление)
 // =============================================================================
+// Инициализация переменной для результата валидации (используется позже для form repopulation)
+$resultTitle = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfToken = $_POST['csrf_token'] ?? '';
 
@@ -310,8 +313,16 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
 // Для повторного заполнения формы после ошибок
 $formSorting = isset($_POST['sorting']) ? (int)$_POST['sorting'] : (int)$defaultSorting;
 $formStatus = isset($_POST['status']) ? 1 : (int)$defaultStatus;
+
 // Используем валидированное значение если POST, иначе значение из базы
-$formTitle = isset($_POST['title']) ? (isset($resultTitle) && $resultTitle['valid'] ? $resultTitle['value'] : trim($_POST['title'])) : $title;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && $resultTitle !== null && $resultTitle['valid']) {
+    // Если валидация прошла успешно, используем валидированное значение
+    $formTitle = $resultTitle['value'];
+} else {
+    // В остальных случаях используем значение из базы (это безопаснее чем неvalidированные данные)
+    $formTitle = $title;
+}
+
 $formContent = isset($_POST['content']) ? sanitizeHtmlFromEditor($_POST['content']) : $content;
 $formImage = $_POST['image'] ?? $image;
 ?>

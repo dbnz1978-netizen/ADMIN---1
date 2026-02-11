@@ -205,12 +205,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ОБНОВЛЕНИЕ БУЛЕВЫХ ФЛАГОВ
         // ========================================
         
-        $allowRegistration = isset($_POST['allow_registration']) && $_POST['allow_registration'] == '1';
-        $allowPhotoUpload  = isset($_POST['allow_photo_upload']) && $_POST['allow_photo_upload'] == '1';
-        $allowOnlineChat   = isset($_POST['allow_online_chat']) && $_POST['allow_online_chat'] == '1';
-        $logInfoEnabled    = isset($_POST['log_info_enabled']) && $_POST['log_info_enabled'] == '1';
-        $logErrorEnabled   = isset($_POST['log_error_enabled']) && $_POST['log_error_enabled'] == '1';
-        $notifications     = isset($_POST['notifications']) && $_POST['notifications'] == '1';
+        $allowRegistration = isset($_POST['allow_registration']) && $_POST['allow_registration'] === '1';
+        $allowPhotoUpload  = isset($_POST['allow_photo_upload']) && $_POST['allow_photo_upload'] === '1';
+        $allowOnlineChat   = isset($_POST['allow_online_chat']) && $_POST['allow_online_chat'] === '1';
+        $logInfoEnabled    = isset($_POST['log_info_enabled']) && $_POST['log_info_enabled'] === '1';
+        $logErrorEnabled   = isset($_POST['log_error_enabled']) && $_POST['log_error_enabled'] === '1';
+        $notifications     = isset($_POST['notifications']) && $_POST['notifications'] === '1';
         $imageLimit        = (int)($_POST['image_limit'] ?? 0);
 
         // Санитизация HTML-редакторов

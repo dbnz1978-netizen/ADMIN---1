@@ -40,7 +40,7 @@ if ($adminData === false) {
 }
 
 // === НАСТРОЙКИ ===
-$titlemeta = 'Настройки доступа';
+$titlemeta = 'Настройки';
 $titlemetah3 = 'Управление доступом к плагину "Новости"';
 
 // Включаем/отключаем логирование
@@ -197,7 +197,7 @@ $allowUser = $accessSettings['news-plugin']['user'] ?? true;
                     </h3>
 
                     <div class="mb-4">
-                        <p class="text-muted">
+                        <p>
                             <i class="bi bi-info-circle"></i>
                             Настройте доступ для пользователей с ролью "user" к разделам плагина "Новости".
                             При отключении доступа пользователи не увидят меню плагина и не смогут открыть страницы напрямую.
@@ -219,7 +219,7 @@ $allowUser = $accessSettings['news-plugin']['user'] ?? true;
                                         >
                                         <label class="form-check-label" for="allowUser">Нет/Да</label>
                                     </div>
-                                    <div class="form-text">Разрешить доступ пользователям (роль: user)</div>
+                                    <div class="form-text">Разрешить доступ пользователям</div>
                                 </div>
                             </div>
                         </div>

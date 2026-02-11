@@ -4,7 +4,7 @@
  *
  * Назначение:
  * - Страница настроек доступа к плагину "Новости" по ролям пользователей
- * - Управление правами доступа для ролей 'user' и 'admin'
+ * - Управление правами доступа для роли 'user'
  * - Доступ к странице только для пользователей с ролью 'admin'
  *
  * Автор:               Команда разработки
@@ -91,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Получаем значения из формы (чекбоксы)
     $allowUser = isset($_POST['allow_user']);
-    $allowAdmin = isset($_POST['allow_admin']);
     
     // Получаем текущие настройки доступа
     $accessSettings = getPluginAccessSettings($pdo);
@@ -101,9 +100,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Обновляем настройки для плагина 'news'
+    // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
+    // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
     $accessSettings['news'] = [
         'user' => $allowUser,
-        'admin' => $allowAdmin
+        'admin' => true
     ];
     
     // Сохраняем настройки
@@ -111,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($result) {
         logEvent(
-            "Настройки доступа к плагину 'news' обновлены — user: " . ($allowUser ? 'да' : 'нет') . ", admin: " . ($allowAdmin ? 'да' : 'нет') . " — ID: {$userDataAdmin['id']}",
+            "Настройки доступа к плагину 'news' обновлены — user: " . ($allowUser ? 'да' : 'нет') . " — ID: {$userDataAdmin['id']}",
             LOG_INFO_ENABLED,
             'info'
         );
@@ -143,7 +144,6 @@ if ($accessSettings === false) {
 
 // Получаем настройки для плагина 'news' (по умолчанию доступ разрешён)
 $allowUser = $accessSettings['news']['user'] ?? true;
-$allowAdmin = $accessSettings['news']['admin'] ?? true;
 
 ?>
 <!DOCTYPE html>
@@ -210,8 +210,9 @@ $allowAdmin = $accessSettings['news']['admin'] ?? true;
                             <div class="mb-4">
                                 <p class="text-muted">
                                     <i class="bi bi-info-circle"></i>
-                                    Настройте, какие роли пользователей имеют доступ к разделам плагина "Новости".
+                                    Настройте доступ для пользователей с ролью "user" к разделам плагина "Новости".
                                     При отключении доступа пользователи не увидят меню плагина и не смогут открыть страницы напрямую.
+                                    Администраторы (роль "admin") всегда имеют полный доступ к плагину.
                                 </p>
                             </div>
 
@@ -232,30 +233,6 @@ $allowAdmin = $accessSettings['news']['admin'] ?? true;
                                                 <strong>Разрешить доступ пользователям (роль: user)</strong>
                                                 <div class="text-muted small mt-1">
                                                     Пользователи с ролью "user" смогут просматривать и редактировать новости
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Настройка доступа для роли 'admin' -->
-                            <div class="mb-4">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <div class="form-check form-switch">
-                                            <input 
-                                                class="form-check-input" 
-                                                type="checkbox" 
-                                                role="switch" 
-                                                id="allowAdmin" 
-                                                name="allow_admin"
-                                                <?= $allowAdmin ? 'checked' : '' ?>
-                                            >
-                                            <label class="form-check-label" for="allowAdmin">
-                                                <strong>Разрешить доступ администраторам (роль: admin)</strong>
-                                                <div class="text-muted small mt-1">
-                                                    Пользователи с ролью "admin" смогут просматривать и редактировать новости
                                                 </div>
                                             </label>
                                         </div>

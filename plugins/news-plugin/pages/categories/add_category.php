@@ -1,30 +1,22 @@
 <?php
+
 /**
- * Файл: /plugins/news-plugin/pages/categories/add_category.php
- *
- * Назначение:
- * - Добавление и редактирование категорий новостей в админ-панели.
- * - Работает с таблицей news_categories (задаётся переменной $catalogTable).
- * - Родительская связь хранится в колонке parent_id (ID родителя).
- * - Расширенные данные хранятся в отдельных колонках (не JSON): meta_title, meta_description, description, image.
- * - Поле users_id автоматически заполняется $_SESSION['user_id'] при создании/редактировании.
- *
- * Структура хранения данных:
- * - name                          -> Название категории
- * - url                           -> URL категории (уникальный)
- * - parent_id                     -> ID родительской категории
- * - meta_title, meta_description  -> SEO поля (отдельные колонки)
- * - description                   -> HTML описание из редактора (отдельная колонка)
- * - image                         -> ID изображения из медиа-библиотеки (отдельная колонка)
- * - sorting, status               -> Сортировка и статус (активность)
- *
- * Важно по безопасности:
- * - Название таблицы нельзя передавать от пользователя. Оно задаётся вручную в настройках.
- * - Все запросы используют prepared statements для защиты от SQL-инъекций.
- * - CSRF токен проверяется для всех POST запросов.
+ * Название файла:      add_category.php
+ * Назначение:          Добавление и редактирование категорий новостей в админ-панели.
+ *                      Работает с таблицей news_categories.
+ *                      Родительская связь хранится в колонке parent_id.
+ *                      Расширенные данные хранятся в отдельных колонках (не JSON).
+ *                      Поле users_id автоматически заполняется $_SESSION['user_id'].
+ * Автор:               Админ-панель / Команда
+ * Версия:              1.0
+ * Дата создания:       2026-02-12
+ * Последнее изменение: 2026-02-12
  */
 
-// === КОНФИГУРАЦИЯ ===
+// ==============================================================================
+// КОНФИГУРАЦИЯ
+// ==============================================================================
+
 $config = [
     'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
@@ -50,11 +42,15 @@ require_once __DIR__ . '/../../functions/category_path.php';         // Функ
 // Подключаем функции для работы с настройками плагина
 require_once __DIR__ . '/../../functions/plugin_settings.php';
 
-// --- Очищаем flash-сообщения сразу после их чтения ---
+
+// ==============================================================================
+// ОЧИСТКА FLASH-СООБЩЕНИЙ
+// ==============================================================================
+
 // Загружаем flash-сообщения из сессии (если есть) и сразу удаляем их
 if (!empty($_SESSION['flash_messages'])) {
     $successMessages = $_SESSION['flash_messages']['success'] ?? [];
-    $errors = $_SESSION['flash_messages']['error'] ?? [];
+    $errors          = $_SESSION['flash_messages']['error'] ?? [];
     
     // Удаляем их, чтобы не показывались при повторной загрузке
     unset($_SESSION['flash_messages']);
@@ -72,9 +68,11 @@ if (!empty($_SESSION['alerts'])) {
     unset($_SESSION['alerts']);
 }
 
-// =============================================================================
-// Проверка прав администратора
-// =============================================================================
+
+// ==============================================================================
+// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
+// ==============================================================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
     logEvent("Ошибка получения данных администратора", LOG_ERROR_ENABLED, 'error');
@@ -82,14 +80,18 @@ if ($adminData === false) {
     exit;
 }
 
-// === НАСТРОЙКИ ===
-$pluginName = getPluginName();                         // Автоматическое определение имени плагина из структуры директорий
-$titlemeta = 'Новости';                            // Название заголовка H1 для раздела
-$titlemetah3 = 'Редактирование каталога';          // Название заголовка H2 для раздела
-$titlemeta_h3 = 'Добавление каталога';             // Название заголовка H2 для раздела
-$catalogTable = 'news_categories';                 // Название таблицы
-$categoryUrlPrefix = 'news-category';              // Префикс URL категории
-$maxDigits = getPluginMaxDigits($pdo, $pluginName, 'add_category', 1);  // Ограничение на количество изображений из настроек плагина
+
+// ==============================================================================
+// НАСТРОЙКИ
+// ==============================================================================
+
+$pluginName         = getPluginName();                         // Автоматическое определение имени плагина из структуры директорий
+$titlemeta          = 'Новости';                               // Название заголовка H1 для раздела
+$titlemetah3        = 'Редактирование каталога';               // Название заголовка H2 для раздела
+$titlemeta_h3       = 'Добавление каталога';                   // Название заголовка H2 для раздела
+$catalogTable       = 'news_categories';                       // Название таблицы
+$categoryUrlPrefix  = 'news-category';                         // Префикс URL категории
+$maxDigits          = getPluginMaxDigits($pdo, $pluginName, 'add_category', 1);  // Ограничение на количество изображений
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -98,37 +100,49 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // Текущий user_id из сессии
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 
-// =============================================================================
-// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
-// =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
-$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
-// =============================================================================
-// CSRF helpers
-// =============================================================================
-function validateCsrfTokenFromHeader(): bool {
+// ==============================================================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// ==============================================================================
+
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
+$currentData   = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+
+
+// ==============================================================================
+// CSRF HELPERS
+// ==============================================================================
+
+/**
+ * Валидация CSRF токена из заголовка запроса
+ * 
+ * @return bool true если токен валиден, иначе false
+ */
+function validateCsrfTokenFromHeader(): bool
+{
     $headersToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     return isset($_SESSION['csrf_token']) && is_string($headersToken) && hash_equals($_SESSION['csrf_token'], $headersToken);
 }
 
-// =============================================================================
-// Переменные страницы
-// =============================================================================
+
+// ==============================================================================
+// ПЕРЕМЕННЫЕ СТРАНИЦЫ
+// ==============================================================================
+
 $isEditMode = isset($_GET['id']);
-$itemId = $isEditMode ? (int)$_GET['id'] : null;
+$itemId     = $isEditMode ? (int)$_GET['id'] : null;
 
 // Значения по умолчанию (для формы)
-$defaultNaime = '';
-$defaultUrl = '';
-$defaultTitle = '';
-$defaultDescription = '';
-$text = '';
-$defaultSorting = 0;
-$defaultStatus = 1;
-$image = '';
-$defaultParentId = null;
-$defaultParentName = '';
+$defaultNaime        = '';
+$defaultUrl          = '';
+$defaultTitle        = '';
+$defaultDescription  = '';
+$text                = '';
+$defaultSorting      = 0;
+$defaultStatus       = 1;
+$image               = '';
+$defaultParentId     = null;
+$defaultParentName   = '';
 
 // === НОВЫЕ ПОЛЯ: ОБЪЯВЛЕНИЕ ПЕРЕМЕННЫХ ===
 // Здесь объявляйте переменные для новых полей, которые будут отображаться в форме
@@ -140,9 +154,11 @@ $defaultParentName = '';
 // Полный путь категории для ссылки
 $categoryFullPath = '';
 
-// =============================================================================
-// Загрузка записи для редактирования (+ фильтр users_id)
-// =============================================================================
+
+// ==============================================================================
+// ЗАГРУЗКА ЗАПИСИ ДЛЯ РЕДАКТИРОВАНИЯ (+ ФИЛЬТР users_id)
+// ==============================================================================
+
 if ($isEditMode && $itemId) {
     try {
         // Читаем редактируемую запись (текущий related_table + users_id)
@@ -152,13 +168,13 @@ if ($isEditMode && $itemId) {
         
         if ($item) {
             // Простые поля таблицы (не JSON)
-            $defaultNaime = $item['name'] ?? '';
-            $defaultUrl = $item['url'] ?? '';
-            $defaultSorting = (int)($item['sorting'] ?? 0);
-            $defaultStatus = (int)($item['status'] ?? 1);
+            $defaultNaime       = $item['name'] ?? '';
+            $defaultUrl         = $item['url'] ?? '';
+            $defaultSorting     = (int)($item['sorting'] ?? 0);
+            $defaultStatus      = (int)($item['status'] ?? 1);
             
             // Родитель (ID)
-            $authorRaw = $item['parent_id'] ?? 0;
+            $authorRaw      = $item['parent_id'] ?? 0;
             $defaultParentId = is_numeric($authorRaw) ? (int)$authorRaw : 0;
             
             // Строим полный путь категории
@@ -172,7 +188,8 @@ if ($isEditMode && $itemId) {
             // -----------------------------------------------------------------
             // Отдельные колонки: читаем поля напрямую
             // -----------------------------------------------------------------
-            $defaultTitle = (string)($item['meta_title'] ?? '');
+            
+            $defaultTitle       = (string)($item['meta_title'] ?? '');
             $defaultDescription = (string)($item['meta_description'] ?? '');
             
             // HTML описание (из редактора)
@@ -197,15 +214,16 @@ if ($isEditMode && $itemId) {
                 if ($pRow && isset($pRow['name'])) {
                     $defaultParentName = (string)$pRow['name'];
                 } else {
-                    $defaultParentId = null;
+                    $defaultParentId   = null;
                     $defaultParentName = '';
                 }
             } else {
-                $defaultParentId = null;
+                $defaultParentId   = null;
                 $defaultParentName = '';
             }
             
             logEvent("Успешная загрузка записи для редактирования ID=$itemId", LOG_INFO_ENABLED, 'info');
+            
         } else {
             $errors[] = 'Раздел не найден';
             logEvent("Раздел не найден ID=$itemId", LOG_ERROR_ENABLED, 'error');
@@ -218,11 +236,11 @@ if ($isEditMode && $itemId) {
     }
 }
 
-// =============================================================================
-// AJAX: поиск родительских категорий (+ фильтр users_id + status = 1)
-// GET record_list.php?action=parent_search&q=...&exclude_id=...
-// Ответ: {error:false, items:[{id,name,url},...]}
-// =============================================================================
+
+// ==============================================================================
+// AJAX: ПОИСК РОДИТЕЛЬСКИХ КАТЕГОРИЙ
+// ==============================================================================
+
 if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
     header('Content-Type: application/json; charset=utf-8');
     
@@ -243,9 +261,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
     }
     
     // Защита от частых запросов
-    $rateLimitKey = 'parent_search_' . $currentUserId;
-    $lastRequestTime = $_SESSION[$rateLimitKey] ?? 0;
-    $currentTime = time();
+    $rateLimitKey      = 'parent_search_' . $currentUserId;
+    $lastRequestTime   = $_SESSION[$rateLimitKey] ?? 0;
+    $currentTime       = time();
     
     if (($currentTime - $lastRequestTime) < 1) { // 1 секунда между запросами
         http_response_code(429);
@@ -253,12 +271,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
         echo json_encode(['error' => true, 'message' => 'Слишком частые запросы'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
     $_SESSION[$rateLimitKey] = $currentTime;
     
     // Валидация и санитизация входных данных
-    $q = trim((string)($_GET['q'] ?? ''));
-    $excludeId = isset($_GET['exclude_id']) ? (int)$_GET['exclude_id'] : 0;
+    $q          = trim((string)($_GET['q'] ?? ''));
+    $excludeId  = isset($_GET['exclude_id']) ? (int)$_GET['exclude_id'] : 0;
     
     // ИСПОЛЬЗУЕМ ВАШУ ФУНКЦИЮ ВАЛИДАЦИИ
     $result = validateTextareaField($q, 2, 100, 'Поиск');
@@ -286,9 +303,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
                 SELECT id, name, url
                 FROM {$catalogTable}
                 WHERE users_id = ?
-                AND status = 1
-                AND (name LIKE ? OR url LIKE ?)
-                AND id != ?
+                  AND status = 1
+                  AND (name LIKE ? OR url LIKE ?)
+                  AND id != ?
                 ORDER BY id DESC
                 LIMIT 6
             ");
@@ -298,8 +315,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
                 SELECT id, name, url
                 FROM {$catalogTable}
                 WHERE users_id = ?
-                AND status = 1
-                AND (name LIKE ? OR url LIKE ?)
+                  AND status = 1
+                  AND (name LIKE ? OR url LIKE ?)
                 ORDER BY id DESC
                 LIMIT 6
             ");
@@ -308,8 +325,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
         
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         logEvent("Успешный поиск родительских категорий: $q, найдено: " . count($items), LOG_INFO_ENABLED, 'info');
+        
         echo json_encode(['error' => false, 'items' => $items], JSON_UNESCAPED_UNICODE);
         exit;
+        
     } catch (PDOException $e) {
         http_response_code(500);
         logEvent("Ошибка parent_search ({$catalogTable}): " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
@@ -318,9 +337,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'parent_search') {
     }
 }
 
-// =============================================================================
-// Обработка формы (создание/обновление) + users_id
-// =============================================================================
+
+// ==============================================================================
+// ОБРАБОТКА ФОРМЫ (СОЗДАНИЕ/ОБНОВЛЕНИЕ) + users_id
+// ==============================================================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfToken = $_POST['csrf_token'] ?? '';
     
@@ -328,6 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Недействительная форма. Обновите страницу.';
         logEvent("CSRF ошибка в add_category.php", LOG_ERROR_ENABLED, 'error');
     } else {
+        
         // ---------------------------------------------------------------
         // 1) Валидация основных полей формы
         // ---------------------------------------------------------------
@@ -376,9 +398,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $text = sanitizeHtmlFromEditor($_POST['text'] ?? '');
         
         // Прочие поля
-        $url = trim($_POST['url'] ?? '');
-        $sorting = (int)($_POST['sorting'] ?? 0);
-        $status = isset($_POST['status']) ? 1 : 0;
+        $url      = trim($_POST['url'] ?? '');
+        $sorting  = (int)($_POST['sorting'] ?? 0);
+        $status   = isset($_POST['status']) ? 1 : 0;
         
         // Родитель
         $parent_id = isset($_POST['parent_id']) && $_POST['parent_id'] !== '' ? (int)$_POST['parent_id'] : 0;
@@ -418,6 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ---------------------------------------------------------------
         // 2) Подготовка URL
         // ---------------------------------------------------------------
+        
         if ($url === '') {
             $url = transliterate($name);
         } else {
@@ -431,8 +454,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // ---------------------------------------------------------------
         // 3) Проверка родителя (+ users_id + status = 1)
-        // ВАЖНО: родитель должен существовать в related_table = $parentRelatedTable + users_id + status = 1
         // ---------------------------------------------------------------
+        
         if ($parent_id > 0) {
             if ($isEditMode && $itemId && $parent_id === $itemId) {
                 $errors[] = 'Нельзя выбрать текущую категорию как родительскую';
@@ -453,13 +476,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ---------------------------------------------------------------
         // 4) Проверка уникальности URL (только внутри текущего $relatedTable + users_id)
         // ---------------------------------------------------------------
+        
         if (empty($errors)) {
-            $sql = "SELECT id FROM {$catalogTable} WHERE url = ? AND users_id = ?";
+            $sql    = "SELECT id FROM {$catalogTable} WHERE url = ? AND users_id = ?";
             $params = [$url, $currentUserId];
             
             if ($isEditMode && $itemId) {
-                $sql .= " AND id != ?";
-                $params[] = $itemId;
+                $sql       .= " AND id != ?";
+                $params[]  = $itemId;
             }
             
             $stmt = $pdo->prepare($sql);
@@ -476,6 +500,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ---------------------------------------------------------------
         // 5) Сохранение в БД (+ users_id)
         // ---------------------------------------------------------------
+        
         if (empty($errors)) {
             try {
                 $author = $parent_id > 0 ? (int)$parent_id : null;
@@ -495,7 +520,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             status = ?,
                             updated_at = NOW()
                         WHERE id = ?
-                        AND users_id = ?
+                          AND users_id = ?
                     ");
                     $stmt->execute([
                         $name,
@@ -513,6 +538,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $successMessages[] = 'Раздел успешно обновлён';
                     logEvent("Обновлён раздел {$catalogTable} ID=$itemId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
+                    
                 } else {
                     // INSERT (+ users_id)
                     $stmt = $pdo->prepare("
@@ -552,6 +578,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     header("Location: add_category.php?id=" . $newId);
                 }
                 exit; // ВАЖНО: завершаем выполнение скрипта после редиректа
+                
             } catch (PDOException $e) {
                 $errors[] = 'Ошибка сохранения данных';
                 logEvent("Ошибка сохранения раздела {$catalogTable}: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
@@ -575,12 +602,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // было помещено в сессию при текущем запросе, и старая сессия была очищена в начале.
 }
 
-// =============================================================================
-// Подготовка данных для шаблона
-// =============================================================================
+
+// ==============================================================================
+// ПОДГОТОВКА ДАННЫХ ДЛЯ ШАБЛОНА
+// ==============================================================================
+
 $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../../../../admin/img/avatar.svg');
 
-$formParentId = isset($_POST['parent_id'])
+$formParentId   = isset($_POST['parent_id'])
     ? (int)($_POST['parent_id'] === '' ? 0 : $_POST['parent_id'])
     : (int)($defaultParentId ?? 0);
 
@@ -591,7 +620,6 @@ if (isset($_POST['parent_name'])) {
     $formParentName = $defaultParentName;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -601,7 +629,6 @@ if (isset($_POST['parent_name'])) {
     <meta name="description" content="Админ-панель управления системой">
     <meta name="author" content="Админ-панель">
     <title><?= escape($titlemeta) ?></title>
-    
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme');
@@ -610,278 +637,260 @@ if (isset($_POST['parent_name'])) {
             }
         })();
     </script>
-    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    
     <!-- Стили админки -->
     <link rel="stylesheet" href="../../../../admin/css/main.css">
-    
     <!-- WYSIWYG-редактор -->
     <link rel="stylesheet" href="../../../../admin/css/editor.css">
-    
     <!-- Медиа-библиотека -->
     <link rel="stylesheet" href="../../../../admin/user_images/css/main.css">
-    
     <link rel="icon" href="<?php echo escape($logo_profile); ?>" type="image/x-icon">
 </head>
 <body>
-    <div class="container-fluid">
-        <?php require_once __DIR__ . '/../../../../admin/template/sidebar.php'; ?>
-
-        <main class="main-content">
-            <?php require_once __DIR__ . '/../../../../admin/template/header.php'; ?>
-            
-            <form method="post">
-                <div class="form-section">
-                    <div class="row align-items-center mb-4">
-                        <div class="col-lg-6">
-                            <h3 class="card-title d-flex align-items-center gap-2 mb-0">
-                                <i class="bi <?= $isEditMode ? 'bi-pencil-square' : 'bi-plus-circle' ?>"></i>
-                                <?= escape($isEditMode ? $titlemetah3 : $titlemeta_h3) ?>
-                            </h3>
-                        </div>
-                        <div class="col-lg-6 text-end">
-                            <?php if ($isEditMode && $itemId && $categoryFullPath): ?>
-                                <a href="/<?= escape($categoryUrlPrefix) ?>/<?= escape($categoryFullPath) ?>" target="_blank"
-                                   class="btn btn-outline-primary"
-                                   title="Открыть страницу категории в новом окне">
-                                    <i class="bi bi-box-arrow-up-right"></i> Просмотр
-                                </a>
-                            <?php endif; ?>
-                        </div>
+<div class="container-fluid">
+    <?php require_once __DIR__ . '/../../../../admin/template/sidebar.php'; ?>
+    
+    <main class="main-content">
+        <?php require_once __DIR__ . '/../../../../admin/template/header.php'; ?>
+        
+        <form method="post">
+            <div class="form-section">
+                <div class="row align-items-center mb-4">
+                    <div class="col-lg-6">
+                        <h3 class="card-title d-flex align-items-center gap-2 mb-0">
+                            <i class="bi <?= $isEditMode ? 'bi-pencil-square' : 'bi-plus-circle' ?>"></i>
+                            <?= escape($isEditMode ? $titlemetah3 : $titlemeta_h3) ?>
+                        </h3>
                     </div>
-                    
-                    <!-- Сообщения об ошибках/успехе -->
-                    <?php displayAlerts($successMessages, $errors); ?>
-                    
-                    <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
-                    
-                    <!-- Название -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">Название <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="name" required maxlength="255"
-                                   value="<?= escape($name ?? $defaultNaime) ?>">
-                        </div>
-                    </div>
-                    
-                    <!-- Родитель -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">Родительская категория</label>
-                            <input type="hidden" name="parent_id" id="parent_id" value="<?= escape((string)$formParentId) ?>">
-                            <input type="hidden" name="parent_name" id="parent_name" value="<?= escape((string)$formParentName) ?>">
-                            
-                            <div class="parent-search-wrap"
-                                 id="parentSearchRoot"
-                                 data-exclude-id="<?= (int)($itemId ?? 0) ?>">
-                                <div class="input-group">
-                                    <input type="text"
-                                           class="form-control"
-                                           id="parent_search"
-                                           autocomplete="off"
-                                           placeholder="Начните вводить название или URL…"
-                                           value="<?= escape((string)$formParentName) ?>">
-                                    <button type="button" class="btn btn-outline-secondary" id="parent_clear" title="Сбросить родителя">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </div>
-                                <div id="parent_suggest" class="parent-suggest-box d-none"></div>
-                            </div>
-                            
-                            <div class="form-text">
-                                Показывается до 6 совпадений. Можно оставить пустым (без родителя).
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- URL -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">URL (оставьте пустым для автоматической генерации)</label>
-                            <input type="text" class="form-control" name="url" maxlength="255"
-                                   placeholder="primer-razdela" value="<?= escape($url ?? $defaultUrl) ?>">
-                            <div class="form-text">Будет автоматически транслитерирован и очищен от спецсимволов.</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Sorting -->
-                    <div class="row mb-5">
-                        <div class="col-12">
-                            <label class="form-label">Сортировка (порядок сортировки)</label>
-                            <input type="number" class="form-control" name="sorting"
-                                   value="<?= escape((string)($sorting ?? $defaultSorting)) ?>" step="1" min="0">
-                        </div>
-                    </div>
-                    
-                    <!-- Изображение -->
-                    <h3 class="card-title">
-                        <i class="bi bi-card-image"></i>
-                        Изображение
-                    </h3>
-                    
-                    <!---------------------------------------------------- Галерея №1 ---------------------------------------------------->
-                    <?php
-                    $sectionId = 'image';
-                    $image_ids = $image;
-                    $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
-                    // Получаем глобальные настройки размеров изображений
-                    $imageSizes = getGlobalImageSizes($pdo);
-                    $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
-                    ?>
-                    
-                    <input type="hidden" id="selectedImages_<?php echo $sectionId; ?>" name="<?php echo $sectionId; ?>"
-                           value="<?php echo isset($image_ids) ? $image_ids : ''; ?>">
-                    
-                    <div id="image-management-section-<?php echo $sectionId; ?>">
-                        <div id="loading-content-<?php echo $sectionId; ?>"></div>
-                        <div class="selected-images-section d-flex flex-wrap gap-2">
-                            <div id="selectedImagesPreview_<?php echo $sectionId; ?>" class="selected-images-preview">
-                                <!-- Индикатор загрузки -->
-                                <div class="w-100 d-flex justify-content-center align-items-center" style="min-height: 170px;">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Загрузка...</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-text">Не более: <?= escape($maxDigits) ?> шт</div>
-                        </div>
-                    </div>
-                    
-                    <div class="modal fade" id="<?php echo $sectionId; ?>" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-fullscreen-custom">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Библиотека файлов</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div id="notify_<?php echo $sectionId; ?>"></div>
-                                    <div id="image-management-section_<?php echo $sectionId; ?>"></div>
-                                    <input type="file" id="fileInput_<?php echo $sectionId; ?>" multiple accept="image/*" style="display: none;">
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                    <button type="button" id="saveButton" class="btn btn-primary"
-                                            data-section-id="<?php echo escape($sectionId); ?>"
-                                            onclick="handleSelectButtonClick()"
-                                            data-bs-dismiss="modal">
-                                        Выбрать
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!---------------------------------------------------- /Галерея №1 ---------------------------------------------------->
-                    
-                    <!-- === НОВЫЕ ПОЛЯ: HTML ФОРМА === -->
-                    <!-- Здесь добавляйте новые поля формы -->
-                    <!-- Пример:
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">Новое поле 1</label>
-                            <input type="text" class="form-control" name="custom_field_1" maxlength="500"
-                                   value="переменная">
-                            <div class="form-text">Описание нового поля</div>
-                        </div>
-                    </div>
-                    -->
-                    <!-- === КОНЕЦ НОВЫХ ПОЛЕЙ === -->
-                </div>
-                
-                <!-- SEO -->
-                <div class="form-section mb-5">
-                    <h3 class="card-title">
-                        <i class="bi bi-code-slash"></i>
-                        Мета-теги SEO
-                    </h3>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">Title (SEO)</label>
-                            <input type="text" class="form-control" name="title" maxlength="255"
-                                   value="<?= escape($title ?? $defaultTitle) ?>">
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <label class="form-label">Description (SEO)</label>
-                            <textarea class="form-control" name="description" rows="2" maxlength="300"><?= escape($description ?? $defaultDescription) ?></textarea>
-                        </div>
+                    <div class="col-lg-6 text-end">
+                        <?php if ($isEditMode && $itemId && $categoryFullPath): ?>
+                            <a href="/<?= escape($categoryUrlPrefix) ?>/<?= escape($categoryFullPath) ?>" target="_blank"
+                                class="btn btn-outline-primary"
+                                title="Открыть страницу категории в новом окне">
+                                <i class="bi bi-box-arrow-up-right"></i> Просмотр
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </div>
                 
-                <!-- Краткое описание -->
-                <div class="mb-5">
-                    <h3 class="card-title">
-                        <i class="bi bi-card-checklist"></i>
-                        Краткое описание
-                    </h3>
-                    <div class="form-text">Отображается в списке.</div>
-                    <?php renderHtmlEditor('text', $text); ?>
-                </div>
+                <!-- Сообщения об ошибках/успехе -->
+                <?php displayAlerts($successMessages, $errors); ?>
                 
-                <!-- Активность -->
+                <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
+                
+                <!-- Название -->
                 <div class="row mb-3">
                     <div class="col-12">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="status" id="status" value="1"
-                                   <?= ($status ?? $defaultStatus) ? 'checked' : '' ?>>
-                            <label class="form-check-label" for="status">Активна</label>
-                        </div>
-                        <div class="form-text">Показывать запись на сайте</div>
+                        <label class="form-label">Название <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required maxlength="255"
+                            value="<?= escape($name ?? $defaultNaime) ?>">
                     </div>
                 </div>
                 
-                <!-- Сохранение -->
-                <div class="mb-3">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg"></i> <?= $isEditMode ? 'Сохранить' : 'Создать' ?>
-                    </button>
+                <!-- Родитель -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">Родительская категория</label>
+                        <input type="hidden" name="parent_id" id="parent_id" value="<?= escape((string)$formParentId) ?>">
+                        <input type="hidden" name="parent_name" id="parent_name" value="<?= escape((string)$formParentName) ?>">
+                        <div class="parent-search-wrap"
+                            id="parentSearchRoot"
+                            data-exclude-id="<?= (int)($itemId ?? 0) ?>">
+                            <div class="input-group">
+                                <input type="text"
+                                    class="form-control"
+                                    id="parent_search"
+                                    autocomplete="off"
+                                    placeholder="Начните вводить название или URL…"
+                                    value="<?= escape((string)$formParentName) ?>">
+                                <button type="button" class="btn btn-outline-secondary" id="parent_clear" title="Сбросить родителя">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div id="parent_suggest" class="parent-suggest-box d-none"></div>
+                        </div>
+                        <div class="form-text">
+                            Показывается до 6 совпадений. Можно оставить пустым (без родителя).
+                        </div>
+                    </div>
                 </div>
-            </form>
-        </main>
-    </div>
-    
-    <!-- Глобальное модальное окно с информацией о фотографии (используется всеми галереями) -->
-    <?php if (!isset($GLOBALS['photo_info_included'])): ?>
-        <?php require_once __DIR__ . '/../../../../admin/user_images/photo_info.php'; ?>
-        <?php $GLOBALS['photo_info_included'] = true; ?>
-    <?php endif; ?>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <!-- Popper.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
-    
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    
-    <!-- Модульный JS admin -->
-    <script type="module" src="../../../../admin/js/main.js"></script>
-    
-    <!-- WYSIWYG-редактор -->
-    <script src="/admin/js/editor.js"></script>
-    
-    <!-- Модульный JS галереи -->
-    <script type="module" src="/admin/user_images/js/main.js"></script>
-    
-    <!-- Поиск родительской категории -->
-    <script src="../../js/authorsearch.js"></script>
-    
-    <!-- Инициализация галереи -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Загружаем галерею при старте №1
-            loadGallery('image');
+                
+                <!-- URL -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">URL (оставьте пустым для автоматической генерации)</label>
+                        <input type="text" class="form-control" name="url" maxlength="255"
+                            placeholder="primer-razdela" value="<?= escape($url ?? $defaultUrl) ?>">
+                        <div class="form-text">Будет автоматически транслитерирован и очищен от спецсимволов.</div>
+                    </div>
+                </div>
+                
+                <!-- Sorting -->
+                <div class="row mb-5">
+                    <div class="col-12">
+                        <label class="form-label">Сортировка (порядок сортировки)</label>
+                        <input type="number" class="form-control" name="sorting"
+                            value="<?= escape((string)($sorting ?? $defaultSorting)) ?>" step="1" min="0">
+                    </div>
+                </div>
+                
+                <!-- Изображение -->
+                <h3 class="card-title">
+                    <i class="bi bi-card-image"></i>
+                    Изображение
+                </h3>
+                
+                <!---------------------------------------------------- Галерея №1 ---------------------------------------------------->
+                <?php
+                $sectionId   = 'image';
+                $image_ids   = $image;
+                $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
+                
+                // Получаем глобальные настройки размеров изображений
+                $imageSizes = getGlobalImageSizes($pdo);
+                $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
+                ?>
+                <input type="hidden" id="selectedImages_<?php echo $sectionId; ?>" name="<?php echo $sectionId; ?>"
+                    value="<?php echo isset($image_ids) ? $image_ids : ''; ?>">
+                <div id="image-management-section-<?php echo $sectionId; ?>">
+                    <div id="loading-content-<?php echo $sectionId; ?>"></div>
+                    <div class="selected-images-section d-flex flex-wrap gap-2">
+                        <div id="selectedImagesPreview_<?php echo $sectionId; ?>" class="selected-images-preview">
+                            <!-- Индикатор загрузки -->
+                            <div class="w-100 d-flex justify-content-center align-items-center" style="min-height: 170px;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Загрузка...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-text">Не более: <?= escape($maxDigits) ?> шт</div>
+                    </div>
+                </div>
+                <div class="modal fade" id="<?php echo $sectionId; ?>" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-fullscreen-custom">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Библиотека файлов</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="notify_<?php echo $sectionId; ?>"></div>
+                                <div id="image-management-section_<?php echo $sectionId; ?>"></div>
+                                <input type="file" id="fileInput_<?php echo $sectionId; ?>" multiple accept="image/*" style="display: none;">
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                <button type="button" id="saveButton" class="btn btn-primary"
+                                    data-section-id="<?php echo escape($sectionId); ?>"
+                                    onclick="handleSelectButtonClick()"
+                                    data-bs-dismiss="modal">
+                                    Выбрать
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!---------------------------------------------------- /Галерея №1 ---------------------------------------------------->
+                
+                <!-- === НОВЫЕ ПОЛЯ: HTML ФОРМА === -->
+                <!-- Здесь добавляйте новые поля формы -->
+                <!-- Пример:
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">Новое поле 1</label>
+                        <input type="text" class="form-control" name="custom_field_1" maxlength="500"
+                            value="переменная">
+                        <div class="form-text">Описание нового поля</div>
+                    </div>
+                </div>
+                -->
+                <!-- === КОНЕЦ НОВЫХ ПОЛЕЙ === -->
+            </div>
             
-            // Загружаем библиотеку файлов
-            loadImageSection('image');
-        });
-    </script>
+            <!-- SEO -->
+            <div class="form-section mb-5">
+                <h3 class="card-title">
+                    <i class="bi bi-code-slash"></i>
+                    Мета-теги SEO
+                </h3>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">Title (SEO)</label>
+                        <input type="text" class="form-control" name="title" maxlength="255"
+                            value="<?= escape($title ?? $defaultTitle) ?>">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <label class="form-label">Description (SEO)</label>
+                        <textarea class="form-control" name="description" rows="2" maxlength="300"><?= escape($description ?? $defaultDescription) ?></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Краткое описание -->
+            <div class="mb-5">
+                <h3 class="card-title">
+                    <i class="bi bi-card-checklist"></i>
+                    Краткое описание
+                </h3>
+                <div class="form-text">Отображается в списке.</div>
+                <?php renderHtmlEditor('text', $text); ?>
+            </div>
+            
+            <!-- Активность -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="status" id="status" value="1"
+                            <?= ($status ?? $defaultStatus) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="status">Активна</label>
+                    </div>
+                    <div class="form-text">Показывать запись на сайте</div>
+                </div>
+            </div>
+            
+            <!-- Сохранение -->
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg"></i> <?= $isEditMode ? 'Сохранить' : 'Создать' ?>
+                </button>
+            </div>
+        </form>
+    </main>
+</div>
+
+<!-- Глобальное модальное окно с информацией о фотографии (используется всеми галереями) -->
+<?php if (!isset($GLOBALS['photo_info_included'])): ?>
+    <?php require_once __DIR__ . '/../../../../admin/user_images/photo_info.php'; ?>
+    <?php $GLOBALS['photo_info_included'] = true; ?>
+<?php endif; ?>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Popper.js -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<!-- Модульный JS admin -->
+<script type="module" src="../../../../admin/js/main.js"></script>
+<!-- WYSIWYG-редактор -->
+<script src="/admin/js/editor.js"></script>
+<!-- Модульный JS галереи -->
+<script type="module" src="/admin/user_images/js/main.js"></script>
+<!-- Поиск родительской категории -->
+<script src="../../js/authorsearch.js"></script>
+
+<!-- Инициализация галереи -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Загружаем галерею при старте №1
+        loadGallery('image');
+        // Загружаем библиотеку файлов
+        loadImageSection('image');
+    });
+</script>
 </body>
 </html>

@@ -1,18 +1,20 @@
 <?php
+
 /**
- * Файл: /plugins/news-plugin/pages/settings/access.php
- *
- * Назначение:
- * - Страница настроек доступа к плагину "Новости" по ролям пользователей
- * - Управление правами доступа для роли 'user'
- * - Доступ к странице только для пользователей с ролью 'admin'
- *
+ * Название файла:      access.php
+ * Назначение:          Страница настроек доступа к плагину "Новости" по ролям пользователей.
+ *                      Управление правами доступа для роли 'user'.
+ *                      Доступ к странице только для пользователей с ролью 'admin'.
  * Автор:               Команда разработки
  * Версия:              1.0
  * Дата создания:       2026-02-11
+ * Последнее изменение: 2026-02-12
  */
 
-// === КОНФИГУРАЦИЯ ===
+// ========================================
+// КОНФИГУРАЦИЯ
+// ========================================
+
 $config = [
     'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
@@ -35,39 +37,47 @@ require_once __DIR__ . '/../../functions/plugin_settings.php';
 // Подключаем функцию автоопределения имени плагина
 require_once __DIR__ . '/../../functions/plugin_helper.php';
 
-// =============================================================================
-// Проверка прав администратора
-// =============================================================================
+
+// ========================================
+// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
     header("Location: ../../../../admin/logout.php");
     exit;
 }
 
-// === НАСТРОЙКИ ===
-$pluginName = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
-$titlemeta = 'Настройки';
-$titlemetah3 = 'Управление доступом к плагину "Новости"';
+
+// ========================================
+// НАСТРОЙКИ
+// ========================================
+
+$pluginName    = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
+$titlemeta     = 'Настройки';
+$titlemetah3   = 'Управление доступом к плагину "Новости"';
 
 // Включаем/отключаем логирование
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
-// =============================================================================
+
+// ========================================
 // АВТОРИЗАЦИЯ И ПРОВЕРКА ПРАВ
-// =============================================================================
+// ========================================
 
 // Используем guard для проверки доступа (только admin может менять настройки)
 $userDataAdmin = pluginAccessGuard($pdo, $pluginName, 'admin');
 
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
-// =============================================================================
+
+// ========================================
 // ЗАГРУЗКА FLASH-СООБЩЕНИЙ
-// =============================================================================
+// ========================================
 
 $successMessages = [];
-$errors = [];
+$errors          = [];
 
 if (!empty($_SESSION['flash_messages'])) {
     $successMessages = $_SESSION['flash_messages']['success'] ?? [];
@@ -75,9 +85,10 @@ if (!empty($_SESSION['flash_messages'])) {
     unset($_SESSION['flash_messages']);
 }
 
-// =============================================================================
+
+// ========================================
 // ОБРАБОТКА POST-ЗАПРОСА (СОХРАНЕНИЕ НАСТРОЕК)
-// =============================================================================
+// ========================================
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Проверка CSRF-токена
@@ -100,9 +111,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Получаем значения из формы (чекбоксы)
     $allowUser = isset($_POST['allow_user']);
     
-    // =============================================================================
+    // ========================================
     // ВАЛИДАЦИЯ НАСТРОЕК РАЗМЕРОВ ИЗОБРАЖЕНИЙ
-    // =============================================================================
+    // ========================================
     
     $imageSizesResult = validateImageSizesFromPost($_POST);
     
@@ -112,13 +123,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $imageSizes = $imageSizesResult['sizes'] ?? [];
     
-    // =============================================================================
+    // ========================================
     // ВАЛИДАЦИЯ ЛИМИТОВ MAXDIGITS
-    // =============================================================================
+    // ========================================
     
     $maxDigitsAddCategory = trim($_POST['max_digits_add_category'] ?? '');
-    $maxDigitsAddArticle = trim($_POST['max_digits_add_article'] ?? '');
-    $maxDigitsAddExtra = trim($_POST['max_digits_add_extra'] ?? '');
+    $maxDigitsAddArticle  = trim($_POST['max_digits_add_article'] ?? '');
+    $maxDigitsAddExtra    = trim($_POST['max_digits_add_extra'] ?? '');
     
     // Валидация maxDigits для add_category
     if (!ctype_digit($maxDigitsAddCategory) || (int)$maxDigitsAddCategory < 0 || (int)$maxDigitsAddCategory > 1000) {
@@ -135,9 +146,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $validationErrors[] = 'Лимит изображений для дополнительного контента должен быть от 0 до 1000';
     }
     
-    // =============================================================================
+    // ========================================
     // СОХРАНЕНИЕ НАСТРОЕК
-    // =============================================================================
+    // ========================================
     
     if (empty($validationErrors)) {
         // Получаем текущие настройки доступа
@@ -151,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
         // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
         $accessSettings[$pluginName] = [
-            'user' => $allowUser,
+            'user'  => $allowUser,
             'admin' => true
         ];
         
@@ -161,10 +172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Формируем настройки плагина
         $pluginSettings = [
             'image_sizes' => $imageSizes,
-            'limits' => [
+            'limits'      => [
                 'add_category' => ['maxDigits' => (int)$maxDigitsAddCategory],
-                'add_article' => ['maxDigits' => (int)$maxDigitsAddArticle],
-                'add_extra' => ['maxDigits' => (int)$maxDigitsAddExtra]
+                'add_article'  => ['maxDigits' => (int)$maxDigitsAddArticle],
+                'add_extra'    => ['maxDigits' => (int)$maxDigitsAddExtra]
             ]
         ];
         
@@ -202,9 +213,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// =============================================================================
+
+// ========================================
 // ЗАГРУЗКА ТЕКУЩИХ НАСТРОЕК
-// =============================================================================
+// ========================================
 
 $accessSettings = getPluginAccessSettings($pdo);
 if ($accessSettings === false) {
@@ -237,9 +249,8 @@ if (isset($pluginSettings['image_sizes']) && is_array($pluginSettings['image_siz
 
 // Извлекаем лимиты maxDigits или используем значения по умолчанию
 $maxDigitsAddCategory = $pluginSettings['limits']['add_category']['maxDigits'] ?? 1;
-$maxDigitsAddArticle = $pluginSettings['limits']['add_article']['maxDigits'] ?? 50;
-$maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
-
+$maxDigitsAddArticle  = $pluginSettings['limits']['add_article']['maxDigits'] ?? 50;
+$maxDigitsAddExtra    = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -258,9 +269,9 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
         })();
     </script>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/admin/css/main.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css  " rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css  ">
+    <link rel="stylesheet" href="../../../../admin/css/main.css">
 </head>
 <body>
     <div class="container-fluid">
@@ -364,9 +375,9 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                             continue; // Пропускаем некорректную конфигурацию
                         }
                         
-                        $width = $sizeConfig[0];
+                        $width  = $sizeConfig[0];
                         $height = $sizeConfig[1];
-                        $mode = $sizeConfig[2];
+                        $mode   = $sizeConfig[2];
                     ?>
                     <div class="row mb-3">
                         <div class="col-12">
@@ -462,8 +473,11 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
             </form>
         </main>
     </div>
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js  "></script>
+    <!-- Модульный JS admin -->    
+    <script type="module" src="../../../../admin/js/main.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="/admin/js/main.js"></script>
 </body>
 </html>

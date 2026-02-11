@@ -1,26 +1,22 @@
 <?php
+
 /**
- * Файл: /plugins/news-plugin/pages/categories/category_list.php
- *
- * Назначение:
- * - Админ-страница со списком категорий новостей.
- * - Поддерживает поиск по названию и поиск по родительской категории.
- * - Поддерживает "корзину" (status=0) и активные записи (status=1).
- * - Поддерживает массовые действия (в корзину / восстановить / удалить навсегда).
- * - ФИЛЬТРАЦИЯ ПО users_id = $_SESSION['user_id'] для основных и родительских записей.
- *
- * Важно:
- * - Таблица задаётся в настройках ($catalogTable = 'news_categories').
- * - Все данные хранятся в отдельных колонках (name, url, parent_id, meta_title, meta_description, description, image).
- * - Изображение берётся из колонки image (не JSON).
- *
- * Безопасность:
- * - PDO не поддерживает плейсхолдеры для имён таблиц, поэтому таблицу нельзя брать из GET/POST.
- *   Здесь $catalogTable задаётся вручную (глобальная настройка).
- * - Все запросы используют prepared statements для защиты от SQL-инъекций.
+ * Название файла:      category_list.php
+ * Назначение:          Админ-страница со списком категорий новостей.
+ *                      Поддерживает поиск по названию и родительской категории.
+ *                      Поддерживает "корзину" (status=0) и активные записи (status=1).
+ *                      Поддерживает массовые действия (в корзину/восстановить/удалить навсегда).
+ *                      ФИЛЬТРАЦИЯ ПО users_id = $_SESSION['user_id'] для основных и родительских записей.
+ * Автор:               News Plugin Team
+ * Версия:              1.0
+ * Дата создания:       2026-02-12
+ * Последнее изменение: 2026-02-12
  */
 
-// === КОНФИГУРАЦИЯ ===
+// ========================================
+// КОНФИГУРАЦИЯ
+// ========================================
+
 $config = [
     'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
@@ -44,41 +40,49 @@ require_once __DIR__ . '/../../functions/pagination.php';            // Функ
 require_once __DIR__ . '/../../functions/get_record_avatar.php';     // Функция для получения изображения записи
 
 
-// =============================================================================
-// Проверка прав администратора
-// =============================================================================
+// ========================================
+// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
     header("Location: ../../../../admin/logout.php");
     exit;
 }
 
-// === НАСТРОЙКИ ===
-$titlemeta = 'Новости';                            // Название заголовка H1 для раздела
-$titlemetah3 = 'Управление каталогом';             // Название заголовка H2 для раздела
-$catalogTable = 'news_categories';                 // Название таблицы
-$categoryUrlPrefix = 'news-category';              // Префикс URL категории
+
+// ========================================
+// НАСТРОЙКИ
+// ========================================
+
+$titlemeta         = 'Новости';                            // Название заголовка H1 для раздела
+$titlemetah3       = 'Управление каталогом';               // Название заголовка H2 для раздела
+$catalogTable      = 'news_categories';                    // Название таблицы
+$categoryUrlPrefix = 'news-category';                      // Префикс URL категории
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
-// =============================================================================
-// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
-// =============================================================================
-$pluginName = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
-$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
-// =============================================================================
-// ПАРАМЕТРЫ/ФИЛЬТРЫ (GET) - Валидация и безопасная обработка
-// =============================================================================
+// ========================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// ========================================
+
+$pluginName    = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
+$currentData   = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+
+
+// ========================================
+// ПАРАМЕТРЫ/ФИЛЬТРЫ (GET)
+// ========================================
 
 // Режим "корзины" - валидация значения
 $isTrash = false;
 if (isset($_GET['trash'])) {
     $trashValue = filter_var($_GET['trash'], FILTER_VALIDATE_INT);
-    $isTrash = ($trashValue === 1);
+    $isTrash    = ($trashValue === 1);
 }
 
 // Поиск по названию - валидация и очистка
@@ -104,13 +108,13 @@ $page = 1;
 if (isset($_GET['page'])) {
     $pageResult = filter_var($_GET['page'], FILTER_VALIDATE_INT, [
         'options' => [
-            'default' => 1,
+            'default'   => 1,
             'min_range' => 1
         ]
     ]);
     $page = max(1, $pageResult);
 }
-$limit = 30;
+$limit  = 30;
 $offset = ($page - 1) * $limit;
 
 // Текущий user_id из сессии - безопасное получение
@@ -119,9 +123,11 @@ if (isset($_SESSION['user_id'])) {
     $currentUserId = max(0, (int)$_SESSION['user_id']);
 }
 
-// =============================================================================
-// ОБРАБОТКА МАССОВЫХ ДЕЙСТВИЙ (POST) - Валидация и безопасная обработка
-// =============================================================================
+
+// ========================================
+// ОБРАБОТКА МАССОВЫХ ДЕЙСТВИЙ (POST)
+// ========================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_POST['user_ids'])) {
     $csrfToken = $_POST['csrf_token'] ?? '';
     
@@ -146,98 +152,99 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
             }
         }
 
-    // Нормализуем и валидируем ID записей
-    $userIds = [];
-    if (is_array($_POST['user_ids'])) {
-        foreach ($_POST['user_ids'] as $id) {
-            $validatedId = filter_var($id, FILTER_VALIDATE_INT);
-            if ($validatedId !== false && $validatedId > 0) {
-                $userIds[] = (int)$validatedId;
+        // Нормализуем и валидируем ID записей
+        $userIds = [];
+        if (is_array($_POST['user_ids'])) {
+            foreach ($_POST['user_ids'] as $id) {
+                $validatedId = filter_var($id, FILTER_VALIDATE_INT);
+                if ($validatedId !== false && $validatedId > 0) {
+                    $userIds[] = (int)$validatedId;
+                }
+            }
+        } else {
+            $singleId = filter_var($_POST['user_ids'], FILTER_VALIDATE_INT);
+            if ($singleId !== false && $singleId > 0) {
+                $userIds[] = (int)$singleId;
             }
         }
-    } else {
-        $singleId = filter_var($_POST['user_ids'], FILTER_VALIDATE_INT);
-        if ($singleId !== false && $singleId > 0) {
-            $userIds[] = (int)$singleId;
-        }
-    }
 
-    // Ограничение на количество обрабатываемых ID
-    $userIds = array_slice($userIds, 0, 100); // Максимум 100 за раз
+        // Ограничение на количество обрабатываемых ID
+        $userIds = array_slice($userIds, 0, 100); // Максимум 100 за раз
 
-    if (!empty($userIds) && $action !== null) {
-        // Проверка разрешенного действия
-        $allowedActions = ['delete', 'restore', 'trash'];
-        if (!in_array($action, $allowedActions)) {
-            $errors[] = 'Недопустимое действие.';
-        } else {
-            try {
-                $placeholders = str_repeat('?,', count($userIds) - 1) . '?';
+        if (!empty($userIds) && $action !== null) {
+            // Проверка разрешенного действия
+            $allowedActions = ['delete', 'restore', 'trash'];
+            if (!in_array($action, $allowedActions)) {
+                $errors[] = 'Недопустимое действие.';
+            } else {
+                try {
+                    $placeholders = str_repeat('?,', count($userIds) - 1) . '?';
 
-                switch ($action) {
-                    case 'delete':
-                        if ($isTrash) {
-                            // Полное удаление из корзины
-                            foreach ($userIds as $userId) {
-                                $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND users_id = ?");
-                                $stmt->execute([$userId, $currentUserId]);
+                    switch ($action) {
+                        case 'delete':
+                            if ($isTrash) {
+                                // Полное удаление из корзины
+                                foreach ($userIds as $userId) {
+                                    $stmt = $pdo->prepare("DELETE FROM {$catalogTable} WHERE id = ? AND status = 0 AND users_id = ?");
+                                    $stmt->execute([$userId, $currentUserId]);
+                                }
+                                $successMessages[] = 'Записи успешно удалены';
+                            } else {
+                                // Перемещение в корзину
+                                $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE id IN ($placeholders) AND users_id = ?");
+                                $stmt->execute(array_merge($userIds, [$currentUserId]));
+                                $successMessages[] = 'Записи перемещены в корзину';
                             }
-                            $successMessages[] = 'Записи успешно удалены';
-                        } else {
-                            // Перемещение в корзину
+                            break;
+
+                        case 'restore':
+                            // Восстановление из корзины
+                            $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 1 WHERE id IN ($placeholders) AND users_id = ?");
+                            $stmt->execute(array_merge($userIds, [$currentUserId]));
+                            $successMessages[] = 'Записи восстановлены';
+                            break;
+
+                        case 'trash':
+                            // Добавление в корзину
                             $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE id IN ($placeholders) AND users_id = ?");
                             $stmt->execute(array_merge($userIds, [$currentUserId]));
                             $successMessages[] = 'Записи перемещены в корзину';
-                        }
-                        break;
-
-                    case 'restore':
-                        // Восстановление из корзины
-                        $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 1 WHERE id IN ($placeholders) AND users_id = ?");
-                        $stmt->execute(array_merge($userIds, [$currentUserId]));
-                        $successMessages[] = 'Записи восстановлены';
-                        break;
-
-                    case 'trash':
-                        // Добавление в корзину
-                        $stmt = $pdo->prepare("UPDATE {$catalogTable} SET status = 0 WHERE id IN ($placeholders) AND users_id = ?");
-                        $stmt->execute(array_merge($userIds, [$currentUserId]));
-                        $successMessages[] = 'Записи перемещены в корзину';
-                        break;
-                }
-
-                // Логирование действий
-                $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                $adminId = $user['id'] ?? 'unknown';
-                logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
-            } catch (PDOException $e) {
-                // Проверка на ошибку foreign key constraint (код 23000 или 1451)
-                $errorCode = $e->getCode();
-                $errorInfo = $e->errorInfo;
-                $mysqlErrorCode = $errorInfo[1] ?? null;
-                
-                // Код 1451 - Cannot delete or update a parent row: a foreign key constraint fails
-                if ($errorCode === '23000' || $mysqlErrorCode === 1451) {
-                    if ($action === 'delete' && $isTrash) {
-                        $errors[] = 'Невозможно удалить категорию: на неё ссылаются новости или другие записи. Сначала удалите или переместите связанные записи.';
-                    } else {
-                        $errors[] = 'Ошибка ограничения внешнего ключа: на данную запись ссылаются другие записи.';
+                            break;
                     }
-                } else {
-                    $errors[] = 'Ошибка при выполнении операции';
+
+                    // Логирование действий
+                    $ip      = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                    $adminId = $user['id'] ?? 'unknown';
+                    logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
+                } catch (PDOException $e) {
+                    // Проверка на ошибку foreign key constraint (код 23000 или 1451)
+                    $errorCode    = $e->getCode();
+                    $errorInfo    = $e->errorInfo;
+                    $mysqlErrorCode = $errorInfo[1] ?? null;
+                    
+                    // Код 1451 - Cannot delete or update a parent row: a foreign key constraint fails
+                    if ($errorCode === '23000' || $mysqlErrorCode === 1451) {
+                        if ($action === 'delete' && $isTrash) {
+                            $errors[] = 'Невозможно удалить категорию: на неё ссылаются новости или другие записи. Сначала удалите или переместите связанные записи.';
+                        } else {
+                            $errors[] = 'Ошибка ограничения внешнего ключа: на данную запись ссылаются другие записи.';
+                        }
+                    } else {
+                        $errors[] = 'Ошибка при выполнении операции';
+                    }
+                    logEvent("Ошибка БД при массовом действии '$action' ({$catalogTable}): " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
                 }
-                logEvent("Ошибка БД при массовом действии '$action' ({$catalogTable}): " . $e->getMessage() . " — ID админа: " . ($user['id'] ?? 'unknown') . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
             }
+        } else {
+            $errors[] = 'Не выбраны записи для действия.';
         }
-    } else {
-        $errors[] = 'Не выбраны записи для действия.';
-    }
     }
 }
 
-// =============================================================================
-// ПОЛУЧЕНИЕ ДАННЫХ ИЗ ТАБЛИЦЫ (с фильтром related_table И users_id) - безопасная обработка
-// =============================================================================
+
+// ========================================
+// ПОЛУЧЕНИЕ ДАННЫХ ИЗ ТАБЛИЦЫ
+// ========================================
 
 try {
     $query = "
@@ -262,14 +269,14 @@ try {
     ";
 
     $params = [
-        ':status' => $isTrash ? 0 : 1,
+        ':status'   => $isTrash ? 0 : 1,
         ':users_id' => $currentUserId,
     ];
 
     // Поиск по названию
     if ($search !== '') {
-        $query .= " AND name LIKE :search";
-        $countQuery .= " AND name LIKE :search";
+        $query       .= " AND name LIKE :search";
+        $countQuery  .= " AND name LIKE :search";
         $params[':search'] = "%{$search}%";
     }
 
@@ -294,7 +301,7 @@ try {
                         )";
 
         // Уникальные параметры для подзапроса
-        $params[':users_id_search'] = $currentUserId;
+        $params[':users_id_search']       = $currentUserId;
         $params[':search_catalog_search'] = "%{$search_catalog}%";
     }
 
@@ -303,7 +310,7 @@ try {
     $query .= " LIMIT :limit OFFSET :offset";
 
     // Считаем количество
-    $stmt = $pdo->prepare($countQuery);
+    $stmt       = $pdo->prepare($countQuery);
     $stmt->execute($params);
     $totalUsers = (int)$stmt->fetchColumn();
 
@@ -313,15 +320,16 @@ try {
         $stmt->bindValue($k, $v);
     }
 
-    $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+    $stmt->bindValue(':limit',  (int)$limit,  PDO::PARAM_INT);
     $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
 
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    // -------------------------------------------------------------------------
-    // Подгружаем имена родителей (parent_id = ID родителя) ТОЛЬКО для текущего users_id
-    // -------------------------------------------------------------------------
+    // ========================================
+    // ПОДГРУЗКА ИМЁН РОДИТЕЛЕЙ
+    // ========================================
+
     $catalogMap = [];
     $catalogIds = [];
 
@@ -334,7 +342,7 @@ try {
     $catalogIds = array_values(array_unique($catalogIds));
 
     if (!empty($catalogIds)) {
-        $ph = implode(',', array_fill(0, count($catalogIds), '?'));
+        $ph    = implode(',', array_fill(0, count($catalogIds), '?'));
         $pStmt = $pdo->prepare("SELECT id, name FROM {$catalogTable} WHERE users_id = ? AND id IN ($ph) AND status = 1");
         $pStmt->execute(array_merge([$currentUserId], $catalogIds));
 
@@ -358,9 +366,11 @@ try {
     logEvent("Ошибка базы данных при загрузке списка {$catalogTable}: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
 }
 
-// =============================================================================
-// Подготовка шаблона
-// =============================================================================
+
+// ========================================
+// ПОДГОТОВКА ШАБЛОНА
+// ========================================
+
 $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../../../../admin/img/avatar.svg');
 ?>
 <!DOCTYPE html>

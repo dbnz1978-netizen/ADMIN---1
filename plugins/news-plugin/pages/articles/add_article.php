@@ -1,28 +1,30 @@
 <?php
+
 /**
- * Файл: /plugins/news-plugin/pages/articles/add_article.php
- *
- * Назначение:
- * - Добавление и редактирование новостей в админ-панели.
- * - Работает с таблицей news_articles.
- * - Связь с категорией хранится в колонке category_id (ID категории из news_categories).
- * - Данные хранятся в прямых колонках: title, meta_title, meta_description, content, image, url.
- * - Поле users_id автоматически заполняется $_SESSION['user_id'] при создании/редактировании.
- *
- * Структура данных:
- * - title               -> Название новости
- * - meta_title          -> SEO заголовок
- * - meta_description    -> SEO описание
- * - content             -> HTML содержимое новости (из редактора)
- * - image               -> ID(шки) изображения из медиа-библиотеки (строка "1,2,3" или "5")
- * - url                 -> URL новости
- * - category_id         -> ID категории из news_categories
- *
- * Важно по безопасности:
- * - Название таблицы нельзя передавать из пользователя. Здесь оно задаётся вручную в настройках.
+ * Название файла:      add_article.php
+ * Назначение:          Добавление и редактирование новостей в админ-панели.
+ *                      Работает с таблицей news_articles.
+ *                      Связь с категорией хранится в колонке category_id (ID категории из news_categories).
+ *                      Данные хранятся в прямых колонках: title, meta_title, meta_description, content, image, url.
+ *                      Поле users_id автоматически заполняется $_SESSION['user_id'] при создании/редактировании.
+ * Структура данных:    - title               -> Название новости
+ *                      - meta_title          -> SEO заголовок
+ *                      - meta_description    -> SEO описание
+ *                      - content             -> HTML содержимое новости (из редактора)
+ *                      - image               -> ID(шки) изображения из медиа-библиотеки (строка "1,2,3" или "5")
+ *                      - url                 -> URL новости
+ *                      - category_id         -> ID категории из news_categories
+ * Безопасность:        Название таблицы нельзя передавать из пользователя. Здесь оно задаётся вручную в настройках.
+ * Автор:               Команда разработки
+ * Версия:              1.0
+ * Дата создания:       2026-02-12
+ * Последнее изменение: 2026-02-12
  */
 
-// === КОНФИГУРАЦИЯ ===
+// ========================================
+// КОНФИГУРАЦИЯ
+// ========================================
+
 $config = [
     'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
@@ -42,17 +44,20 @@ $config = [
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
-require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина 
+require_once __DIR__ . '/../../functions/plugin_helper.php';         // Функция для автоопределения имени плагина
 require_once __DIR__ . '/../../functions/category_path.php';         // Функция для построения полного пути категории
 
 // Подключаем функции для работы с настройками плагина
 require_once __DIR__ . '/../../functions/plugin_settings.php';
 
-// --- Очищаем flash-сообщения сразу после их чтения ---
+// ========================================
+// ОЧИСТКА FLASH-СООБЩЕНИЙ
+// ========================================
+
 // Загружаем flash-сообщения из сессии (если есть) и сразу удаляем их
 if (!empty($_SESSION['flash_messages'])) {
     $successMessages = $_SESSION['flash_messages']['success'] ?? [];
-    $errors = $_SESSION['flash_messages']['error'] ?? [];
+    $errors          = $_SESSION['flash_messages']['error']   ?? [];
     // Удаляем их, чтобы не показывались при повторной загрузке
     unset($_SESSION['flash_messages']);
 }
@@ -69,9 +74,10 @@ if (!empty($_SESSION['alerts'])) {
     unset($_SESSION['alerts']);
 }
 
-// =============================================================================
-// Проверка прав администратора
-// =============================================================================
+// ========================================
+// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
+// ========================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
     logEvent("Ошибка получения данных администратора", LOG_ERROR_ENABLED, 'error');
@@ -79,15 +85,18 @@ if ($adminData === false) {
     exit;
 }
 
-// === НАСТРОЙКИ ===
-$pluginName = getPluginName();                    // Автоматическое определение имени плагина из структуры директорий
-$titlemeta = 'Новости';                       // Название заголовка H1 для раздела
-$titlemetah3 = 'Редактирование новости';      // Название заголовка H2 для раздела
-$titlemeta_h3 = 'Добавление новости';         // Название заголовка H2 для раздела
-$catalogTable = 'news_articles';              // Название таблицы новостей
-$categoryTable = 'news_categories';           // Название таблицы категорий
-$categoryUrlPrefix = 'news';                  // Префикс URL категории
-$maxDigits = getPluginMaxDigits($pdo, $pluginName, 'add_article', 50);  // Ограничение на количество изображений из настроек плагина
+// ========================================
+// НАСТРОЙКИ
+// ========================================
+
+$pluginName         = getPluginName();                    // Автоматическое определение имени плагина из структуры директорий
+$titlemeta          = 'Новости';                          // Название заголовка H1 для раздела
+$titlemetah3        = 'Редактирование новости';           // Название заголовка H2 для раздела
+$titlemeta_h3       = 'Добавление новости';               // Название заголовка H2 для раздела
+$catalogTable       = 'news_articles';                    // Название таблицы новостей
+$categoryTable      = 'news_categories';                  // Название таблицы категорий
+$categoryUrlPrefix  = 'news';                             // Префикс URL категории
+$maxDigits          = getPluginMaxDigits($pdo, $pluginName, 'add_article', 50);  // Ограничение на количество изображений из настроек плагина
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -96,42 +105,46 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // Текущий user_id из сессии
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 
-// =============================================================================
+// ========================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
-// =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
-$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+// ========================================
 
-// =============================================================================
-// CSRF helpers
-// =============================================================================
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
+$currentData   = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+
+// ========================================
+// CSRF HELPERS
+// ========================================
+
 function validateCsrfTokenFromHeader(): bool {
     $headersToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     return isset($_SESSION['csrf_token']) && is_string($headersToken) && hash_equals($_SESSION['csrf_token'], $headersToken);
 }
 
-// =============================================================================
-// Переменные страницы
-// =============================================================================
+// ========================================
+// ПЕРЕМЕННЫЕ СТРАНИЦЫ
+// ========================================
+
 $isEditMode = isset($_GET['id']);
-$itemId = $isEditMode ? (int)$_GET['id'] : null;
+$itemId     = $isEditMode ? (int)$_GET['id'] : null;
 
 // Значения по умолчанию (для формы)
-$defaultTitle = '';
-$defaultUrl = '';
-$defaultMetaTitle = '';
+$defaultTitle          = '';
+$defaultUrl            = '';
+$defaultMetaTitle      = '';
 $defaultMetaDescription = '';
-$content = '';
-$defaultSorting = 0;
-$defaultStatus = 1;
-$image = '';
-$defaultCategoryId = null;
-$defaultCategoryName = '';
-$categoryFullPath = '';
+$content               = '';
+$defaultSorting        = 0;
+$defaultStatus         = 1;
+$image                 = '';
+$defaultCategoryId     = null;
+$defaultCategoryName   = '';
+$categoryFullPath      = '';
 
-// =============================================================================
-// Загрузка записи для редактирования (+ фильтр users_id)
-// =============================================================================
+// ========================================
+// ЗАГРУЗКА ЗАПИСИ ДЛЯ РЕДАКТИРОВАНИЯ (+ ФИЛЬТР USERS_ID)
+// ========================================
+
 if ($isEditMode && $itemId) {
     try {
         // Читаем редактируемую запись (+ users_id)
@@ -141,12 +154,12 @@ if ($isEditMode && $itemId) {
 
         if ($item) {
             // Простые поля таблицы
-            $defaultTitle = $item['title'] ?? '';
-            $defaultUrl = $item['url'] ?? '';
-            $defaultMetaTitle = $item['meta_title'] ?? '';
+            $defaultTitle          = $item['title'] ?? '';
+            $defaultUrl            = $item['url'] ?? '';
+            $defaultMetaTitle      = $item['meta_title'] ?? '';
             $defaultMetaDescription = $item['meta_description'] ?? '';
-            $defaultSorting = (int)($item['sorting'] ?? 0);
-            $defaultStatus = (int)($item['status'] ?? 1);
+            $defaultSorting        = (int)($item['sorting'] ?? 0);
+            $defaultStatus         = (int)($item['status'] ?? 1);
 
             // Категория (ID)
             $categoryRaw = $item['category_id'] ?? 0;
@@ -176,11 +189,11 @@ if ($isEditMode && $itemId) {
                 if ($cRow && isset($cRow['name'])) {
                     $defaultCategoryName = (string)$cRow['name'];
                 } else {
-                    $defaultCategoryId = null;
+                    $defaultCategoryId   = null;
                     $defaultCategoryName = '';
                 }
             } else {
-                $defaultCategoryId = null;
+                $defaultCategoryId   = null;
                 $defaultCategoryName = '';
             }
 
@@ -197,11 +210,10 @@ if ($isEditMode && $itemId) {
     }
 }
 
-// =============================================================================
-// AJAX: поиск категорий (+ фильтр users_id + status = 1)
-// GET add_article.php?action=category_search&q=...&exclude_id=...
-// Ответ: {error:false, items:[{id,name,url},...]}
-// =============================================================================
+// ========================================
+// AJAX: ПОИСК КАТЕГОРИЙ (+ ФИЛЬТР USERS_ID + STATUS = 1)
+// ========================================
+
 if (isset($_GET['action']) && $_GET['action'] === 'category_search') {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -222,9 +234,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'category_search') {
     }
 
     // Защита от частых запросов
-    $rateLimitKey = 'category_search_' . $currentUserId;
+    $rateLimitKey    = 'category_search_' . $currentUserId;
     $lastRequestTime = $_SESSION[$rateLimitKey] ?? 0;
-    $currentTime = time();
+    $currentTime     = time();
     if (($currentTime - $lastRequestTime) < 1) { // 1 секунда между запросами
         http_response_code(429);
         logEvent("Rate limit превышен для category_search", LOG_ERROR_ENABLED, 'error');
@@ -234,8 +246,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'category_search') {
     $_SESSION[$rateLimitKey] = $currentTime;
 
     // Валидация и санитизация входных данных
-    $q = trim((string)($_GET['q'] ?? ''));
-    $excludeId = isset($_GET['exclude_id']) ? (int)$_GET['exclude_id'] : 0;
+    $q          = trim((string)($_GET['q'] ?? ''));
+    $excludeId  = isset($_GET['exclude_id']) ? (int)$_GET['exclude_id'] : 0;
 
     // ИСПОЛЬЗУЕМ ВАШУ ФУНКЦИЮ ВАЛИДАЦИИ
     $result = validateTextareaField($q, 2, 100, 'Поиск');
@@ -296,9 +308,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'category_search') {
     }
 }
 
-// =============================================================================
-// Обработка формы (создание/обновление) + users_id
-// =============================================================================
+// ========================================
+// ОБРАБОТКА ФОРМЫ (СОЗДАНИЕ/ОБНОВЛЕНИЕ) + USERS_ID
+// ========================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrfToken = $_POST['csrf_token'] ?? '';
 
@@ -306,9 +319,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Недействительная форма. Обновите страницу.';
         logEvent("CSRF ошибка в add_article.php", LOG_ERROR_ENABLED, 'error');
     } else {
-        // ---------------------------------------------------------------
-        // 1) Валидация основных полей формы
-        // ---------------------------------------------------------------
+        // ========================================
+        // 1) ВАЛИДАЦИЯ ОСНОВНЫХ ПОЛЕЙ ФОРМЫ
+        // ========================================
 
         // Название новости
         $title = trim($_POST['title'] ?? '');
@@ -354,9 +367,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $content = sanitizeHtmlFromEditor($_POST['content'] ?? '');
 
         // Прочие поля
-        $url = trim($_POST['url'] ?? '');
-        $sorting = (int)($_POST['sorting'] ?? 0);
-        $status = isset($_POST['status']) ? 1 : 0;
+        $url         = trim($_POST['url'] ?? '');
+        $sorting     = (int)($_POST['sorting'] ?? 0);
+        $status      = isset($_POST['status']) ? 1 : 0;
         $category_id = isset($_POST['category_id']) && $_POST['category_id'] !== '' ? (int)$_POST['category_id'] : 0;
 
         // Валидация категории (обязательное поле)
@@ -380,9 +393,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sorting = 0;
         }
 
-        // ---------------------------------------------------------------
-        // 2) Подготовка URL
-        // ---------------------------------------------------------------
+        // ========================================
+        // 2) ПОДГОТОВКА URL
+        // ========================================
+
         if ($url === '') {
             $url = transliterate($title);
         } else {
@@ -394,10 +408,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             logEvent("Ошибка: короткий URL после транслитерации", LOG_ERROR_ENABLED, 'error');
         }
 
-        // ---------------------------------------------------------------
-        // 3) Проверка категории (+ users_id + status = 1)
-        // ВАЖНО: категория должна существовать в news_categories + users_id + status = 1
-        // ---------------------------------------------------------------
+        // ========================================
+        // 3) ПРОВЕРКА КАТЕГОРИИ (+ USERS_ID + STATUS = 1)
+        // ========================================
+
         if ($category_id > 0) {
             $stmt = $pdo->prepare("SELECT id FROM {$categoryTable} WHERE id = ? AND users_id = ? AND status = 1 LIMIT 1");
             $stmt->execute([$category_id, $currentUserId]);
@@ -409,11 +423,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // ---------------------------------------------------------------
-        // 4) Проверка уникальности URL (только внутри news_articles + users_id)
-        // ---------------------------------------------------------------
+        // ========================================
+        // 4) ПРОВЕРКА УНИКАЛЬНОСТИ URL (ТОЛЬКО ВНУТРИ NEWS_ARTICLES + USERS_ID)
+        // ========================================
+
         if (empty($errors)) {
-            $sql = "SELECT id FROM {$catalogTable} WHERE url = ? AND users_id = ?";
+            $sql    = "SELECT id FROM {$catalogTable} WHERE url = ? AND users_id = ?";
             $params = [$url, $currentUserId];
             if ($isEditMode && $itemId) {
                 $sql .= " AND id != ?";
@@ -430,9 +445,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // ---------------------------------------------------------------
-        // 5) Сохранение в БД (+ users_id)
-        // ---------------------------------------------------------------
+        // ========================================
+        // 5) СОХРАНЕНИЕ В БД (+ USERS_ID)
+        // ========================================
+
         if (empty($errors)) {
             try {
                 if ($isEditMode && $itemId) {
@@ -517,12 +533,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// =============================================================================
-// Подготовка данных для шаблона
-// =============================================================================
+// ========================================
+// ПОДГОТОВКА ДАННЫХ ДЛЯ ШАБЛОНА
+// ========================================
+
 $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../../../../admin/img/avatar.svg');
 
-$formCategoryId = isset($_POST['category_id'])
+$formCategoryId   = isset($_POST['category_id'])
     ? (int)($_POST['category_id'] === '' ? 0 : $_POST['category_id'])
     : (int)($defaultCategoryId ?? 0);
 

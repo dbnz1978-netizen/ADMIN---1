@@ -1,29 +1,22 @@
 <?php
+
 /**
- * Файл: /plugins/news-plugin/pages/articles/article_list.php
- *
- * Назначение:
- * - Админ-страница со списком новостей.
- * - Поддерживает поиск по заголовку и поиск по категории.
- * - Поддерживает "корзину" (status=0) и активные записи (status=1).
- * - Поддерживает массовые действия (в корзину / восстановить / удалить навсегда).
- * - ФИЛЬТРАЦИЯ ПО users_id = $_SESSION['user_id'] для основных записей и категорий.
- *
- * Важно:
- * - Таблица новостей: news_articles
- * - Таблица категорий: news_categories
- * - Изображение берётся из прямой колонки image (не JSON).
- *
- * Где добавлять новые поля:
- * - В блоке SELECT: можно добавить любое поле из таблицы news_articles
- * - В блоке вывода: использовать $row['field_name']
- *
- * Безопасность:
- * - PDO не поддерживает плейсхолдеры для имён таблиц, поэтому таблицу нельзя брать из GET/POST.
- *   Здесь $catalogTable задаётся вручную (глобальная настройка).
+ * Название файла:      article_list.php
+ * Назначение:          Админ-страница со списком новостей.
+ *                      Поддерживает поиск по заголовку и категории.
+ *                      Поддерживает "корзину" (status=0) и активные записи (status=1).
+ *                      Поддерживает массовые действия (в корзину/восстановить/удалить).
+ *                      Фильтрация по users_id = $_SESSION['user_id'].
+ * Автор:               Админ-панель / Команда
+ * Версия:              1.0
+ * Дата создания:       2026-02-12
+ * Последнее изменение: 2026-02-12
  */
 
-// === КОНФИГУРАЦИЯ ===
+// ==============================================================================
+// КОНФИГУРАЦИЯ
+// ==============================================================================
+
 $config = [
     'display_errors'  => false,         // включение отображения ошибок true/false
     'set_encoding'    => true,          // включение кодировки UTF-8
@@ -46,9 +39,10 @@ require_once __DIR__ . '/../../functions/pagination.php';            // Функ
 require_once __DIR__ . '/../../functions/get_record_avatar.php';     // Функция для получения изображения записи
 
 
-// =============================================================================
-// Проверка прав администратора
-// =============================================================================
+// ==============================================================================
+// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
+// ==============================================================================
+
 $adminData = getAdminData($pdo);
 if ($adminData === false) {
     
@@ -56,27 +50,34 @@ if ($adminData === false) {
     exit;
 }
 
-// === НАСТРОЙКИ ===
-$titlemeta = 'Новости';                      // Название заголовка H1 для раздела
-$titlemetah3 = 'Редактирование новостей';    // Название заголовка H2 для раздела
-$catalogTable = 'news_articles';             // Название таблицы новостей
-$categoryTable = 'news_categories';          // Название таблицы категорий
-$categoryUrlPrefix = 'news';                 // Префикс URL категории
+
+// ==============================================================================
+// НАСТРОЙКИ
+// ==============================================================================
+
+$titlemeta         = 'Новости';                      // Название заголовка H1 для раздела
+$titlemetah3       = 'Редактирование новостей';    // Название заголовка H2 для раздела
+$catalogTable      = 'news_articles';               // Название таблицы новостей
+$categoryTable     = 'news_categories';             // Название таблицы категорий
+$categoryUrlPrefix = 'news';                        // Префикс URL категории
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
-// =============================================================================
-// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
-// =============================================================================
-$pluginName = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
-$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
-// =============================================================================
+// ==============================================================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// ==============================================================================
+
+$pluginName     = getPluginName();  // Автоматическое определение имени плагина из структуры директорий
+$userDataAdmin  = pluginAccessGuard($pdo, $pluginName);
+$currentData    = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+
+
+// ==============================================================================
 // ПАРАМЕТРЫ/ФИЛЬТРЫ (GET) - Валидация и безопасная обработка
-// =============================================================================
+// ==============================================================================
 
 // Режим "корзины" - валидация значения
 $isTrash = false;
@@ -108,13 +109,13 @@ $page = 1;
 if (isset($_GET['page'])) {
     $pageResult = filter_var($_GET['page'], FILTER_VALIDATE_INT, [
         'options' => [
-            'default' => 1,
+            'default'   => 1,
             'min_range' => 1
         ]
     ]);
     $page = max(1, $pageResult);
 }
-$limit = 30;
+$limit  = 30;
 $offset = ($page - 1) * $limit;
 
 // Текущий user_id из сессии - безопасное получение
@@ -123,9 +124,11 @@ if (isset($_SESSION['user_id'])) {
     $currentUserId = max(0, (int)$_SESSION['user_id']);
 }
 
-// =============================================================================
+
+// ==============================================================================
 // ОБРАБОТКА МАССОВЫХ ДЕЙСТВИЙ (POST) - Валидация и безопасная обработка
-// =============================================================================
+// ==============================================================================
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_POST['user_ids'])) {
     $csrfToken = $_POST['csrf_token'] ?? '';
     
@@ -211,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
                     }
 
                     // Логирование действий
-                    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+                    $ip      = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
                     $adminId = $user['id'] ?? 'unknown';
                     logEvent("Выполнено массовое действие '$action' администратором ID: $adminId над {$catalogTable} IDs: " . implode(',', $userIds) . " — users_id=$currentUserId — IP: $ip", LOG_INFO_ENABLED, 'info');
 
@@ -226,9 +229,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
     }
 }
 
-// =============================================================================
+
+// ==============================================================================
 // ПОЛУЧЕНИЕ ДАННЫХ ИЗ ТАБЛИЦЫ (с фильтром users_id) - безопасная обработка
-// =============================================================================
+// ==============================================================================
 
 // [НОВОЕ ПОЛЕ] - Добавьте здесь новые поля, которые хотите получить из таблицы news_articles
 try {
@@ -254,13 +258,13 @@ try {
     ";
 
     $params = [
-        ':status' => $isTrash ? 0 : 1,
+        ':status'   => $isTrash ? 0 : 1,
         ':users_id' => $currentUserId,
     ];
 
     // Поиск по названию
     if ($search !== '') {
-        $query .= " AND title LIKE :search";
+        $query      .= " AND title LIKE :search";
         $countQuery .= " AND title LIKE :search";
         $params[':search'] = "%{$search}%";
     }
@@ -286,7 +290,7 @@ try {
                         )";
 
         // Уникальные параметры для подзапроса
-        $params[':users_id_search'] = $currentUserId;
+        $params[':users_id_search']       = $currentUserId;
         $params[':search_catalog_search'] = "%{$search_catalog}%";
     }
 
@@ -305,7 +309,7 @@ try {
         $stmt->bindValue($k, $v);
     }
 
-    $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+    $stmt->bindValue(':limit',  (int)$limit,  PDO::PARAM_INT);
     $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
 
     $stmt->execute();
@@ -314,8 +318,9 @@ try {
     // -------------------------------------------------------------------------
     // Подгружаем имена категорий (category_id = ID категории) ТОЛЬКО для текущего users_id
     // -------------------------------------------------------------------------
-    $catalogMap = [];
-    $catalogIds = [];
+
+    $catalogMap  = [];
+    $catalogIds  = [];
 
     foreach ($users as $u) {
         $pid = (int)($u['category_id'] ?? 0);
@@ -326,7 +331,7 @@ try {
     $catalogIds = array_values(array_unique($catalogIds));
 
     if (!empty($catalogIds)) {
-        $ph = implode(',', array_fill(0, count($catalogIds), '?'));
+        $ph    = implode(',', array_fill(0, count($catalogIds), '?'));
         $pStmt = $pdo->prepare("SELECT id, name FROM {$categoryTable} WHERE users_id = ? AND id IN ($ph) AND status = 1");
         $pStmt->execute(array_merge([$currentUserId], $catalogIds));
 
@@ -348,11 +353,12 @@ try {
     logEvent("Ошибка базы данных при загрузке списка {$catalogTable}: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
 }
 
-// =============================================================================
-// Подготовка шаблона
-// =============================================================================
-$logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../../../../admin/img/avatar.svg');
 
+// ==============================================================================
+// ПОДГОТОВКА ШАБЛОНА
+// ==============================================================================
+
+$logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '', 'thumbnail', '../../../../admin/img/avatar.svg');
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -525,9 +531,9 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
                                     <?php
                                         // Используем новую функцию getRecordAvatar для получения изображения
                                         $rowImage = getRecordAvatar(
-                                            $pdo,                      //Объект PDO для подключения к базе данных
-                                            (int)$row['id'],           //ID записи
-                                            $currentUserId,            //ID пользователя
+                                            $pdo,                      // Объект PDO для подключения к базе данных
+                                            (int)$row['id'],           // ID записи
+                                            $currentUserId,            // ID пользователя
                                             $catalogTable              // Название таблицы (например: 'news_articles')
                                         );
                                     ?>
@@ -563,10 +569,10 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
                                         <?php if (!empty($row['catalog_name'])): ?>
                                             <?php
                                                 $catalogLink = '?' . http_build_query(array_filter([
-                                                    'trash'  => $isTrash ? '1' : null,
-                                                    'search' => null,
+                                                    'trash'          => $isTrash ? '1' : null,
+                                                    'search'         => null,
                                                     'search_catalog' => $row['catalog_name'],
-                                                    'page'   => 1
+                                                    'page'           => 1
                                                 ]));
                                             ?>
                                             <a href="<?= escape($catalogLink) ?>" class="text-decoration-none">
@@ -640,8 +646,8 @@ $logo_profile = getFileVersionFromList($pdo, $currentData['profile_logo'] ?? '',
                 $page,                                           // Текущая страница
                 $totalPages,                                     // Общее количество страниц
                 array_filter([                                   // Массив GET-параметров для формирования ссылок пагинации. Можно менять
-                    'trash' => $isTrash ? '1' : null,            // Фильтр: показывать корзину (1) или нет (null)
-                    'search' => $search,                         // Фильтр: поиск по названию записи
+                    'trash'          => $isTrash ? '1' : null,   // Фильтр: показывать корзину (1) или нет (null)
+                    'search'         => $search,                 // Фильтр: поиск по названию записи
                     'search_catalog' => $search_catalog,         // Фильтр: поиск по категории
                 ])
             ); 

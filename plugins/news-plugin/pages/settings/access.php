@@ -340,7 +340,18 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                     ];
 
                     foreach ($sizeLabels as $sizeName => $sizeLabel):
+                        // Проверяем наличие размера в конфигурации
+                        if (!isset($currentImageSizes[$sizeName]) || !is_array($currentImageSizes[$sizeName])) {
+                            continue; // Пропускаем, если размер отсутствует или некорректен
+                        }
+                        
                         $sizeConfig = $currentImageSizes[$sizeName];
+                        
+                        // Проверяем, что массив содержит 3 элемента
+                        if (count($sizeConfig) !== 3) {
+                            continue; // Пропускаем некорректную конфигурацию
+                        }
+                        
                         $width = $sizeConfig[0];
                         $height = $sizeConfig[1];
                         $mode = $sizeConfig[2];

@@ -44,6 +44,9 @@ require_once __DIR__ . '/../../../../admin/functions/init.php';
 // Подключаем дополнительную инициализацию
 require_once __DIR__ . '/../../functions/category_path.php'; // Функция для построения полного пути категории
 
+// Подключаем систему управления доступом к плагинам
+require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
+
 // --- Очищаем flash-сообщения сразу после их чтения ---
 // Загружаем flash-сообщения из сессии (если есть) и сразу удаляем их
 if (!empty($_SESSION['flash_messages'])) {
@@ -91,27 +94,11 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // Текущий user_id из сессии
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 
-try {
-    $user = requireAuth($pdo);
-    if (!$user) {
-        logEvent("Ошибка аутентификации пользователя", LOG_ERROR_ENABLED, 'error');
-        header("Location: ../../../../admin/logout.php");
-        exit;
-    }
-    
-    $userDataAdmin = getUserData($pdo, $user['id']);
-    if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        logEvent($userDataAdmin['message'], LOG_ERROR_ENABLED, 'error');
-        header("Location: ../../../../admin/logout.php");
-        exit;
-    }
-    
-    $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-} catch (Exception $e) {
-    logEvent("Ошибка инициализации add_category.php: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
-    header("Location: ../../../../admin/logout.php");
-    exit;
-}
+// =============================================================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// =============================================================================
+$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================
 // CSRF helpers

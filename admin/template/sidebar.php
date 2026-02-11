@@ -246,8 +246,22 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                     }
                 }
                 
+                // Подключаем систему управления доступом к плагинам
+                if (!function_exists('filterPluginMenusByAccess')) {
+                    $pluginAccessPath = __DIR__ . '/../functions/plugin_access.php';
+                    if (file_exists($pluginAccessPath)) {
+                        require_once $pluginAccessPath;
+                    }
+                }
+                
                 // Получаем меню включенных плагинов, если функция доступна
                 $pluginMenus = function_exists('getPluginMenus') ? getPluginMenus($pdo) : [];
+                
+                // Фильтруем меню плагинов на основе прав доступа пользователя
+                if (function_exists('filterPluginMenusByAccess')) {
+                    $userRole = $userDataAdmin['author'] ?? 'user';
+                    $pluginMenus = filterPluginMenusByAccess($pdo, $pluginMenus, $userRole);
+                }
                 
                 // Отображаем меню каждого плагина
                 foreach ($pluginMenus as $index => $menu):

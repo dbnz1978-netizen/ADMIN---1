@@ -21,6 +21,11 @@
       "title": "Добавить новость",
       "icon": "bi-plus-circle",
       "url": "/plugins/news-plugin/pages/articles/add_article.php"
+    },
+    {
+      "title": "Настройки",
+      "icon": "bi-gear",
+      "url": "/plugins/news-plugin/pages/settings/access.php"
     }
   ]
 }

@@ -6,12 +6,12 @@ if (!defined('APP_ACCESS')) {
 }
 ?>
 
-<!-- Меню настройки статьи -->
+<!-- Меню настройки новости -->
 <div class="mb-3">
     <?php if (isset($_GET['news_id']) && !empty($_GET['news_id']) && is_numeric($_GET['news_id'])) { ?>
         <a href="add_article.php?id=<?= isset($_GET['news_id']) ? (int)$_GET['news_id'] : 0; ?>" 
             class="btn btn-primary btn-sm tooltip-example">
-            <i class="bi bi-arrow-left"></i> Вернуться к статье 
+            <i class="bi bi-arrow-left"></i> Вернуться к новости 
         </a>
     <?php }  ?>
 

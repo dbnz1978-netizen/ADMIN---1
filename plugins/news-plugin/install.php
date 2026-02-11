@@ -54,14 +54,14 @@ function plugin_install($pdo)
         
         $pdo->exec($sql1);
         
-        // Создаем таблицу статей новостей
+        // Создаем таблицу новостей
         $sql2 = "CREATE TABLE IF NOT EXISTS `news_articles` (
             `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
             `users_id` BIGINT UNSIGNED NOT NULL,
             `category_id` BIGINT UNSIGNED NOT NULL COMMENT 'ID категории',
             `title` VARCHAR(255) NOT NULL COMMENT 'Заголовок новости',
             `url` VARCHAR(255) NOT NULL COMMENT 'ЧПУ-URL',
-            `content` LONGTEXT NOT NULL COMMENT 'Текст статьи',
+            `content` LONGTEXT NOT NULL COMMENT 'Текст новости',
             `image` VARCHAR(255) NULL,
             `meta_title` VARCHAR(255) NULL,
             `meta_description` VARCHAR(255) NULL,

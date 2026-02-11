@@ -3,19 +3,19 @@
  * Файл: /plugins/news-plugin/pages/articles/add_article.php
  *
  * Назначение:
- * - Добавление и редактирование статей (записей) новостей в админ-панели.
+ * - Добавление и редактирование новостей в админ-панели.
  * - Работает с таблицей news_articles.
  * - Связь с категорией хранится в колонке category_id (ID категории из news_categories).
  * - Данные хранятся в прямых колонках: title, meta_title, meta_description, content, image, url.
  * - Поле users_id автоматически заполняется $_SESSION['user_id'] при создании/редактировании.
  *
  * Структура данных:
- * - title               -> Название статьи
+ * - title               -> Название новости
  * - meta_title          -> SEO заголовок
  * - meta_description    -> SEO описание
- * - content             -> HTML содержимое статьи (из редактора)
+ * - content             -> HTML содержимое новости (из редактора)
  * - image               -> ID(шки) изображения из медиа-библиотеки (строка "1,2,3" или "5")
- * - url                 -> URL статьи
+ * - url                 -> URL новости
  * - category_id         -> ID категории из news_categories
  *
  * Важно по безопасности:
@@ -74,10 +74,10 @@ if ($adminData === false) {
 }
 
 // === НАСТРОЙКИ ===
-$titlemeta = 'Статьи';                        // Название заголовка H1 для раздела
-$titlemetah3 = 'Редактирование статьи';       // Название заголовка H2 для раздела
-$titlemeta_h3 = 'Добавление статьи';          // Название заголовка H2 для раздела
-$catalogTable = 'news_articles';              // Название таблицы статей
+$titlemeta = 'Новости';                       // Название заголовка H1 для раздела
+$titlemetah3 = 'Редактирование новости';      // Название заголовка H2 для раздела
+$titlemeta_h3 = 'Добавление новости';         // Название заголовка H2 для раздела
+$catalogTable = 'news_articles';              // Название таблицы новостей
 $categoryTable = 'news_categories';           // Название таблицы категорий
 $categoryUrlPrefix = 'news';                  // Префикс URL категории
 $maxDigits = 50;                              // Ограничение на количество изображений
@@ -193,16 +193,16 @@ if ($isEditMode && $itemId) {
                 $defaultCategoryName = '';
             }
 
-            logEvent("Успешная загрузка статьи для редактирования ID=$itemId", LOG_INFO_ENABLED, 'info');
+            logEvent("Успешная загрузка новости для редактирования ID=$itemId", LOG_INFO_ENABLED, 'info');
         } else {
-            $errors[] = 'Статья не найдена';
-            logEvent("Статья не найдена ID=$itemId", LOG_ERROR_ENABLED, 'error');
+            $errors[] = 'Новость не найдена';
+            logEvent("Новость не найдена ID=$itemId", LOG_ERROR_ENABLED, 'error');
             header("Location: article_list.php");
             exit;
         }
     } catch (PDOException $e) {
         $errors[] = 'Ошибка загрузки данных';
-        logEvent("Ошибка загрузки статьи ID=$itemId ({$catalogTable}): " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+        logEvent("Ошибка загрузки новости ID=$itemId ({$catalogTable}): " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
     }
 }
 
@@ -319,16 +319,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 1) Валидация основных полей формы
         // ---------------------------------------------------------------
 
-        // Название статьи
+        // Название новости
         $title = trim($_POST['title'] ?? '');
-        $result = validateTextareaField($title, 1, 200, 'Название статьи');
+        $result = validateTextareaField($title, 1, 200, 'Название новости');
         if ($result['valid']) {
             $title = $result['value'];
-            logEvent("Успешная валидация поля 'Название статьи'", LOG_INFO_ENABLED, 'info');
+            logEvent("Успешная валидация поля 'Название новости'", LOG_INFO_ENABLED, 'info');
         } else {
             $errors[] = $result['error'];
             $title = false;
-            logEvent("Ошибка валидации поля 'Название статьи': " . $result['error'], LOG_ERROR_ENABLED, 'error');
+            logEvent("Ошибка валидации поля 'Название новости': " . $result['error'], LOG_ERROR_ENABLED, 'error');
         }
 
         // Meta Title (SEO)
@@ -476,8 +476,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $currentUserId  // Проверка users_id
                     ]);
 
-                    $successMessages[] = 'Статья успешно обновлена';
-                    logEvent("Обновлена статья {$catalogTable} ID=$itemId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
+                    $successMessages[] = 'Новость успешно обновлена';
+                    logEvent("Обновлена новость {$catalogTable} ID=$itemId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
                 } else {
                     // INSERT (+ users_id)
                     $stmt = $pdo->prepare("
@@ -500,8 +500,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
 
                     $newId = (int)$pdo->lastInsertId();
-                    $successMessages[] = 'Статья успешно создана';
-                    logEvent("Создана новая статья {$catalogTable} ID=$newId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
+                    $successMessages[] = 'Новость успешно создана';
+                    logEvent("Создана новая новость {$catalogTable} ID=$newId users_id=$currentUserId", LOG_INFO_ENABLED, 'info');
                 }
 
                 // После успешного сохранения - перенаправляем
@@ -520,7 +520,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             } catch (PDOException $e) {
                 $errors[] = 'Ошибка сохранения данных';
-                logEvent("Ошибка сохранения статьи {$catalogTable}: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
+                logEvent("Ошибка сохранения новости {$catalogTable}: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
             }
         }
     }
@@ -607,7 +607,7 @@ if (isset($_POST['category_name'])) {
                             <?php if ($isEditMode && $itemId && $categoryFullPath): ?>
                                 <a href="/<?= escape($categoryUrlPrefix) ?>/<?= escape($categoryFullPath) ?>/<?= escape($defaultUrl) ?>" target="_blank"
                                     class="btn btn-outline-primary"
-                                    title="Открыть страницу статьи в новом окне">
+                                    title="Открыть страницу новости в новом окне">
                                     <i class="bi bi-box-arrow-up-right"></i> Просмотр
                                 </a>
                             <?php endif; ?>
@@ -627,7 +627,7 @@ if (isset($_POST['category_name'])) {
                     <!-- Название -->
                     <div class="row mb-3">
                         <div class="col-12">
-                            <label class="form-label">Название статьи <span class="text-danger">*</span></label>
+                            <label class="form-label">Название новости <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="title" required maxlength="255"
                                 value="<?= escape($title ?? $defaultTitle) ?>">
                         </div>
@@ -773,13 +773,13 @@ if (isset($_POST['category_name'])) {
                     </div>
                 </div>
 
-                <!-- Содержимое статьи -->
+                <!-- Содержимое новости -->
                 <div class="mb-5">
                     <h3 class="card-title">
                         <i class="bi bi-card-checklist"></i>
-                        Содержимое статьи
+                        Содержимое новости
                     </h3>
-                    <div class="form-text">Полное содержимое статьи.</div>
+                    <div class="form-text">Полное содержимое новости.</div>
                     <?php renderHtmlEditor('content', $content); ?>
                 </div>
 
@@ -791,7 +791,7 @@ if (isset($_POST['category_name'])) {
                                 <?= ($status ?? $defaultStatus) ? 'checked' : '' ?>>
                             <label class="form-check-label" for="status">Активна</label>
                         </div>
-                        <div class="form-text">Показывать статью на сайте</div>
+                        <div class="form-text">Показывать новость на сайте</div>
                     </div>
                 </div>
 

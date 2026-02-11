@@ -126,7 +126,7 @@ filterPluginMenusByAccess($pdo, $menus, $role) → array
 // В users.data администратора
 [
     'plugins_access' => [
-        'news' => [
+        'news-plugin' => [
             'user' => true,
             'admin' => true
         ],
@@ -159,7 +159,7 @@ filterPluginMenusByAccess($pdo, $menus, $role) → array
 
 ```php
 // Показать кнопку только для разрешённых
-if (hasPluginAccess($pdo, 'news', $userDataAdmin['author'])) {
+if (hasPluginAccess($pdo, 'news-plugin', $userDataAdmin['author'])) {
     echo '<a href="/plugins/news-plugin/...">Открыть</a>';
 }
 ```
@@ -167,7 +167,7 @@ if (hasPluginAccess($pdo, 'news', $userDataAdmin['author'])) {
 ### Условный рендеринг в шаблонах
 
 ```php
-<?php if (hasPluginAccess($pdo, 'news', $userDataAdmin['author'])): ?>
+<?php if (hasPluginAccess($pdo, 'news-plugin', $userDataAdmin['author'])): ?>
     <div class="news-section">
         <!-- Контент для пользователей с доступом -->
     </div>
@@ -180,8 +180,8 @@ if (hasPluginAccess($pdo, 'news', $userDataAdmin['author'])) {
 
 ```php
 // Будущее API
-$accessSettings['news']['moderator'] = true;
-pluginAccessGuard($pdo, 'news', 'moderator');
+$accessSettings['news-plugin']['moderator'] = true;
+pluginAccessGuard($pdo, 'news-plugin', 'moderator');
 ```
 
 ## Производительность

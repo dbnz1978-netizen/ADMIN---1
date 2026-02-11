@@ -10,7 +10,7 @@
                      │
                      ▼
 ┌──────────────────────────────────────────────────────────┐
-│ pluginAccessGuard($pdo, 'news')                          │
+│ pluginAccessGuard($pdo, 'news-plugin')                   │
 └────────────────────┬─────────────────────────────────────┘
                      │
                      ▼
@@ -163,7 +163,7 @@
                                ▼
                   ┌─────────────────────────┐
                   │ Обновить структуру:     │
-                  │ plugins_access.news = { │
+                  │ plugins_access.news-plugin = { │
                   │   user: true/false      │
                   │   admin: true/false     │
                   │ }                       │

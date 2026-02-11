@@ -30,7 +30,7 @@
 
 ### ✅ 5. Хранение настроек
 - JSON в поле `users.data` администратора
-- Структура: `plugins_access.news.user` / `plugins_access.news.admin`
+- Структура: `plugins_access.news-plugin.user` / `plugins_access.news-plugin.admin`
 - Расширяема для других плагинов
 
 ### ✅ 6. Страница настроек
@@ -90,11 +90,11 @@ QUICKSTART.md                              → Быстрый старт
 
 ```php
 // Проверка доступа
-hasPluginAccess($pdo, 'news', 'user') → bool
+hasPluginAccess($pdo, 'news-plugin', 'user') → bool
 
 // Защита страницы
-pluginAccessGuard($pdo, 'news') → array
-pluginAccessGuard($pdo, 'news', 'admin') → array
+pluginAccessGuard($pdo, 'news-plugin') → array
+pluginAccessGuard($pdo, 'news-plugin', 'admin') → array
 
 // Настройки
 getPluginAccessSettings($pdo) → array

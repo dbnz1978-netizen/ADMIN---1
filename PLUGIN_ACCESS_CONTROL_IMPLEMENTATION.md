@@ -45,7 +45,7 @@
 - `pages/categories/add_category.php`
 - `pages/settings/access.php` (admin-only)
 
-Во всех страницах добавлен вызов `pluginAccessGuard($pdo, 'news')`, который:
+Во всех страницах добавлен вызов `pluginAccessGuard($pdo, 'news-plugin')`, который:
 - Проверяет авторизацию
 - Определяет роль пользователя
 - Проверяет права доступа
@@ -101,17 +101,17 @@
 require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
 
 // Защитить страницу (любая разрешённая роль)
-$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
 
 // Защитить страницу (только admin)
-$userDataAdmin = pluginAccessGuard($pdo, 'news', 'admin');
+$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin', 'admin');
 ```
 
 ### Проверка доступа вручную
 
 ```php
 $userRole = $userDataAdmin['author']; // 'user' или 'admin'
-if (hasPluginAccess($pdo, 'news', $userRole)) {
+if (hasPluginAccess($pdo, 'news-plugin', $userRole)) {
     // Доступ разрешён
 }
 ```

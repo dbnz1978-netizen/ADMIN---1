@@ -269,7 +269,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                 <?php displayAlerts(
                     $successMessages,  // Массив сообщений об успехе
                     $errors,           // Массив сообщений об ошибках
-                    true              // Показывать сообщения как toast-уведомления true/false
+                    true               // Показывать сообщения как toast-уведомления true/false
                 ); 
                 ?>
 

@@ -52,7 +52,7 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // =============================================================================
 
 // Используем guard для проверки доступа (только admin может менять настройки)
-$userDataAdmin = pluginAccessGuard($pdo, 'news', 'admin');
+$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin', 'admin');
 
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
         logEvent(
-            "Попытка сохранения настроек доступа к плагину 'news' с невалидным CSRF токеном — ID: {$userDataAdmin['id']} — IP: {$_SERVER['REMOTE_ADDR']}",
+            "Попытка сохранения настроек доступа к плагину 'news-plugin' с невалидным CSRF токеном — ID: {$userDataAdmin['id']} — IP: {$_SERVER['REMOTE_ADDR']}",
             LOG_ERROR_ENABLED,
             'error'
         );
@@ -99,10 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $accessSettings = [];
     }
     
-    // Обновляем настройки для плагина 'news'
+    // Обновляем настройки для плагина 'news-plugin'
     // Примечание: доступ для роли 'admin' всегда включён по дизайну системы.
     // Это гарантирует, что администраторы всегда могут управлять плагином и его настройками.
-    $accessSettings['news'] = [
+    $accessSettings['news-plugin'] = [
         'user' => $allowUser,
         'admin' => true
     ];
@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($result) {
         logEvent(
-            "Настройки доступа к плагину 'news' обновлены — user: " . ($allowUser ? 'да' : 'нет') . " — ID: {$userDataAdmin['id']}",
+            "Настройки доступа к плагину 'news-plugin' обновлены — user: " . ($allowUser ? 'да' : 'нет') . " — ID: {$userDataAdmin['id']}",
             LOG_INFO_ENABLED,
             'info'
         );
@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash_messages']['success'][] = 'Настройки доступа успешно сохранены';
     } else {
         logEvent(
-            "Ошибка сохранения настроек доступа к плагину 'news' — ID: {$userDataAdmin['id']}",
+            "Ошибка сохранения настроек доступа к плагину 'news-plugin' — ID: {$userDataAdmin['id']}",
             LOG_ERROR_ENABLED,
             'error'
         );
@@ -142,8 +142,8 @@ if ($accessSettings === false) {
     $accessSettings = [];
 }
 
-// Получаем настройки для плагина 'news' (по умолчанию доступ разрешён)
-$allowUser = $accessSettings['news']['user'] ?? true;
+// Получаем настройки для плагина 'news-plugin' (по умолчанию доступ разрешён)
+$allowUser = $accessSettings['news-plugin']['user'] ?? true;
 
 ?>
 <!DOCTYPE html>

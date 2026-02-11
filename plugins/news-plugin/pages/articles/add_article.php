@@ -95,7 +95,7 @@ $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 // =============================================================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================

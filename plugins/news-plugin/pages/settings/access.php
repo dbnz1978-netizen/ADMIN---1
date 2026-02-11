@@ -22,6 +22,7 @@ $config = [
     'display_alerts'  => true,          // подключение отображения сообщений
     'sanitization'    => true,          // подключение валидации/экранирования
     'csrf_token'      => true,          // генерация CSRF-токена
+    'image_sizes'     => true,          // подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -286,7 +287,7 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                 <!-- ========================================
                      НАСТРОЙКИ ДОСТУПА ПО РОЛЯМ
                      ======================================== -->
-                <div class="form-section mb-5">
+                <div class="form-section">
                     <h3 class="card-title">
                         <i class="bi bi-shield-lock"></i>
                         Настройки доступа по ролям
@@ -325,7 +326,7 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                 <!-- ========================================
                      НАСТРОЙКИ РАЗМЕРОВ ИЗОБРАЖЕНИЙ
                      ======================================== -->
-                <div class="form-section mb-5">
+                <div class="form-section">
                     <h3 class="card-title">
                         <i class="bi bi-image"></i>
                         Настройки размеров изображений
@@ -461,11 +462,6 @@ $maxDigitsAddExtra = $pluginSettings['limits']['add_extra']['maxDigits'] ?? 50;
                     </a>
                 </div>
             </form>
-
-
-
-
-
         </main>
     </div>
 

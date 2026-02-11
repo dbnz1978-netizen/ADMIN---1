@@ -284,31 +284,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
 
                 // ========================================
-                // УДАЛЕНИЕ УСТАРЕВШИХ КЛЮЧЕЙ
-                // ========================================
-                
-                // Удаляем устаревшие ключи настроек (если они остались в JSON)
-                $removedSettingsKeys = [
-                    'allow_shop_users',
-                    'allow_shop_admin',
-                    'allow_pages_users',
-                    'allow_pages_admin',
-                    'allow_catalog_users',
-                    'allow_catalog_admin',
-                    'allow_news_users',
-                    'allow_news_admin',
-                ];
-                
-                foreach ($removedSettingsKeys as $removedKey) {
-                    unset($currentSettings[$removedKey]);
-                }
-
-                // ========================================
                 // ОБЪЕДИНЕНИЕ И СОХРАНЕНИЕ
                 // ========================================
                 
                 // Объединяем старые и новые настройки
-                $updatedSettings = array_merge($currentSettings, $settingsData);
+                $updatedSettings = $settingsData;
                 $updatedSettings['updated_at'] = date('Y-m-d H:i:s');
 
                 // Кодируем в JSON с проверкой ошибок
@@ -566,26 +546,17 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                 </div>
                             </div>
                         </div>
-                        <div class="row col-example-row">
-                            <div class="col-3">
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <label for="imageLimit" class="form-label">Лимит файлов в <a href="main_images.php">библиотеке</a> только для пользователей</label>
-                                        <input type="number" class="form-control" id="imageLimit" name="image_limit" min="0" value="<?= (int)$imageLimit ?>">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
+                    </div>
+                    <div class="form-section">
+                        <h3 class="card-title">
+                            <i class="bi bi-images"></i>
+                            Глобальные настройки размеров изображений
+                        </h3>
                         <!-- ========================================
                              НАСТРОЙКИ РАЗМЕРОВ ИЗОБРАЖЕНИЙ
                              ======================================== -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <h4 class="card-title mb-3">
-                                    <i class="bi bi-images"></i>
-                                    Глобальные настройки размеров изображений
-                                </h4>
                                 <p class="text-muted small mb-3">
                                     Эти настройки применяются ко всем блокам загрузки изображений в системе.
                                     <br><strong>Режимы:</strong>
@@ -640,6 +611,13 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                                     </div>
                                 </div>
                                 <?php endforeach; ?>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label for="imageLimit" class="form-label">Лимит файлов в <a href="main_images.php">библиотеке</a> только для пользователей</label>
+                                        <input type="number" class="form-control" id="imageLimit" name="image_limit" min="0" value="<?= (int)$imageLimit ?>">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

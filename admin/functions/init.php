@@ -68,6 +68,7 @@ $defaultConfig = [
     'jsondata'        => false,         // подключение обновление JSON данных пользователя
     'htmleditor'      => false,         // подключение редактора WYSIWYG
     'pagination'      => false,         // генерации пагинации
+    'user_avatar'     => false,         // получение аватара пользователя
     'csrf_token'      => false,         // генерация и валидация CSRF-токена
     'start_session'   => false,         // запуск Session
     'plugin_manager'  => false,         // подключение менеджера плагинов
@@ -144,9 +145,9 @@ if (!empty($config['plugin_manager'])) {
     require_once __DIR__ . '/plugin_manager.php'; // Менеджер плагинов
 }
 
-// === Подключение функции getUserAvatar ===
-// Всегда подключаем, так как она может использоваться на разных страницах
-require_once __DIR__ . '/get_user_avatar.php'; // Получение аватара пользователя из медиа-библиотеки
+if (!empty($config['user_avatar'])) {
+    require_once __DIR__ . '/get_user_avatar.php'; // Получение аватара пользователя из медиа-библиотеки
+}
 
 // === Генерация и валидация CSRF-токена (если включено) ===
 if (!empty($config['csrf_token'])) {

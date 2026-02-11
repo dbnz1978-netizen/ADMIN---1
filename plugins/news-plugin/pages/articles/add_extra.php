@@ -35,7 +35,6 @@ $config = [
 require_once __DIR__ . '/../../../../admin/functions/init.php';
 
 // Подключаем дополнительную инициализацию
-require_once __DIR__ . '/../../functions/get_user_avatar.php';       // Подключение  функции getUserAvatar
 require_once __DIR__ . '/../../functions/pagination.php';            // Функция для генерации HTML пагинации
 
 // Подключаем систему управления доступом к плагинам
@@ -43,6 +42,9 @@ require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
 
 // Подключаем функции для работы с настройками плагина
 require_once __DIR__ . '/../../functions/plugin_settings.php';
+
+// Подключаем функцию автоопределения имени плагина
+require_once __DIR__ . '/../../functions/plugin_helper.php';
 
 // =============================================================================
 // Проверка прав администратора
@@ -54,12 +56,13 @@ if ($adminData === false) {
 }
 
 // === НАСТРОЙКИ ===
+$pluginName = getPluginName();                       // Автоматическое определение имени плагина из структуры директорий
 $titlemeta = 'Новости';                          // Название заголовка H1 для раздела
 $titlemetah3 = 'Редактировать описание';         // Название заголовка H2 для раздела
 $titlemeta_h3 = 'Добавить описание';             // Название заголовка H2 для раздела
 $catalogTable = 'news_extra_content';            // Название таблицы (подключение у записи)
 $authorCheckTable = 'news_articles';             // Привязка записи к родительской таблице
-$maxDigits = getPluginMaxDigits($pdo, 'news-plugin', 'add_extra', 50);  // Ограничение на количество изображений из настроек плагина
+$maxDigits = getPluginMaxDigits($pdo, $pluginName, 'add_extra', 50);  // Ограничение на количество изображений из настроек плагина
 
 // Включаем/отключаем логирование. Глобальные константы.
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
@@ -68,7 +71,7 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // =============================================================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // Текущий user_id из сессии
@@ -413,7 +416,7 @@ $formImage = $_POST['image'] ?? $image;
                     $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
                     // Получаем настройки размеров изображений с учётом переопределений плагина
-                    $imageSizes = getPluginImageSizes($pdo, 'news-plugin');
+                    $imageSizes = getPluginImageSizes($pdo, $pluginName);
 
                     $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                     ?>

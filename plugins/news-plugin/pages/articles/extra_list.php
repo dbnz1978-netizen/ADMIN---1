@@ -39,6 +39,9 @@ require_once __DIR__ . '/../../functions/pagination.php';            // Функ
 require_once __DIR__ . '/../../functions/get_record_avatar.php';     // Функция для получения изображения записи
 require_once __DIR__ . '/../../../../admin/functions/mime_validation.php';    // Подключение функций валидации MIME-типов
 
+// Подключаем систему управления доступом к плагинам
+require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
+
 // =============================================================================
 // Проверка прав администратора
 // =============================================================================
@@ -58,31 +61,11 @@ $authorCheckTable = 'news_articles';         // Привязка записи к
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
-try {
-    $user = requireAuth($pdo);
-    if (!$user) {
-        $redirectTo = '../../../../admin/logout.php';
-        logEvent("Неавторизованный доступ — перенаправление на: $redirectTo — IP: {$_SERVER['REMOTE_ADDR']} — URL: {$_SERVER['REQUEST_URI']}", LOG_INFO_ENABLED, 'info');
-        header("Location: $redirectTo");
-        exit;
-    }
-
-    $userDataAdmin = getUserData($pdo, $user['id']);
-    if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        $msg = $userDataAdmin['message'];
-        $level = $userDataAdmin['level'];
-        $logEnabled = match($level) {'info'  => LOG_INFO_ENABLED, 'error' => LOG_ERROR_ENABLED, default => LOG_ERROR_ENABLED};
-        logEvent($msg, $logEnabled, $level);
-        header("Location: ../../../../admin/logout.php");
-        exit;
-    }
-
-    $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-} catch (Exception $e) {
-    logEvent("Ошибка при инициализации админ-панели: " . $e->getMessage() . " — IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), LOG_ERROR_ENABLED, 'error');
-    header("Location: ../../../../admin/logout.php");
-    exit;
-}
+// =============================================================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// =============================================================================
+$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================
 // ПРОВЕРКА GET ПАРАМЕТРА NEWS_ID

@@ -37,6 +37,9 @@ require_once __DIR__ . '/../../../../admin/functions/init.php';
 require_once __DIR__ . '/../../functions/get_user_avatar.php';       // Подключение  функции getUserAvatar
 require_once __DIR__ . '/../../functions/pagination.php';            // Функция для генерации HTML пагинации
 
+// Подключаем систему управления доступом к плагинам
+require_once __DIR__ . '/../../../../admin/functions/plugin_access.php';
+
 // =============================================================================
 // Проверка прав администратора
 // =============================================================================
@@ -58,30 +61,15 @@ $maxDigits = 50;                                 // Ограничение на 
 define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true);
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
+// =============================================================================
+// ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
+// =============================================================================
+$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
+
 // Текущий user_id из сессии
 $currentUserId = (int)($_SESSION['user_id'] ?? 0);
 if ($currentUserId <= 0) {
-    header("Location: ../../../../admin/logout.php");
-    exit;
-}
-
-try {
-    $user = requireAuth($pdo);
-    if (!$user) {
-        header("Location: ../../../../admin/logout.php");
-        exit;
-    }
-
-    $userDataAdmin = getUserData($pdo, $user['id']);
-    if (isset($userDataAdmin['error']) && $userDataAdmin['error'] === true) {
-        logEvent($userDataAdmin['message'], LOG_ERROR_ENABLED, 'error');
-        header("Location: ../../../../admin/logout.php");
-        exit;
-    }
-
-    $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-} catch (Exception $e) {
-    logEvent("Ошибка инициализации add_extra.php: " . $e->getMessage(), LOG_ERROR_ENABLED, 'error');
     header("Location: ../../../../admin/logout.php");
     exit;
 }

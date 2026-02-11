@@ -240,6 +240,10 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
             // ДИНАМИЧЕСКОЕ МЕНЮ ПЛАГИНОВ
             // ========================================
             
+            // Определяем текущий скрипт и путь для всех пользователей
+            $currentScript = basename($_SERVER['SCRIPT_NAME']);
+            $currentPath   = $_SERVER['SCRIPT_NAME'];
+            
             // Подключаем менеджер плагинов если ещё не подключен
             if (!function_exists('getPluginMenus')) {
                 $pluginManagerPath = __DIR__ . '/../functions/plugin_manager.php';

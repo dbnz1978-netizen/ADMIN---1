@@ -221,7 +221,16 @@ if (!function_exists('getGlobalImageSizes')) {
 $globalImageSizes = getGlobalImageSizes($pdo);
 
 // Получаем настройки изображений из плагина, или используем глобальные как значения по умолчанию
-$currentImageSizes = $pluginSettings['image_sizes'] ?? $globalImageSizes;
+// Всегда начинаем с глобальных настроек, затем переопределяем настройками плагина если есть
+$currentImageSizes = $globalImageSizes;
+if (isset($pluginSettings['image_sizes']) && is_array($pluginSettings['image_sizes'])) {
+    // Переопределяем только те размеры, которые есть в настройках плагина
+    foreach ($pluginSettings['image_sizes'] as $sizeName => $sizeConfig) {
+        if (isset($globalImageSizes[$sizeName])) {
+            $currentImageSizes[$sizeName] = $sizeConfig;
+        }
+    }
+}
 
 // Извлекаем лимиты maxDigits или используем значения по умолчанию
 $maxDigitsAddCategory = $pluginSettings['limits']['add_category']['maxDigits'] ?? 1;

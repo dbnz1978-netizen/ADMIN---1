@@ -71,7 +71,7 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // =============================================================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // =============================================================================
-$userDataAdmin = pluginAccessGuard($pdo, 'news');
+$userDataAdmin = pluginAccessGuard($pdo, 'news-plugin');
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // =============================================================================

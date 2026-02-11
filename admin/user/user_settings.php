@@ -77,6 +77,10 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // ЗАГРУЗКА FLASH-СООБЩЕНИЙ
 // ========================================
 
+// Инициализируем массивы для сообщений
+$successMessages = [];
+$errors          = [];
+
 // Загружаем flash-сообщения из сессии (если есть)
 if (!empty($_SESSION['flash_messages'])) {
     $successMessages = $_SESSION['flash_messages']['success'] ?? [];
@@ -161,8 +165,6 @@ $allowOnlineChat   = (bool)($currentSettings['allow_online_chat'] ?? true);
 $logInfoEnabled    = (bool)($currentSettings['log_info_enabled'] ?? true);
 $logErrorEnabled   = (bool)($currentSettings['log_error_enabled'] ?? true);
 $notifications     = (bool)($currentSettings['notifications'] ?? true);
-
-
 $imageLimit   = !empty($currentSettings['image_limit']) ? (int)$currentSettings['image_limit'] : 0;
 $adminPanel   = $currentSettings['AdminPanel'] ?? 'AdminPanel';
 $profileLogo  = $currentSettings['profile_logo'] ?? '';
@@ -206,7 +208,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logErrorEnabled   = isset($_POST['log_error_enabled']) && $_POST['log_error_enabled'] === '1';
         $notifications     = isset($_POST['notifications']) && $_POST['notifications'] === '1';
         $imageLimit        = (int)($_POST['image_limit'] ?? 0);
-        
 
         // Санитизация HTML-редакторов
         $editor1 = sanitizeHtmlFromEditor($_POST['editor_1']);
@@ -224,7 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileLogo = $resultImagesLogo['value'];
         } else {
             $errors[]    = $resultImagesLogo['error'];
-            $profileLogo = false;
         }
 
         // ========================================
@@ -239,7 +239,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $adminPanel = $result['value'];
         } else {
             $errors[]   = $result['error'];
-            $adminPanel = false;
         }
 
         // ========================================
@@ -247,10 +246,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ========================================
         
         $imageSizesResult = validateImageSizesFromPost($_POST);
-        
+
         if (!$imageSizesResult['valid']) {
             $errors = array_merge($errors, $imageSizesResult['errors']);
-            $globalImageSizes = false;
         } else {
             $globalImageSizes = $imageSizesResult['sizes'];
         }
@@ -288,7 +286,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Кодируем в JSON с проверкой ошибок
                 $jsonData = json_encode($updatedSettings, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-                
 
                 // Сохраняем в БД
                 $update = $pdo->prepare(
@@ -478,7 +475,7 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
                          ======================================== -->
 
                     <!-- ========================================
-                         СТАРЫЕ НАСТРОЙКИ
+                         НАСТРОЙКИ СИСТЕМЫ
                          ======================================== -->
                     <div class="form-section">
                         <h3 class="card-title">

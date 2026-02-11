@@ -28,6 +28,7 @@ $config = [
     'htmleditor'      => true,          // подключение редактора WYSIWYG
     'jsondata'        => true,          // подключение обновление JSON данных пользователя
     'start_session'   => true,          // запуск Session
+    'image_sizes'     => true,          // подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -408,12 +409,8 @@ $formImage = $_POST['image'] ?? $image;
 
                     $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
-                    $imageSizes = [
-                        "thumbnail" => [100, 100, "cover"],
-                        "small"     => [300, 'auto', "contain"],
-                        "medium"    => [600, 'auto', "contain"],
-                        "large"     => [1200, 'auto', "contain"]
-                    ];
+                    // Получаем глобальные настройки размеров изображений
+                    $imageSizes = getGlobalImageSizes($pdo);
 
                     $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                     ?>

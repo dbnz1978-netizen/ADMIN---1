@@ -30,6 +30,7 @@ $config = [
     'mailer'         => true,    // подключение отправки email уведомлений
     'jsondata'       => true,    // подключение обновления JSON данных пользователя
     'csrf_token'     => true,    // генерация CSRF-токена
+    'image_sizes'    => true,    // подключение модуля управления размерами изображений
 ];
 
 // Подключаем центральную инициализацию
@@ -608,12 +609,8 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
 
                         $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
-                        $imageSizes = [
-                            "thumbnail" => [100, 100, "cover"],
-                            "small"     => [300, 'auto', "contain"],
-                            "medium"    => [600, 'auto', "contain"],
-                            "large"     => [1200, 'auto', "contain"],
-                        ];
+                        // Получаем глобальные настройки размеров изображений
+                        $imageSizes = getGlobalImageSizes($pdo);
 
                         $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                         ?>
@@ -682,12 +679,8 @@ $logoProfile  = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', '
 
                         $_SESSION['max_files_per_user'] = $adminData['image_limit'] ?? 0;
 
-                        $imageSizes = [
-                            "thumbnail" => [100, 100, "cover"],
-                            "small"     => [300, 'auto', "contain"],
-                            "medium"    => [600, 'auto', "contain"],
-                            "large"     => [1200, 'auto', "contain"],
-                        ];
+                        // Получаем глобальные настройки размеров изображений
+                        $imageSizes = getGlobalImageSizes($pdo);
 
                         $_SESSION["imageSizes_{$sectionId}"] = $imageSizes;
                         ?>

@@ -225,11 +225,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
             } catch (PDOException $e) {
                 // Проверка на ошибку foreign key constraint (код 23000 или 1451)
                 $errorCode = $e->getCode();
-                $errorInfo = $e->errorInfo ?? [];
+                $errorInfo = $e->errorInfo;
                 $mysqlErrorCode = $errorInfo[1] ?? null;
                 
                 // Код 1451 - Cannot delete or update a parent row: a foreign key constraint fails
-                if ($errorCode == '23000' || $mysqlErrorCode == 1451) {
+                if ($errorCode === '23000' || $mysqlErrorCode === 1451) {
                     if ($action === 'delete' && $isTrash) {
                         $errors[] = 'Невозможно удалить категорию: на неё ссылаются статьи или другие записи. Сначала удалите или переместите связанные записи.';
                     } else {

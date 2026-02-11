@@ -274,12 +274,11 @@ $logoutCsrfToken = $_SESSION['csrf_token'];
                 
                 // Фильтруем элементы подменю: страница настроек доступна только для admin
                 $filteredSubmenuItems = [];
-                $currentUserRole = $userDataAdmin['author'] ?? 'user';
                 foreach ($submenuItems as $item) {
                     $itemUrl = $item['url'] ?? '';
-                    // Если это страница настроек (содержит /settings/ в URL), показываем только админам
-                    if (strpos($itemUrl, '/settings/') !== false) {
-                        if ($currentUserRole === 'admin') {
+                    // Если это страница настроек (содержит /settings/ как отдельный сегмент пути), показываем только админам
+                    if (preg_match('#/settings/#', $itemUrl)) {
+                        if ($userRole === 'admin') {
                             $filteredSubmenuItems[] = $item;
                         }
                     } else {

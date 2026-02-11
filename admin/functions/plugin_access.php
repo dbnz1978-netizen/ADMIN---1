@@ -35,6 +35,9 @@ if (!defined('APP_ACCESS')) {
     exit('Прямой доступ запрещён');
 }
 
+// Константа для редиректа при отказе в доступе
+define('PLUGIN_ACCESS_DENIED_REDIRECT', '/admin/logout.php');
+
 /**
  * Получает настройки доступа к плагинам из данных администратора
  * 
@@ -154,7 +157,7 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
     $user = requireAuth($pdo);
     
     if (!$user) {
-        header("Location: /admin/logout.php");
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
         exit;
     }
     
@@ -162,7 +165,7 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
     $userDataResult = getUserData($pdo, $user['id']);
     
     if (isset($userDataResult['error']) && $userDataResult['error'] === true) {
-        header("Location: /admin/logout.php");
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
         exit;
     }
     
@@ -180,7 +183,7 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
                 );
             }
             
-            header("Location: /admin/logout.php");
+            header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
             exit;
         }
     }
@@ -196,7 +199,7 @@ function pluginAccessGuard($pdo, $pluginName, $requiredRole = null) {
             );
         }
         
-        header("Location: /admin/logout.php");
+        header("Location: " . PLUGIN_ACCESS_DENIED_REDIRECT);
         exit;
     }
     

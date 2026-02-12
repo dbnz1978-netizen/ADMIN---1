@@ -106,7 +106,7 @@ if (!preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $fileName
 }
 
 // Определяем путь к директории с резервными копиями (вне корня сайта)
-$rootPath = realpath(__DIR__ . '/../../../../');
+$rootPath = realpath(__DIR__ . '/../../../..');
 $backupDir = dirname($rootPath) . '/backups';
 $filePath = $backupDir . '/' . $fileName;
 

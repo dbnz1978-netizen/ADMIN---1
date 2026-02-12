@@ -29,7 +29,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
         // Создаём директорию для хранения резервных копий (вне корня сайта)
-        $rootPath = realpath(__DIR__ . '/../../../../');
+        $rootPath = realpath(__DIR__ . '/../../../..');
         $backupDir = dirname($rootPath) . '/backups';
         if (!is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
@@ -647,7 +647,7 @@ function createZipArchive($sourceDir, $zipFile)
 function getBackupsList()
 {
     // Определяем путь к директории с резервными копиями (вне корня сайта)
-    $rootPath = realpath(__DIR__ . '/../../../../');
+    $rootPath = realpath(__DIR__ . '/../../../..');
     $backupDir = dirname($rootPath) . '/backups';
     
     $backups = [];

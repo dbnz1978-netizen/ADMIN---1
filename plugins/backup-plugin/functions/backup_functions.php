@@ -65,6 +65,9 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         $filesDir = $tempDir . '/files';
         mkdir($filesDir, 0755, true);
         
+        // Определяем путь к директории backups для исключения
+        $backupDirToExclude = realpath($backupDir);
+        
         foreach ($selectedFolders as $folder) {
             // Валидация: проверяем что имя папки не содержит недопустимые символы
             if (preg_match('/[\/\\\\\.]{2,}/', $folder) || strpos($folder, '..') !== false) {
@@ -89,7 +92,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             }
             
             if (is_dir($sourcePath)) {
-                recursiveCopy($sourcePath, $destPath);
+                recursiveCopy($sourcePath, $destPath, $backupDirToExclude);
             }
         }
         
@@ -236,8 +239,9 @@ function exportDatabase($pdo, $tables, $outputFile)
  *
  * @param string $source Исходная директория
  * @param string $dest Целевая директория
+ * @param string $excludePath Путь для исключения из копирования (по умолчанию - директория backups)
  */
-function recursiveCopy($source, $dest)
+function recursiveCopy($source, $dest, $excludePath = null)
 {
     if (!is_dir($dest)) {
         mkdir($dest, 0755, true);
@@ -253,8 +257,13 @@ function recursiveCopy($source, $dest)
         $sourcePath = $source . '/' . $file;
         $destPath = $dest . '/' . $file;
         
+        // Пропускаем директорию backups, чтобы избежать рекурсии
+        if ($excludePath !== null && realpath($sourcePath) === realpath($excludePath)) {
+            continue;
+        }
+        
         if (is_dir($sourcePath)) {
-            recursiveCopy($sourcePath, $destPath);
+            recursiveCopy($sourcePath, $destPath, $excludePath);
         } else {
             copy($sourcePath, $destPath);
         }

@@ -252,15 +252,15 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                     </td>
                                     <td class="text-end">
                                         <a href="download_backup.php?file=<?= escape(urlencode($backup['name'])) ?>" 
-                                           class="btn btn-sm btn-primary" 
+                                           class="btn btn-sm btn-outline-primary"
                                            title="Скачать">
-                                            <i class="bi bi-download"></i> Скачать
+                                            <i class="bi bi-download"></i>
                                         </a>
                                         <button type="button" 
-                                                class="btn btn-sm btn-danger delete-backup" 
+                                                class="btn btn-sm btn-outline-danger delete-backup" 
                                                 data-file="<?= escape($backup['name']) ?>"
                                                 title="Удалить">
-                                            <i class="bi bi-trash"></i> Удалить
+                                            <i class="bi bi-trash"></i> 
                                         </button>
                                     </td>
                                 </tr>

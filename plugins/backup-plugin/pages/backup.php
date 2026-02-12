@@ -319,7 +319,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                         </h4>
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i>
-                            Папки <code>admin</code> и <code>connect</code> будут автоматически включены в резервную копию.
+                            Папки <code>admin | connect | plugins</code> будут автоматически включены в резервную копию.
                             <br><small>Примечание: учетные данные базы данных в <code>connect/db.php</code> будут очищены для безопасности.</small>
                         </div>
                         <div class="form-check mb-3">
@@ -330,7 +330,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                         </div>
                         <div class="row">
                             <?php foreach ($allFolders as $folder): ?>
-                            <?php if ($folder === 'admin' || $folder === 'connect') continue; // Пропускаем admin и connect, они будут добавлены автоматически ?>
+                            <?php if ($folder === 'admin' || $folder === 'connect' || $folder === 'plugins') continue; // Пропускаем admin и connect и plugins, они будут добавлены автоматически ?>
                             <div class="col-md-4 col-sm-6 mb-2">
                                 <div class="form-check">
                                     <input class="form-check-input folder-checkbox" 

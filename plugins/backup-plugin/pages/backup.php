@@ -56,19 +56,8 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // ========================================
 
-// Автоматическое определение имени плагина
-function getPluginName() {
-    $path = __DIR__;
-    $parts = explode('/', str_replace('\\', '/', $path));
-    foreach ($parts as $i => $part) {
-        if ($part === 'plugins' && isset($parts[$i + 1])) {
-            return $parts[$i + 1];
-        }
-    }
-    return 'unknown';
-}
-
-$pluginName = getPluginName();
+// Используем централизованную функцию из backup_functions.php
+$pluginName = getPluginNameFromPath(__DIR__);
 $userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 

@@ -1,0 +1,24 @@
+# Deny all direct access to backup files
+# Only authorized users can download via PHP script
+
+Order Deny,Allow
+Deny from all
+
+# Allow access only from localhost (for PHP scripts)
+Allow from 127.0.0.1
+Allow from ::1
+
+# Prevent directory listing
+Options -Indexes
+
+# Disable PHP execution in this directory (security)
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Deny access to .htaccess itself
+<Files .htaccess>
+    Order Allow,Deny
+    Deny from all
+</Files>

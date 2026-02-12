@@ -123,6 +123,9 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             return $sqlResult;
         }
         
+        // IMPROVEMENT: Track skipped tables for reporting
+        $skippedTables = $sqlResult['skipped_tables'] ?? [];
+        
         // 2. Копируем выбранные папки
         // Всегда добавляем папки admin и connect
         if (!in_array('admin', $selectedFolders)) {
@@ -139,10 +142,17 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         mkdir($filesDir, 0755, true);
         
         // Определяем путь к директории backups для исключения
+        // OPTIMIZATION: Cache realpath result to avoid repeated filesystem calls
         $backupDirToExclude = realpath($backupDir);
         if ($backupDirToExclude === false) {
             // Если realpath не сработал, используем абсолютный путь напрямую
             $backupDirToExclude = $backupDir;
+        }
+        
+        // OPTIMIZATION: Cache root path realpath for reuse in recursiveCopy
+        $cachedRootPath = realpath($rootPath);
+        if ($cachedRootPath === false) {
+            $cachedRootPath = $rootPath;
         }
         
         $skippedFolders = []; // Массив пропущенных папок для отчета
@@ -197,8 +207,8 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
                 continue; // Пропускаем если путь вне корневой директории
             }
             
-            // Копируем директорию
-            recursiveCopy($sourcePath, $destPath, $backupDirToExclude, $rootPath);
+            // Копируем директорию (используем кэшированный rootPath)
+            recursiveCopy($sourcePath, $destPath, $backupDirToExclude, $cachedRootPath);
             $copiedFolders[] = $folder;
         }
         
@@ -232,8 +242,11 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         if (!empty($copiedFolders)) {
             $message .= '. Скопировано папок: ' . count($copiedFolders);
         }
-        if (!empty($skippedFolders)) {
-            $message .= '. ВНИМАНИЕ: Некоторые папки не были включены в архив: ' . implode(', ', $skippedFolders);
+        
+        // IMPROVEMENT: Report all skipped items (tables and folders)
+        $allSkipped = array_merge($skippedTables, $skippedFolders);
+        if (!empty($allSkipped)) {
+            $message .= '. ВНИМАНИЕ: Некоторые элементы не были включены в архив: ' . implode(', ', $allSkipped);
         }
         
         return [
@@ -256,7 +269,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
  * @param PDO $pdo Объект подключения к базе данных
  * @param array $tables Массив имён таблиц для экспорта
  * @param string $outputFile Путь к выходному SQL файлу
- * @return array Результат операции ['success' => bool, 'message' => string]
+ * @return array Результат операции ['success' => bool, 'message' => string, 'skipped_tables' => array]
  */
 function exportDatabase($pdo, $tables, $outputFile)
 {
@@ -270,14 +283,20 @@ function exportDatabase($pdo, $tables, $outputFile)
         $stmt = $pdo->query("SHOW TABLES");
         $validTables = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
+        // IMPROVEMENT: Track skipped tables for user feedback
+        $skippedTables = [];
+        $exportedTables = [];
+        
         foreach ($tables as $table) {
             // Валидация: проверяем что таблица существует
             if (!in_array($table, $validTables)) {
+                $skippedTables[] = "$table (таблица не существует)";
                 continue; // Пропускаем несуществующие таблицы
             }
             
             // Дополнительная валидация: проверяем что имя таблицы содержит только допустимые символы
             if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+                $skippedTables[] = "$table (недопустимые символы в имени)";
                 continue; // Пропускаем таблицы с недопустимыми символами
             }
             
@@ -323,25 +342,37 @@ function exportDatabase($pdo, $tables, $outputFile)
             if ($rowCount > 0) {
                 $output .= "\n";
             }
+            
+            $exportedTables[] = $table;
         }
         
         // Записываем в файл
         if (file_put_contents($outputFile, $output) === false) {
             return [
                 'success' => false,
-                'message' => 'Не удалось записать SQL файл'
+                'message' => 'Не удалось записать SQL файл',
+                'skipped_tables' => $skippedTables
             ];
+        }
+        
+        // IMPROVEMENT: Return detailed information about export
+        $message = 'База данных успешно экспортирована';
+        if (!empty($exportedTables)) {
+            $message .= ' (' . count($exportedTables) . ' таблиц)';
         }
         
         return [
             'success' => true,
-            'message' => 'База данных успешно экспортирована'
+            'message' => $message,
+            'skipped_tables' => $skippedTables,
+            'exported_tables' => $exportedTables
         ];
         
     } catch (PDOException $e) {
         return [
             'success' => false,
-            'message' => 'Ошибка при экспорте базы данных: ' . $e->getMessage()
+            'message' => 'Ошибка при экспорте базы данных: ' . $e->getMessage(),
+            'skipped_tables' => []
         ];
     }
 }
@@ -353,110 +384,123 @@ function exportDatabase($pdo, $tables, $outputFile)
  * @param string $dest Целевая директория
  * @param string $excludePath Путь для исключения из копирования (по умолчанию - директория backups)
  * @param string $rootPath Корневой путь сайта (для определения специальных файлов)
+ * @throws Exception Если произошла ошибка при копировании
  */
 function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
 {
     if (!is_dir($dest)) {
-        mkdir($dest, 0755, true);
+        if (!mkdir($dest, 0755, true)) {
+            throw new Exception("Не удалось создать директорию: $dest");
+        }
     }
     
-    $dir = opendir($source);
+    // SECURITY FIX: Add error handling for opendir
+    $dir = @opendir($source);
+    if ($dir === false) {
+        throw new Exception("Не удалось открыть директорию: $source");
+    }
     
-    while (($file = readdir($dir)) !== false) {
-        if ($file === '.' || $file === '..') {
-            continue;
-        }
-        
-        $sourcePath = $source . '/' . $file;
-        $destPath = $dest . '/' . $file;
-        
-        // Пропускаем директорию backups, чтобы избежать рекурсии
-        if ($excludePath !== null) {
-            $realSourcePath = realpath($sourcePath);
-            $realExcludePath = realpath($excludePath);
-            
-            // Сравниваем пути, обрабатывая случай когда realpath возвращает false
-            if ($realSourcePath !== false && $realExcludePath !== false) {
-                if ($realSourcePath === $realExcludePath) {
-                    continue;
-                }
-            } else {
-                // Если realpath не работает, используем нормализованное сравнение путей
-                $normalizedSource = str_replace('\\', '/', $sourcePath);
-                $normalizedExclude = str_replace('\\', '/', $excludePath);
-                if ($normalizedSource === $normalizedExclude) {
-                    continue;
-                }
+    try {
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') {
+                continue;
             }
-        }
-        
-        if (is_dir($sourcePath)) {
-            recursiveCopy($sourcePath, $destPath, $excludePath, $rootPath);
-        } else {
-            // Специальная обработка для connect/db.php - очищаем учетные данные БД
-            if ($rootPath !== null && $file === 'db.php') {
+            
+            $sourcePath = $source . '/' . $file;
+            $destPath = $dest . '/' . $file;
+            
+            // Пропускаем директорию backups, чтобы избежать рекурсии
+            if ($excludePath !== null) {
                 $realSourcePath = realpath($sourcePath);
-                $realRootPath = realpath($rootPath);
-                if ($realSourcePath !== false && $realRootPath !== false) {
-                    // Безопасное получение относительного пути с проверкой длины
-                    $rootLength = strlen($realRootPath);
-                    if (substr($realSourcePath, 0, $rootLength) === $realRootPath) {
-                        $relativePath = substr($realSourcePath, $rootLength);
-                        $relativePath = trim(str_replace('\\', '/', $relativePath), '/');
-                        
-                        if ($relativePath === 'connect/db.php') {
-                            // Читаем файл и очищаем учетные данные
-                            $content = file_get_contents($sourcePath);
-                            
-                            // Заменяем значения учетных данных на пустые строки
-                            // Примечание: Эти регулярные выражения работают для стандартного формата PHP
-                            // и предполагают, что значения не содержат экранированных кавычек внутри строк
-                            // Формат: private static $variable = 'value'; или private static $variable = "value";
-                            $originalContent = $content;
-                            
-                            $content = preg_replace(
-                                '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
-                                "private static \$host = 'localhost';",
-                                $content
-                            );
-                            $content = preg_replace(
-                                '/private static \$dbName\s*=\s*[\'"][^\'";]*[\'"];/',
-                                "private static \$dbName = '';",
-                                $content
-                            );
-                            $content = preg_replace(
-                                '/private static \$userName\s*=\s*[\'"][^\'";]*[\'"];/',
-                                "private static \$userName = '';",
-                                $content
-                            );
-                            $content = preg_replace(
-                                '/private static \$password\s*=\s*[\'"][^\'";]*[\'"];/',
-                                "private static \$password = '';",
-                                $content
-                            );
-                            
-                            // Проверяем, что очистка прошла успешно (содержимое изменилось)
-                            // и что мы можем записать модифицированный файл
-                            if ($content !== $originalContent && file_put_contents($destPath, $content) !== false) {
-                                // Успешно сохранили очищенный файл
-                                continue;
-                            } else {
-                                // ВАЖНО: Для безопасности НЕ копируем оригинальный файл с учетными данными
-                                // Вместо этого создаем заглушку с комментарием
-                                $placeholderContent = "<?php\n/**\n * ВАЖНО: Этот файл был исключен из резервной копии по соображениям безопасности.\n * При восстановлении сайта необходимо создать файл connect/db.php вручную\n * с корректными учетными данными базы данных.\n */\n\nif (!defined('APP_ACCESS')) {\n    http_response_code(403);\n    exit('Доступ запрещён');\n}\n";
-                                file_put_contents($destPath, $placeholderContent);
-                                continue;
-                            }
-                        }
+                $realExcludePath = realpath($excludePath);
+                
+                // Сравниваем пути, обрабатывая случай когда realpath возвращает false
+                if ($realSourcePath !== false && $realExcludePath !== false) {
+                    if ($realSourcePath === $realExcludePath) {
+                        continue;
+                    }
+                } else {
+                    // Если realpath не работает, используем нормализованное сравнение путей
+                    $normalizedSource = str_replace('\\', '/', $sourcePath);
+                    $normalizedExclude = str_replace('\\', '/', $excludePath);
+                    if ($normalizedSource === $normalizedExclude) {
+                        continue;
                     }
                 }
             }
             
-            copy($sourcePath, $destPath);
+            if (is_dir($sourcePath)) {
+                recursiveCopy($sourcePath, $destPath, $excludePath, $rootPath);
+            } else {
+                // Специальная обработка для connect/db.php - очищаем учетные данные БД
+                if ($rootPath !== null && $file === 'db.php') {
+                    $realSourcePath = realpath($sourcePath);
+                    $realRootPath = realpath($rootPath);
+                    if ($realSourcePath !== false && $realRootPath !== false) {
+                        // Безопасное получение относительного пути с проверкой длины
+                        $rootLength = strlen($realRootPath);
+                        if (substr($realSourcePath, 0, $rootLength) === $realRootPath) {
+                            $relativePath = substr($realSourcePath, $rootLength);
+                            $relativePath = trim(str_replace('\\', '/', $relativePath), '/');
+                            
+                            if ($relativePath === 'connect/db.php') {
+                                // Читаем файл и очищаем учетные данные
+                                $content = file_get_contents($sourcePath);
+                                
+                                // Заменяем значения учетных данных на пустые строки
+                                // Примечание: Эти регулярные выражения работают для стандартного формата PHP
+                                // и предполагают, что значения не содержат экранированных кавычек внутри строк
+                                // Формат: private static $variable = 'value'; или private static $variable = "value";
+                                $originalContent = $content;
+                                
+                                $content = preg_replace(
+                                    '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
+                                    "private static \$host = 'localhost';",
+                                    $content
+                                );
+                                $content = preg_replace(
+                                    '/private static \$dbName\s*=\s*[\'"][^\'";]*[\'"];/',
+                                    "private static \$dbName = '';",
+                                    $content
+                                );
+                                $content = preg_replace(
+                                    '/private static \$userName\s*=\s*[\'"][^\'";]*[\'"];/',
+                                    "private static \$userName = '';",
+                                    $content
+                                );
+                                $content = preg_replace(
+                                    '/private static \$password\s*=\s*[\'"][^\'";]*[\'"];/',
+                                    "private static \$password = '';",
+                                    $content
+                                );
+                                
+                                // Проверяем, что очистка прошла успешно (содержимое изменилось)
+                                // и что мы можем записать модифицированный файл
+                                if ($content !== $originalContent && file_put_contents($destPath, $content) !== false) {
+                                    // Успешно сохранили очищенный файл
+                                    continue;
+                                } else {
+                                    // ВАЖНО: Для безопасности НЕ копируем оригинальный файл с учетными данными
+                                    // Вместо этого создаем заглушку с комментарием
+                                    $placeholderContent = "<?php\n/**\n * ВАЖНО: Этот файл был исключен из резервной копии по соображениям безопасности.\n * При восстановлении сайта необходимо создать файл connect/db.php вручную\n * с корректными учетными данными базы данных.\n */\n\nif (!defined('APP_ACCESS')) {\n    http_response_code(403);\n    exit('Доступ запрещён');\n}\n";
+                                    file_put_contents($destPath, $placeholderContent);
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // SECURITY FIX: Add error handling for copy operations
+                if (!@copy($sourcePath, $destPath)) {
+                    // Log warning but continue with other files
+                    error_log("Warning: Failed to copy file: $sourcePath to $destPath");
+                }
+            }
         }
+    } finally {
+        closedir($dir);
     }
-    
-    closedir($dir);
 }
 
 /**
@@ -534,31 +578,57 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'POST\') {
             $pdo = new PDO($dsn, $dbUser, $dbPass);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             
-            // Создание базы данных если не существует
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `$dbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-            $pdo->exec("USE `$dbName`");
+            // SECURITY FIX: Properly escape database name using identifier quoting
+            // Since MySQL doesn\'t support parameterized identifiers, we use validated input
+            // Input is already validated by regex to contain only [a-zA-Z0-9_]
+            $escapedDbName = str_replace(\'`\', \'``\', $dbName);
             
-            // Импорт SQL файла
+            // Создание базы данных если не существует
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `$escapedDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("USE `$escapedDbName`");
+            
+            // Импорт SQL файла с проверкой успешности
             $sqlFile = __DIR__ . \'/database.sql\';
             if (file_exists($sqlFile)) {
                 $sql = file_get_contents($sqlFile);
-                $pdo->exec($sql);
+                if ($sql !== false && !empty($sql)) {
+                    // Разбиваем на отдельные запросы для лучшей обработки ошибок
+                    $statements = array_filter(array_map(\'trim\', explode(\';\', $sql)));
+                    foreach ($statements as $statement) {
+                        if (!empty($statement)) {
+                            $pdo->exec($statement . \';\');
+                        }
+                    }
+                } else {
+                    throw new Exception(\'Не удалось прочитать SQL файл\');
+                }
             }
             
-            // Копирование файлов
+            // Копирование файлов с валидацией пути
             $filesDir = __DIR__ . \'/files\';
-            if (is_dir($filesDir)) {
-                recursiveCopy($filesDir, __DIR__ . \'/..\');
+            $targetDir = realpath(__DIR__ . \'/..\');
+            if ($targetDir === false) {
+                throw new Exception(\'Не удалось определить целевую директорию\');
             }
+            if (is_dir($filesDir)) {
+                recursiveCopy($filesDir, $targetDir);
+            }
+            
+            // SECURITY FIX: Properly escape credentials before writing to PHP file
+            // Use addslashes to prevent code injection via quotes
+            $escapedHost = addslashes($dbHost);
+            $escapedDbName = addslashes($dbName);
+            $escapedUser = addslashes($dbUser);
+            $escapedPass = addslashes($dbPass);
             
             // Обновление файла конфигурации базы данных
             $configFile = __DIR__ . \'/../connect/db.php\';
             if (file_exists($configFile)) {
                 $configContent = file_get_contents($configFile);
-                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$host = \'$dbHost\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$dbName = \'$dbName\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$userName = \'$dbUser\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$password = \'$dbPass\';\", $configContent);
+                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$host = \'$escapedHost\';\", $configContent);
+                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$dbName = \'$escapedDbName\';\", $configContent);
+                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$userName = \'$escapedUser\';\", $configContent);
+                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$password = \'$escapedPass\';\", $configContent);
                 file_put_contents($configFile, $configContent);
             }
             
@@ -566,6 +636,8 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'POST\') {
             $successMessage = \'Сайт успешно установлен!\';
             
         } catch (PDOException $e) {
+            $errors[] = \'Ошибка при установке: \' . $e->getMessage();
+        } catch (Exception $e) {
             $errors[] = \'Ошибка при установке: \' . $e->getMessage();
         }
     }

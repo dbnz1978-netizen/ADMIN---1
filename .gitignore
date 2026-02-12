@@ -1,0 +1,3 @@
+# Backup files
+admin/backups/*.zip
+admin/backups/backup_*

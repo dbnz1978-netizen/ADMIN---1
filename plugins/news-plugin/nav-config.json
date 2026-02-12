@@ -1,0 +1,31 @@
+{
+  "menu_title": "Новости",
+  "menu_icon": "bi-layout-wtf",
+  "submenu": [
+    {
+      "title": "Категории новостей",
+      "icon": "bi-folder",
+      "url": "/plugins/news-plugin/pages/categories/category_list.php"
+    },
+    {
+      "title": "Добавить категорию",
+      "icon": "bi-folder-plus",
+      "url": "/plugins/news-plugin/pages/categories/add_category.php"
+    },
+    {
+      "title": "Список новостей",
+      "icon": "bi-list",
+      "url": "/plugins/news-plugin/pages/articles/article_list.php"
+    },
+    {
+      "title": "Добавить новость",
+      "icon": "bi-plus-circle",
+      "url": "/plugins/news-plugin/pages/articles/add_article.php"
+    },
+    {
+      "title": "Настройки",
+      "icon": "bi-gear",
+      "url": "/plugins/news-plugin/pages/settings/access.php"
+    }
+  ]
+}

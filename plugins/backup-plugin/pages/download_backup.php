@@ -68,6 +68,9 @@ if ($rootPath === false) {
     http_response_code(500);
     exit('Корневая директория не найдена.');
 }
+// NOTE: dirname($rootPath) специально используется для размещения backups
+// вне веб-доступной директории (../backups относительно корня сайта)
+// Это повышает безопасность, предотвращая прямой доступ к резервным копиям через веб
 $backupDir = dirname($rootPath) . '/backups';
 $filePath = $backupDir . '/' . $fileName;
 

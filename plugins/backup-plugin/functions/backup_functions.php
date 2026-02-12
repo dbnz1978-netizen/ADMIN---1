@@ -66,8 +66,27 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         mkdir($filesDir, 0755, true);
         
         foreach ($selectedFolders as $folder) {
+            // Валидация: проверяем что имя папки не содержит недопустимые символы
+            if (preg_match('/[\/\\\\\.]{2,}/', $folder) || strpos($folder, '..') !== false) {
+                continue; // Пропускаем папки с путями траверсала
+            }
+            
+            // Удаляем возможные слеши в начале и конце
+            $folder = trim($folder, '/\\');
+            
+            // Проверяем что папка не содержит путь (только имя папки)
+            if (strpos($folder, '/') !== false || strpos($folder, '\\') !== false) {
+                continue; // Пропускаем если это путь, а не имя папки
+            }
+            
             $sourcePath = $rootPath . '/' . $folder;
             $destPath = $filesDir . '/' . $folder;
+            
+            // Проверяем что путь действительно внутри корневой директории
+            $realSourcePath = realpath($sourcePath);
+            if ($realSourcePath === false || strpos($realSourcePath, $rootPath) !== 0) {
+                continue; // Пропускаем если путь вне корневой директории
+            }
             
             if (is_dir($sourcePath)) {
                 recursiveCopy($sourcePath, $destPath);
@@ -132,7 +151,21 @@ function exportDatabase($pdo, $tables, $outputFile)
         $output .= "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n";
         $output .= "SET time_zone = \"+00:00\";\n\n";
         
+        // Получаем список всех существующих таблиц для валидации
+        $stmt = $pdo->query("SHOW TABLES");
+        $validTables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
         foreach ($tables as $table) {
+            // Валидация: проверяем что таблица существует
+            if (!in_array($table, $validTables)) {
+                continue; // Пропускаем несуществующие таблицы
+            }
+            
+            // Дополнительная валидация: проверяем что имя таблицы содержит только допустимые символы
+            if (!preg_match('/^[a-zA-Z0-9_]+$/', $table)) {
+                continue; // Пропускаем таблицы с недопустимыми символами
+            }
+            
             // Получаем структуру таблицы
             $stmt = $pdo->query("SHOW CREATE TABLE `$table`");
             $row = $stmt->fetch();

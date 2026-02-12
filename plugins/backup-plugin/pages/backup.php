@@ -93,14 +93,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         if ($result['success']) {
             $successMessages[] = $result['message'];
-            if (isset($result['download_url'])) {
-                $downloadUrl = $result['download_url'];
+            if (isset($result['backup_file'])) {
+                $backupFile = $result['backup_file'];
             }
         } else {
             $errors[] = $result['message'];
         }
     }
 }
+
+// ========================================
+// ПОЛУЧЕНИЕ СПИСКА СУЩЕСТВУЮЩИХ РЕЗЕРВНЫХ КОПИЙ
+// ========================================
+
+require_once __DIR__ . '/../functions/backup_functions.php';
+$backupsList = getBackupsList();
 
 // ========================================
 // ПОЛУЧЕНИЕ СПИСКА ТАБЛИЦ БД
@@ -118,7 +125,7 @@ try {
 // ПОЛУЧЕНИЕ СПИСКА ПАПОК
 // ========================================
 
-$rootPath = realpath(__DIR__ . '/../../../../');
+$rootPath = realpath(__DIR__ . '/../../../');
 $allFolders = [];
 
 try {
@@ -193,15 +200,83 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                     true
                 ); ?>
 
-                <?php if (isset($downloadUrl)): ?>
+                <?php if (isset($backupFile)): ?>
                 <div class="alert alert-success">
                     <i class="bi bi-check-circle"></i>
                     Резервная копия успешно создана!
-                    <a href="<?= escape($downloadUrl) ?>" class="btn btn-sm btn-success ms-3" download>
+                    <a href="download_backup.php?file=<?= urlencode($backupFile) ?>" class="btn btn-sm btn-success ms-3">
                         <i class="bi bi-download"></i> Скачать архив
                     </a>
                 </div>
                 <?php endif; ?>
+
+                <!-- Список существующих резервных копий -->
+                <?php if (!empty($backupsList)): ?>
+                <div class="mb-4">
+                    <h4 class="mb-3">
+                        <i class="bi bi-archive"></i> Существующие резервные копии
+                    </h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Имя файла</th>
+                                    <th>Дата создания</th>
+                                    <th>Размер</th>
+                                    <th class="text-end">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($backupsList as $backup): ?>
+                                <tr>
+                                    <td>
+                                        <i class="bi bi-file-earmark-zip"></i>
+                                        <?= escape($backup['name']) ?>
+                                    </td>
+                                    <td>
+                                        <?= date('d.m.Y H:i:s', $backup['date']) ?>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $size = $backup['size'];
+                                        if ($size >= 1073741824) {
+                                            echo number_format($size / 1073741824, 2) . ' ГБ';
+                                        } elseif ($size >= 1048576) {
+                                            echo number_format($size / 1048576, 2) . ' МБ';
+                                        } elseif ($size >= 1024) {
+                                            echo number_format($size / 1024, 2) . ' КБ';
+                                        } else {
+                                            echo $size . ' Б';
+                                        }
+                                        ?>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="download_backup.php?file=<?= urlencode($backup['name']) ?>" 
+                                           class="btn btn-sm btn-primary" 
+                                           title="Скачать">
+                                            <i class="bi bi-download"></i> Скачать
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger delete-backup" 
+                                                data-file="<?= escape($backup['name']) ?>"
+                                                title="Удалить">
+                                            <i class="bi bi-trash"></i> Удалить
+                                        </button>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <hr class="my-4">
+
+                <h3 class="card-title mb-4">
+                    <i class="bi bi-plus-circle"></i>
+                    <?= escape('Создать новую резервную копию') ?>
+                </h3>
 
                 <form method="POST" id="backupForm">
                     <input type="hidden" name="csrf_token" value="<?= escape($_SESSION['csrf_token']) ?>">
@@ -320,6 +395,38 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                 const allCheckboxes = document.querySelectorAll('.folder-checkbox');
                 const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
                 document.getElementById('selectAllFolders').checked = allChecked;
+            });
+        });
+
+        // Обработка удаления резервной копии
+        document.querySelectorAll('.delete-backup').forEach(button => {
+            button.addEventListener('click', function() {
+                const fileName = this.dataset.file;
+                
+                if (!confirm('Вы действительно хотите удалить резервную копию "' + fileName + '"? Это действие нельзя отменить.')) {
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', fileName);
+                formData.append('csrf_token', '<?= escape($_SESSION['csrf_token']) ?>');
+                
+                fetch('delete_backup.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Ошибка при удалении файла: ' + error);
+                });
             });
         });
     </script>

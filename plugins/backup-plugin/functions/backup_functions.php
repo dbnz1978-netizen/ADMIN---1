@@ -28,8 +28,9 @@ if (!defined('APP_ACCESS')) {
 function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
-        // Создаём директорию для хранения резервных копий
-        $backupDir = __DIR__ . '/../../../../admin/backups';
+        // Создаём директорию для хранения резервных копий (вне корня сайта)
+        $rootPath = realpath(__DIR__ . '/../../../../');
+        $backupDir = dirname($rootPath) . '/backups';
         if (!is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
         }
@@ -61,7 +62,6 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             $selectedFolders[] = 'admin';
         }
         
-        $rootPath = realpath(__DIR__ . '/../../../../');
         $filesDir = $tempDir . '/files';
         mkdir($filesDir, 0755, true);
         
@@ -125,13 +125,11 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         // 6. Удаляем временную директорию
         rrmdir($tempDir);
         
-        // 7. Возвращаем результат с ссылкой на скачивание
-        $downloadUrl = '../../../admin/backups/' . $backupName . '.zip';
-        
+        // 7. Возвращаем результат с именем файла для скачивания
         return [
             'success' => true,
             'message' => 'Резервная копия успешно создана',
-            'download_url' => $downloadUrl
+            'backup_file' => $backupName . '.zip'
         ];
         
     } catch (Exception $e) {
@@ -639,4 +637,48 @@ function createZipArchive($sourceDir, $zipFile)
         'success' => true,
         'message' => 'ZIP архив успешно создан'
     ];
+}
+
+/**
+ * Получение списка резервных копий
+ *
+ * @return array Список резервных копий
+ */
+function getBackupsList()
+{
+    // Определяем путь к директории с резервными копиями (вне корня сайта)
+    $rootPath = realpath(__DIR__ . '/../../../../');
+    $backupDir = dirname($rootPath) . '/backups';
+    
+    $backups = [];
+    
+    if (!is_dir($backupDir)) {
+        return $backups;
+    }
+    
+    $files = scandir($backupDir);
+    
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') {
+            continue;
+        }
+        
+        $filePath = $backupDir . '/' . $file;
+        
+        if (is_file($filePath) && preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $file)) {
+            $backups[] = [
+                'name' => $file,
+                'size' => filesize($filePath),
+                'date' => filemtime($filePath),
+                'path' => $filePath
+            ];
+        }
+    }
+    
+    // Сортируем по дате создания (новые сверху)
+    usort($backups, function($a, $b) {
+        return $b['date'] - $a['date'];
+    });
+    
+    return $backups;
 }

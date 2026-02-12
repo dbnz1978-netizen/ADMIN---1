@@ -123,16 +123,12 @@ function getPluginNameFromPath($path = null)
 function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
-        // Создаём директорию для хранения резервных копий в admin/backups
+        // Создаём директорию для хранения резервных копий в ../backups
         // Используем realpath для корректного разрешения символических ссылок
         // и работы независимо от структуры сервера (с public_html или без)
         $rootPath = realpath(__DIR__ . '/../../..');
-        $adminPath = realpath($rootPath . '/admin');
-        if ($adminPath === false) {
-            // Если admin директория не существует, используем путь напрямую
-            $adminPath = $rootPath . '/admin';
-        }
-        $backupDir = $adminPath . '/backups';
+        // Изменяем путь для хранения резервных копий на уровень выше корня сайта
+        $backupDir = dirname($rootPath) . '/backups';
         
         // Проверяем существование и права на запись директории резервных копий
         if (!is_dir($backupDir)) {
@@ -141,7 +137,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
                 $errorMsg = $lastError ? $lastError['message'] : 'неизвестная ошибка';
                 return [
                     'success' => false,
-                    'message' => "Не удалось создать директорию для резервных копий ($errorMsg). Проверьте права доступа к директории admin."
+                    'message' => "Не удалось создать директорию для резервных копий ($errorMsg). Проверьте права доступа к родительской директории."
                 ];
             }
         }
@@ -975,16 +971,12 @@ function createZipArchive($sourceDir, $zipFile)
  */
 function getBackupsList()
 {
-    // Определяем путь к директории с резервными копиями в admin/backups
+    // Определяем путь к директории с резервными копиями в ../backups
     // Используем realpath для корректного разрешения символических ссылок
     // и работы независимо от структуры сервера (с public_html или без)
     $rootPath = realpath(__DIR__ . '/../../..');
-    $adminPath = realpath($rootPath . '/admin');
-    if ($adminPath === false) {
-        // Если admin директория не существует, используем путь напрямую
-        $adminPath = $rootPath . '/admin';
-    }
-    $backupDir = $adminPath . '/backups';
+    // Изменяем путь для хранения резервных копий на уровень выше корня сайта
+    $backupDir = dirname($rootPath) . '/backups';
     
     $backups = [];
     

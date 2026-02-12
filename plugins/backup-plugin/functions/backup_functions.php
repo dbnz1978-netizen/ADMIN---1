@@ -131,6 +131,9 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         if (!in_array('connect', $selectedFolders)) {
             $selectedFolders[] = 'connect';
         }
+        if (!in_array('plugins', $selectedFolders)) {
+            $selectedFolders[] = 'plugins';
+        }
         
         $filesDir = $tempDir . '/files';
         mkdir($filesDir, 0755, true);

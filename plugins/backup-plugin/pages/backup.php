@@ -69,7 +69,7 @@ function getPluginName() {
 }
 
 $pluginName = getPluginName();
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName, 'admin');
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // ========================================

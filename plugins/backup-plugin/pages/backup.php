@@ -12,25 +12,25 @@
  * Последнее изменение: 2026-02-12
  */
 
-// ========================================
+// ======================================== 
 // КОНФИГУРАЦИЯ
 // ========================================
 
 $config = [
-    'display_errors'  => false,
-    'set_encoding'    => true,
-    'db_connect'      => true,
-    'auth_check'      => true,
-    'file_log'        => true,
-    'display_alerts'  => true,
-    'sanitization'    => true,
-    'start_session'   => true,
-    'csrf_token'      => true,
-    'plugin_access'   => true,
+    'display_errors'  => true,         // включение отображения ошибок true/false
+    'set_encoding'    => true,          // включение кодировки UTF-8
+    'db_connect'      => true,          // подключение к базе
+    'auth_check'      => true,          // подключение функций авторизации
+    'file_log'        => true,          // подключение системы логирования
+    'display_alerts'  => true,          // подключение отображения сообщений
+    'sanitization'    => true,          // подключение валидации/экранирования
+    'csrf_token'      => true,          // генерация CSRF-токена
+    'plugin_access'   => true,          // подключение систему управления доступом к плагинам
 ];
 
 // Подключаем центральную инициализацию
 require_once __DIR__ . '/../../../admin/functions/init.php';
+
 
 // ========================================
 // ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА

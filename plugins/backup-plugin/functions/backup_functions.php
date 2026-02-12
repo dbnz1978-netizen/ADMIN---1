@@ -124,9 +124,12 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         }
         
         // 2. Копируем выбранные папки
-        // Всегда добавляем папку admin
+        // Всегда добавляем папки admin и connect
         if (!in_array('admin', $selectedFolders)) {
             $selectedFolders[] = 'admin';
+        }
+        if (!in_array('connect', $selectedFolders)) {
+            $selectedFolders[] = 'connect';
         }
         
         $filesDir = $tempDir . '/files';
@@ -192,7 +195,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             }
             
             // Копируем директорию
-            recursiveCopy($sourcePath, $destPath, $backupDirToExclude);
+            recursiveCopy($sourcePath, $destPath, $backupDirToExclude, $rootPath);
             $copiedFolders[] = $folder;
         }
         
@@ -346,8 +349,9 @@ function exportDatabase($pdo, $tables, $outputFile)
  * @param string $source Исходная директория
  * @param string $dest Целевая директория
  * @param string $excludePath Путь для исключения из копирования (по умолчанию - директория backups)
+ * @param string $rootPath Корневой путь сайта (для определения специальных файлов)
  */
-function recursiveCopy($source, $dest, $excludePath = null)
+function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
 {
     if (!is_dir($dest)) {
         mkdir($dest, 0755, true);
@@ -384,8 +388,49 @@ function recursiveCopy($source, $dest, $excludePath = null)
         }
         
         if (is_dir($sourcePath)) {
-            recursiveCopy($sourcePath, $destPath, $excludePath);
+            recursiveCopy($sourcePath, $destPath, $excludePath, $rootPath);
         } else {
+            // Специальная обработка для connect/db.php - очищаем учетные данные БД
+            if ($rootPath !== null && $file === 'db.php') {
+                $realSourcePath = realpath($sourcePath);
+                $realRootPath = realpath($rootPath);
+                if ($realSourcePath !== false && $realRootPath !== false) {
+                    $relativePath = str_replace($realRootPath, '', $realSourcePath);
+                    $relativePath = trim(str_replace('\\', '/', $relativePath), '/');
+                    
+                    if ($relativePath === 'connect/db.php') {
+                        // Читаем файл и очищаем учетные данные
+                        $content = file_get_contents($sourcePath);
+                        
+                        // Заменяем значения учетных данных на пустые строки
+                        $content = preg_replace(
+                            '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
+                            "private static \$host = 'localhost';",
+                            $content
+                        );
+                        $content = preg_replace(
+                            '/private static \$dbName\s*=\s*[\'"][^\'";]*[\'"];/',
+                            "private static \$dbName = '';",
+                            $content
+                        );
+                        $content = preg_replace(
+                            '/private static \$userName\s*=\s*[\'"][^\'";]*[\'"];/',
+                            "private static \$userName = '';",
+                            $content
+                        );
+                        $content = preg_replace(
+                            '/private static \$password\s*=\s*[\'"][^\'";]*[\'"];/',
+                            "private static \$password = '';",
+                            $content
+                        );
+                        
+                        // Сохраняем модифицированное содержимое
+                        file_put_contents($destPath, $content);
+                        continue;
+                    }
+                }
+            }
+            
             copy($sourcePath, $destPath);
         }
     }

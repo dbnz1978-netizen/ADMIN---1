@@ -92,13 +92,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $result = createBackup($pdo, $selectedTables, $selectedFolders);
         
         if ($result['success']) {
-            $successMessages[] = $result['message'];
-            if (isset($result['backup_file'])) {
-                $backupFile = $result['backup_file'];
-            }
+            // Используем POST-Redirect-GET паттерн для предотвращения повторной отправки формы
+            // При обновлении страницы (F5 или reload после удаления) не будет повторного создания резервной копии
+            $backupFile = $result['backup_file'];
+            header("Location: backup.php?backup_created=" . urlencode($backupFile));
+            exit;
         } else {
             $errors[] = $result['message'];
         }
+    }
+}
+
+// Обработка успешного создания резервной копии после редиректа
+if (isset($_GET['backup_created']) && !empty($_GET['backup_created'])) {
+    $backupFile = basename($_GET['backup_created']); // безопасность
+    if (isValidBackupFileName($backupFile)) {
+        $successMessages[] = 'Резервная копия успешно создана!';
     }
 }
 
@@ -308,7 +317,8 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                         </h4>
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i>
-                            Папка <code>admin</code> будет автоматически включена в резервную копию.
+                            Папки <code>admin</code> и <code>connect</code> будут автоматически включены в резервную копию.
+                            <br><small>Примечание: учетные данные базы данных в <code>connect/db.php</code> будут очищены для безопасности.</small>
                         </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="selectAllFolders" checked>
@@ -318,7 +328,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                         </div>
                         <div class="row">
                             <?php foreach ($allFolders as $folder): ?>
-                            <?php if ($folder === 'admin') continue; // Пропускаем admin, он будет добавлен автоматически ?>
+                            <?php if ($folder === 'admin' || $folder === 'connect') continue; // Пропускаем admin и connect, они будут добавлены автоматически ?>
                             <div class="col-md-4 col-sm-6 mb-2">
                                 <div class="form-check">
                                     <input class="form-check-input folder-checkbox" 

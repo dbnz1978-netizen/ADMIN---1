@@ -4,7 +4,7 @@
  * Название файла:      delete_backup.php
  * Назначение:          Безопасное удаление резервных копий
  *                      - Проверка прав администратора
- *                      - Удаление файлов вне корня сайта
+ *                      - Удаление файлов из admin/backups
  * Автор:               Команда разработки
  * Версия:              1.0
  * Дата создания:       2026-02-12
@@ -96,9 +96,9 @@ if (!isValidBackupFileName($fileName)) {
     exit(json_encode(['success' => false, 'message' => 'Недопустимое имя файла.']));
 }
 
-// Определяем путь к директории с резервными копиями (вне корня сайта)
+// Определяем путь к директории с резервными копиями в admin/backups
 $rootPath = realpath(__DIR__ . '/../../../..');
-$backupDir = dirname($rootPath) . '/backups';
+$backupDir = $rootPath . '/admin/backups';
 $filePath = $backupDir . '/' . $fileName;
 
 // Проверяем существование файла

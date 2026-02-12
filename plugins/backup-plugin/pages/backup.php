@@ -204,7 +204,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                 <div class="alert alert-success">
                     <i class="bi bi-check-circle"></i>
                     Резервная копия успешно создана!
-                    <a href="download_backup.php?file=<?= urlencode($backupFile) ?>" class="btn btn-sm btn-success ms-3">
+                    <a href="download_backup.php?file=<?= escape(urlencode($backupFile)) ?>" class="btn btn-sm btn-success ms-3">
                         <i class="bi bi-download"></i> Скачать архив
                     </a>
                 </div>
@@ -240,7 +240,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                         <?= formatFileSize($backup['size']) ?>
                                     </td>
                                     <td class="text-end">
-                                        <a href="download_backup.php?file=<?= urlencode($backup['name']) ?>" 
+                                        <a href="download_backup.php?file=<?= escape(urlencode($backup['name'])) ?>" 
                                            class="btn btn-sm btn-primary" 
                                            title="Скачать">
                                             <i class="bi bi-download"></i> Скачать

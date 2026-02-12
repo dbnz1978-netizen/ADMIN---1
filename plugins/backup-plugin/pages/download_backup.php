@@ -103,8 +103,10 @@ if ($realFilePath === false || $realBackupDir === false || strpos($realFilePath,
 }
 
 // Отправляем файл пользователю
+// Дополнительная защита от header injection - удаляем любые переводы строк
+$safeFileName = str_replace(["\r", "\n", '"'], '', $fileName);
 header('Content-Type: application/zip');
-header('Content-Disposition: attachment; filename="' . $fileName . '"');
+header('Content-Disposition: attachment; filename="' . $safeFileName . '"');
 header('Content-Length: ' . filesize($filePath));
 header('Cache-Control: no-cache, must-revalidate');
 header('Pragma: no-cache');

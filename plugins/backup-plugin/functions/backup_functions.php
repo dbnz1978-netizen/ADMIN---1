@@ -154,6 +154,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             
             // Проверяем что папка не пустая после trim
             if (empty($folder)) {
+                $skippedFolders[] = "(пустое имя папки)";
                 continue;
             }
             

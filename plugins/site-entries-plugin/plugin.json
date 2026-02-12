@@ -1,0 +1,10 @@
+{
+  "name": "site-entries-plugin",
+  "display_name": "Система управления записями сайта",
+  "version": "1.0.0",
+  "author": "Команда разработки",
+  "description": "Полнофункциональная система управления записями сайта с категориями, статьями и дополнительным контентом",
+  "requires_php": "7.4",
+  "requires_db": true,
+  "has_settings_page": false
+}

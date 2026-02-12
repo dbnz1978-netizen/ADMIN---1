@@ -473,6 +473,21 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Удаляем GET параметр backup_created из URL
+                    const url = new URL(window.location);
+                    url.searchParams.delete('backup_created');
+                    window.history.replaceState({}, '', url);
+                    
+                    // Скрываем alert о успешном создании резервной копии, если он есть
+                    const alerts = document.querySelectorAll('.alert-success');
+                    alerts.forEach(alert => {
+                        if (alert.textContent.includes('Резервная копия успешно создана!')) {
+                            alert.style.transition = 'opacity 0.3s ease';
+                            alert.style.opacity = '0';
+                            setTimeout(() => alert.remove(), 300);
+                        }
+                    });
+                    
                     // Находим строку таблицы и удаляем её с анимацией
                     // Используем CSS.escape для безопасного экранирования имени файла
                     const escapedFileName = CSS.escape ? CSS.escape(fileName) : fileName.replace(/["\\]/g, '\\$&');

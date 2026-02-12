@@ -67,6 +67,10 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         
         // Определяем путь к директории backups для исключения
         $backupDirToExclude = realpath($backupDir);
+        if ($backupDirToExclude === false) {
+            // Если realpath не сработал, используем абсолютный путь напрямую
+            $backupDirToExclude = $backupDir;
+        }
         
         foreach ($selectedFolders as $folder) {
             // Валидация: проверяем что имя папки не содержит недопустимые символы
@@ -258,8 +262,23 @@ function recursiveCopy($source, $dest, $excludePath = null)
         $destPath = $dest . '/' . $file;
         
         // Пропускаем директорию backups, чтобы избежать рекурсии
-        if ($excludePath !== null && realpath($sourcePath) === realpath($excludePath)) {
-            continue;
+        if ($excludePath !== null) {
+            $realSourcePath = realpath($sourcePath);
+            $realExcludePath = realpath($excludePath);
+            
+            // Сравниваем пути, обрабатывая случай когда realpath возвращает false
+            if ($realSourcePath !== false && $realExcludePath !== false) {
+                if ($realSourcePath === $realExcludePath) {
+                    continue;
+                }
+            } else {
+                // Если realpath не работает, используем нормализованное сравнение путей
+                $normalizedSource = str_replace('\\', '/', $sourcePath);
+                $normalizedExclude = str_replace('\\', '/', $excludePath);
+                if ($normalizedSource === $normalizedExclude) {
+                    continue;
+                }
+            }
         }
         
         if (is_dir($sourcePath)) {

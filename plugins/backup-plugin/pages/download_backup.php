@@ -60,8 +60,10 @@ if (!isValidBackupFileName($fileName)) {
 }
 
 // Определяем путь к директории с резервными копиями в admin/backups
-$rootPath = realpath(__DIR__ . '/../../..');
-$backupDir = $rootPath . '/admin/backups';
+// Используем путь относительно admin директории для корректной работы 
+// независимо от структуры сервера (с public_html или без)
+$adminPath = realpath(__DIR__ . '/../../../admin');
+$backupDir = $adminPath . '/backups';
 $filePath = $backupDir . '/' . $fileName;
 
 // Проверяем существование файла

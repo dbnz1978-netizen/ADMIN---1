@@ -237,18 +237,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                         <?= date('d.m.Y H:i:s', $backup['date']) ?>
                                     </td>
                                     <td>
-                                        <?php
-                                        $size = $backup['size'];
-                                        if ($size >= 1073741824) {
-                                            echo number_format($size / 1073741824, 2) . ' ГБ';
-                                        } elseif ($size >= 1048576) {
-                                            echo number_format($size / 1048576, 2) . ' МБ';
-                                        } elseif ($size >= 1024) {
-                                            echo number_format($size / 1024, 2) . ' КБ';
-                                        } else {
-                                            echo $size . ' Б';
-                                        }
-                                        ?>
+                                        <?= formatFileSize($backup['size']) ?>
                                     </td>
                                     <td class="text-end">
                                         <a href="download_backup.php?file=<?= urlencode($backup['name']) ?>" 

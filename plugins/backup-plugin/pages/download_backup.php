@@ -59,19 +59,10 @@ try {
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // ========================================
 
-// Автоматическое определение имени плагина
-function getPluginName() {
-    $path = __DIR__;
-    $parts = explode('/', str_replace('\\', '/', $path));
-    foreach ($parts as $i => $part) {
-        if ($part === 'plugins' && isset($parts[$i + 1])) {
-            return $parts[$i + 1];
-        }
-    }
-    return 'unknown';
-}
+// Подключаем функции резервного копирования
+require_once __DIR__ . '/../functions/backup_functions.php';
 
-$pluginName = getPluginName();
+$pluginName = getPluginNameFromPath(__DIR__);
 $userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 
 // ========================================
@@ -82,9 +73,6 @@ if (!isset($_GET['file'])) {
     http_response_code(400);
     exit('Не указан файл для скачивания.');
 }
-
-// Подключаем функции резервного копирования для валидации
-require_once __DIR__ . '/../functions/backup_functions.php';
 
 $fileName = basename($_GET['file']); // basename для дополнительной защиты
 

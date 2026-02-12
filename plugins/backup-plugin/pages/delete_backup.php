@@ -74,8 +74,15 @@ if (!isValidBackupFileName($fileName)) {
 }
 
 // Определяем путь к директории с резервными копиями в admin/backups
-$rootPath = realpath(__DIR__ . '/../../..');
-$backupDir = $rootPath . '/admin/backups';
+// Используем realpath для корректного разрешения символических ссылок
+// и работы независимо от структуры сервера (с public_html или без)
+$adminPath = realpath(__DIR__ . '/../../../admin');
+if ($adminPath === false) {
+    // Если admin директория не существует или недоступна
+    http_response_code(500);
+    exit(json_encode(['success' => false, 'message' => 'Директория admin не найдена.']));
+}
+$backupDir = $adminPath . '/backups';
 $filePath = $backupDir . '/' . $fileName;
 
 // Проверяем существование файла

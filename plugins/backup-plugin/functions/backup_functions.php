@@ -18,6 +18,59 @@ if (!defined('APP_ACCESS')) {
 }
 
 /**
+ * Валидация имени файла резервной копии
+ *
+ * @param string $fileName Имя файла (должно быть уже обработано через basename)
+ * @return bool True если имя файла валидно, иначе false
+ */
+function isValidBackupFileName($fileName)
+{
+    // Проверяем формат: backup_YYYY-MM-DD_HH-MM-SS.zip
+    return preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $fileName) === 1;
+}
+
+/**
+ * Форматирование размера файла
+ *
+ * @param int $bytes Размер в байтах
+ * @return string Форматированный размер
+ */
+function formatFileSize($bytes)
+{
+    $bytes = (int)$bytes;
+    
+    if ($bytes >= 1073741824) {
+        return number_format($bytes / 1073741824, 2) . ' ГБ';
+    } elseif ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2) . ' МБ';
+    } elseif ($bytes >= 1024) {
+        return number_format($bytes / 1024, 2) . ' КБ';
+    } else {
+        return $bytes . ' Б';
+    }
+}
+
+/**
+ * Получение имени плагина из пути
+ *
+ * @param string|null $path Путь к директории (по умолчанию __DIR__)
+ * @return string Имя плагина
+ */
+function getPluginNameFromPath($path = null)
+{
+    if ($path === null) {
+        $path = __DIR__;
+    }
+    $parts = explode('/', str_replace('\\', '/', $path));
+    foreach ($parts as $i => $part) {
+        if ($part === 'plugins' && isset($parts[$i + 1])) {
+            return $parts[$i + 1];
+        }
+    }
+    return 'unknown';
+}
+
+/**
  * Создание резервной копии сайта
  *
  * @param PDO $pdo Объект подключения к базе данных
@@ -28,8 +81,9 @@ if (!defined('APP_ACCESS')) {
 function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
-        // Создаём директорию для хранения резервных копий
-        $backupDir = __DIR__ . '/../../../../admin/backups';
+        // Создаём директорию для хранения резервных копий (вне корня сайта)
+        $rootPath = realpath(__DIR__ . '/../../../..');
+        $backupDir = dirname($rootPath) . '/backups';
         if (!is_dir($backupDir)) {
             mkdir($backupDir, 0755, true);
         }
@@ -61,7 +115,6 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             $selectedFolders[] = 'admin';
         }
         
-        $rootPath = realpath(__DIR__ . '/../../../../');
         $filesDir = $tempDir . '/files';
         mkdir($filesDir, 0755, true);
         
@@ -125,13 +178,11 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         // 6. Удаляем временную директорию
         rrmdir($tempDir);
         
-        // 7. Возвращаем результат с ссылкой на скачивание
-        $downloadUrl = '../../../admin/backups/' . $backupName . '.zip';
-        
+        // 7. Возвращаем результат с именем файла для скачивания
         return [
             'success' => true,
             'message' => 'Резервная копия успешно создана',
-            'download_url' => $downloadUrl
+            'backup_file' => $backupName . '.zip'
         ];
         
     } catch (Exception $e) {
@@ -639,4 +690,48 @@ function createZipArchive($sourceDir, $zipFile)
         'success' => true,
         'message' => 'ZIP архив успешно создан'
     ];
+}
+
+/**
+ * Получение списка резервных копий
+ *
+ * @return array Список резервных копий
+ */
+function getBackupsList()
+{
+    // Определяем путь к директории с резервными копиями (вне корня сайта)
+    $rootPath = realpath(__DIR__ . '/../../../..');
+    $backupDir = dirname($rootPath) . '/backups';
+    
+    $backups = [];
+    
+    if (!is_dir($backupDir)) {
+        return $backups;
+    }
+    
+    $files = scandir($backupDir);
+    
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') {
+            continue;
+        }
+        
+        $filePath = $backupDir . '/' . $file;
+        
+        if (is_file($filePath) && isValidBackupFileName($file)) {
+            $backups[] = [
+                'name' => $file,
+                'size' => filesize($filePath),
+                'date' => filemtime($filePath),
+                'path' => $filePath
+            ];
+        }
+    }
+    
+    // Сортируем по дате создания (новые сверху)
+    usort($backups, function($a, $b) {
+        return $b['date'] - $a['date'];
+    });
+    
+    return $backups;
 }

@@ -696,19 +696,19 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'POST\') {
             // SECURITY FIX: Properly escape credentials before writing to PHP file
             // Use var_export for complete protection against code injection
             // var_export ensures values are properly escaped for PHP context
-            $escapedHost = var_export($dbHost, true);
-            $escapedDbName = var_export($dbName, true);
-            $escapedUser = var_export($dbUser, true);
-            $escapedPass = var_export($dbPass, true);
+            $escapedHostForConfig = var_export($dbHost, true);
+            $escapedDbNameForConfig = var_export($dbName, true);
+            $escapedUserForConfig = var_export($dbUser, true);
+            $escapedPassForConfig = var_export($dbPass, true);
             
             // Обновление файла конфигурации базы данных
             $configFile = __DIR__ . \'/../connect/db.php\';
             if (file_exists($configFile)) {
                 $configContent = file_get_contents($configFile);
-                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[^;]+;/\', "private static \\\$host = $escapedHost;", $configContent);
-                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[^;]+;/\', "private static \\\$dbName = $escapedDbName;", $configContent);
-                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[^;]+;/\', "private static \\\$userName = $escapedUser;", $configContent);
-                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[^;]+;/\', "private static \\\$password = $escapedPass;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[^;]+;/\', "private static \\\$host = $escapedHostForConfig;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[^;]+;/\', "private static \\\$dbName = $escapedDbNameForConfig;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[^;]+;/\', "private static \\\$userName = $escapedUserForConfig;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[^;]+;/\', "private static \\\$password = $escapedPassForConfig;", $configContent);
                 file_put_contents($configFile, $configContent);
             }
             

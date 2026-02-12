@@ -31,31 +31,6 @@ $config = [
 require_once __DIR__ . '/../../../admin/functions/init.php';
 
 // ========================================
-// ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА
-// ========================================
-
-// Проверяем, что пользователь авторизован и имеет права администратора
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(403);
-    exit('Доступ запрещён. Требуется авторизация.');
-}
-
-// Получаем данные текущего пользователя
-try {
-    $stmt = $pdo->prepare("SELECT author FROM users WHERE id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$user || $user['author'] !== 'admin') {
-        http_response_code(403);
-        exit('Доступ запрещён. Требуются права администратора.');
-    }
-} catch (PDOException $e) {
-    http_response_code(500);
-    exit('Ошибка проверки прав доступа.');
-}
-
-// ========================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // ========================================
 
@@ -63,7 +38,9 @@ try {
 require_once __DIR__ . '/../functions/backup_functions.php';
 
 $pluginName = getPluginNameFromPath(__DIR__);
-$userDataAdmin = pluginAccessGuard($pdo, $pluginName);
+// pluginAccessGuard проверяет авторизацию, права и доступ к плагину
+// Требуем только администраторский доступ для скачивания бэкапов
+$userDataAdmin = pluginAccessGuard($pdo, $pluginName, 'admin');
 
 // ========================================
 // ОБРАБОТКА СКАЧИВАНИЯ

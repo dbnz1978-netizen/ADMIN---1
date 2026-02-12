@@ -144,7 +144,7 @@ if (!@mkdir($backupDir, 0755, true)) {
 ## Security Enhancements
 
 ### 10. .htaccess Protection ✅
-**Location:** `/admin/backups/.htaccess` (new file)  
+**Location:** `../backups/.htaccess` (new file)  
 **Purpose:** Deny all direct HTTP access to backup files  
 
 **Features:**
@@ -157,7 +157,7 @@ if (!@mkdir($backupDir, 0755, true)) {
 ---
 
 ### 11. Documentation Added ✅
-**Location:** `/admin/backups/README.md` (new file)  
+**Location:** `../backups/README.md` (new file)  
 **Purpose:** Maintenance instructions and security notes
 
 ---
@@ -168,8 +168,8 @@ if (!@mkdir($backupDir, 0755, true)) {
 |------|---------|---------------|
 | `plugins/backup-plugin/functions/backup_functions.php` | Critical security fixes, error handling | ~150 lines |
 | `plugins/backup-plugin/pages/backup.php` | Removed duplicate function | -10 lines |
-| `admin/backups/.htaccess` | NEW - Access control | +38 lines |
-| `admin/backups/README.md` | NEW - Documentation | +11 lines |
+| `../backups/.htaccess` | NEW - Access control | +38 lines |
+| `../backups/README.md` | NEW - Documentation | +11 lines |
 
 ---
 

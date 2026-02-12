@@ -124,7 +124,7 @@ plugins/backup-plugin/
 4. **plugins/backup-plugin/uninstall.php** - Скрипт удаления плагина
 5. **plugins/backup-plugin/pages/backup.php** - Интерфейс создания резервной копии
 6. **plugins/backup-plugin/functions/backup_functions.php** - Основные функции
-7. **admin/backups/.gitkeep** - Директория для хранения резервных копий
+7. **../backups/.gitkeep** - Директория для хранения резервных копий
 
 ### Документация
 

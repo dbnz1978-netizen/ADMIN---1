@@ -18,6 +18,20 @@ if (!defined('APP_ACCESS')) {
 }
 
 /**
+ * Валидация имени файла резервной копии
+ *
+ * @param string $fileName Имя файла
+ * @return bool True если имя файла валидно, иначе false
+ */
+function isValidBackupFileName($fileName)
+{
+    // Используем basename для предотвращения path traversal
+    $fileName = basename($fileName);
+    // Проверяем формат: backup_YYYY-MM-DD_HH-MM-SS.zip
+    return preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $fileName) === 1;
+}
+
+/**
  * Создание резервной копии сайта
  *
  * @param PDO $pdo Объект подключения к базе данных
@@ -665,7 +679,7 @@ function getBackupsList()
         
         $filePath = $backupDir . '/' . $file;
         
-        if (is_file($filePath) && preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $file)) {
+        if (is_file($filePath) && isValidBackupFileName($file)) {
             $backups[] = [
                 'name' => $file,
                 'size' => filesize($filePath),

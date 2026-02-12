@@ -97,10 +97,13 @@ if (!isset($_POST['file'])) {
     exit(json_encode(['success' => false, 'message' => 'Не указан файл для удаления.']));
 }
 
-$fileName = $_POST['file'];
+// Подключаем функции резервного копирования для валидации
+require_once __DIR__ . '/../functions/backup_functions.php';
+
+$fileName = basename($_POST['file']); // basename для дополнительной защиты
 
 // Валидация имени файла
-if (!preg_match('/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/', $fileName)) {
+if (!isValidBackupFileName($fileName)) {
     http_response_code(400);
     exit(json_encode(['success' => false, 'message' => 'Недопустимое имя файла.']));
 }

@@ -82,9 +82,9 @@ if (!isValidBackupFileName($fileName)) {
     exit('Недопустимое имя файла.');
 }
 
-// Определяем путь к директории с резервными копиями (вне корня сайта)
+// Определяем путь к директории с резервными копиями в admin/backups
 $rootPath = realpath(__DIR__ . '/../../../..');
-$backupDir = dirname($rootPath) . '/backups';
+$backupDir = $rootPath . '/admin/backups';
 $filePath = $backupDir . '/' . $fileName;
 
 // Проверяем существование файла

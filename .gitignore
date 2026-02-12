@@ -1,1 +1,3 @@
-Nothing should be ignored based on the provided file changes. The modified file 'admin/user_images/get_photo_info.php' is a source code file that should not be added to .gitignore. Since there are no build artifacts, dependencies, or temporary files in the changes, no additional ignore rules are needed.
+# Backup files
+admin/backups/*.zip
+admin/backups/backup_*

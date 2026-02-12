@@ -1,6 +1,6 @@
 {
   "menu_title": "Записи сайта",
-  "menu_icon": "bi-file-earmark-text",
+  "menu_icon": "bi-card-checklist",
   "submenu": [
     {
       "title": "Категории записей",

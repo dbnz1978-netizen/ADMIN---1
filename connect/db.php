@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Название файла:      db.php
  * Назначение:          Класс Database — Singleton-реализация PDO.
@@ -51,17 +50,17 @@ class Database
     /**
      * @var string Название базы данных
      */
-    private static $dbName = 'u5954392_install';
+    private static $dbName = 'u5954392_admin02';
 
     /**
      * @var string Имя пользователя базы данных
      */
-    private static $userName = 'u5954392_install';
+    private static $userName = 'u5954392_admin02';
 
     /**
      * @var string Пароль пользователя базы данных
      */
-    private static $password = 'N5%BvUvgLOir';
+    private static $password = 'D!62vcDNfj&J';
 
     /**
      * Приватный конструктор для предотвращения прямого создания экземпляра

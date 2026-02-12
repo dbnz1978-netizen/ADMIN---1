@@ -216,8 +216,8 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                     <h4 class="mb-3">
                         <i class="bi bi-archive"></i> Существующие резервные копии
                     </h4>
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                    <div class="table-responsive table-card">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Имя файла</th>
@@ -226,9 +226,9 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                     <th class="text-end">Действия</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="backupsTableBody">
                                 <?php foreach ($backupsList as $backup): ?>
-                                <tr>
+                                <tr data-backup-file="<?= escape($backup['name']) ?>">
                                     <td>
                                         <i class="bi bi-file-earmark-zip"></i>
                                         <?= escape($backup['name']) ?>
@@ -387,35 +387,66 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
             });
         });
 
-        // Обработка удаления резервной копии
-        document.querySelectorAll('.delete-backup').forEach(button => {
-            button.addEventListener('click', function() {
-                const fileName = this.dataset.file;
-                
-                if (!confirm('Вы действительно хотите удалить резервную копию "' + fileName + '"? Это действие нельзя отменить.')) {
-                    return;
-                }
-                
-                const formData = new FormData();
-                formData.append('file', fileName);
-                formData.append('csrf_token', '<?= escape($_SESSION['csrf_token']) ?>');
-                
-                fetch('delete_backup.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload();
-                    } else {
-                        alert('Ошибка: ' + data.message);
+        // Обработка удаления резервной копии с использованием делегирования событий
+        // Это позволяет обрабатывать кнопки, добавленные динамически после загрузки страницы
+        document.addEventListener('click', function(event) {
+            // Проверяем, был ли клик по кнопке удаления или её дочернему элементу
+            const deleteButton = event.target.closest('.delete-backup');
+            if (!deleteButton) return;
+            
+            const fileName = deleteButton.dataset.file;
+            
+            if (!confirm('Вы действительно хотите удалить резервную копию "' + fileName + '"? Это действие нельзя отменить.')) {
+                return;
+            }
+            
+            // Отключаем кнопку на время запроса
+            deleteButton.disabled = true;
+            const originalContent = deleteButton.innerHTML;
+            deleteButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Удаление...';
+            
+            const formData = new FormData();
+            formData.append('file', fileName);
+            formData.append('csrf_token', '<?= escape($_SESSION['csrf_token']) ?>');
+            
+            fetch('delete_backup.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Находим строку таблицы и удаляем её с анимацией
+                    const row = document.querySelector('tr[data-backup-file="' + fileName + '"]');
+                    if (row) {
+                        row.style.transition = 'opacity 0.3s ease';
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                            
+                            // Проверяем, остались ли строки в таблице
+                            const tbody = document.getElementById('backupsTableBody');
+                            if (tbody && tbody.children.length === 0) {
+                                // Если строк не осталось, перезагружаем страницу для скрытия таблицы
+                                location.reload();
+                            }
+                        }, 300);
                     }
-                })
-                .catch(error => {
-                    alert('Ошибка при удалении файла: ' + error);
-                });
+                    
+                    // Показываем сообщение об успехе
+                    alert(data.message);
+                } else {
+                    alert('Ошибка: ' + data.message);
+                    // Восстанавливаем кнопку при ошибке
+                    deleteButton.disabled = false;
+                    deleteButton.innerHTML = originalContent;
+                }
+            })
+            .catch(error => {
+                alert('Ошибка при удалении файла: ' + error);
+                // Восстанавливаем кнопку при ошибке
+                deleteButton.disabled = false;
+                deleteButton.innerHTML = originalContent;
             });
         });
     </script>

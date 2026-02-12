@@ -82,7 +82,7 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
         // Создаём директорию для хранения резервных копий в admin/backups
-        $rootPath = realpath(__DIR__ . '/../../../..');
+        $rootPath = realpath(__DIR__ . '/../../..');
         $backupDir = $rootPath . '/admin/backups';
         
         // Проверяем существование и права на запись директории резервных копий
@@ -751,7 +751,7 @@ function createZipArchive($sourceDir, $zipFile)
 function getBackupsList()
 {
     // Определяем путь к директории с резервными копиями в admin/backups
-    $rootPath = realpath(__DIR__ . '/../../../..');
+    $rootPath = realpath(__DIR__ . '/../../..');
     $backupDir = $rootPath . '/admin/backups';
     
     $backups = [];

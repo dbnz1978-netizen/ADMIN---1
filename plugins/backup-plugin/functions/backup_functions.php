@@ -407,7 +407,10 @@ function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
                             
                             // Заменяем значения учетных данных на пустые строки
                             // Примечание: Эти регулярные выражения работают для стандартного формата PHP
-                            // и предполагают, что значения не содержат экранированных кавычек
+                            // и предполагают, что значения не содержат экранированных кавычек внутри строк
+                            // Формат: private static $variable = 'value'; или private static $variable = "value";
+                            $originalContent = $content;
+                            
                             $content = preg_replace(
                                 '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
                                 "private static \$host = 'localhost';",
@@ -429,13 +432,18 @@ function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
                                 $content
                             );
                             
-                            // Сохраняем модифицированное содержимое с проверкой ошибок
-                            if (file_put_contents($destPath, $content) === false) {
-                                // Если не удалось записать модифицированный файл, копируем оригинал
-                                // чтобы не потерять важный файл конфигурации
-                                copy($sourcePath, $destPath);
+                            // Проверяем, что очистка прошла успешно (содержимое изменилось)
+                            // и что мы можем записать модифицированный файл
+                            if ($content !== $originalContent && file_put_contents($destPath, $content) !== false) {
+                                // Успешно сохранили очищенный файл
+                                continue;
+                            } else {
+                                // ВАЖНО: Для безопасности НЕ копируем оригинальный файл с учетными данными
+                                // Вместо этого создаем заглушку с комментарием
+                                $placeholderContent = "<?php\n/**\n * ВАЖНО: Этот файл был исключен из резервной копии по соображениям безопасности.\n * При восстановлении сайта необходимо создать файл connect/db.php вручную\n * с корректными учетными данными базы данных.\n */\n\nif (!defined('APP_ACCESS')) {\n    http_response_code(403);\n    exit('Доступ запрещён');\n}\n";
+                                file_put_contents($destPath, $placeholderContent);
+                                continue;
                             }
-                            continue;
                         }
                     }
                 }

@@ -32,7 +32,7 @@ Options -Indexes
         Require all denied
     </IfModule>
     <IfModule !mod_authz_core.c>
-        Order Allow,Deny
+        Order Deny,Allow
         Deny from all
     </IfModule>
 </Files>

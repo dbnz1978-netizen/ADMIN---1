@@ -354,6 +354,51 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
     <script type="module" src="../../../admin/js/main.js"></script>
     
     <script>
+        // Функция для отображения toast-уведомлений
+        function showToast(message, type = 'success') {
+            const container = document.createElement('div');
+            container.className = 'alert-toast-container position-fixed top-0 start-50 translate-middle-x mt-3';
+            container.style.zIndex = '9999';
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.setAttribute('role', 'alert');
+            alert.setAttribute('data-auto-close', '3000');
+            
+            const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill';
+            const title = type === 'success' ? 'Успешно:' : 'Ошибка:';
+            
+            alert.innerHTML = `
+                <i class="bi ${icon}" aria-hidden="true"></i><strong> ${title}</strong>
+                <div class="alert-content">${message}</div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+            `;
+            
+            container.appendChild(alert);
+            document.body.appendChild(container);
+            
+            // Автоматическое закрытие через 3 секунды
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s ease';
+                setTimeout(() => {
+                    container.remove();
+                }, 500);
+            }, 3000);
+            
+            // Обработка ручного закрытия
+            const closeBtn = alert.querySelector('.btn-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    alert.style.opacity = '0';
+                    alert.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        container.remove();
+                    }, 500);
+                });
+            }
+        }
+        
         // Обработка чекбокса "Выбрать все таблицы"
         document.getElementById('selectAllTables').addEventListener('change', function() {
             const checkboxes = document.querySelectorAll('.table-checkbox');
@@ -417,7 +462,9 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
             .then(data => {
                 if (data.success) {
                     // Находим строку таблицы и удаляем её с анимацией
-                    const row = document.querySelector('tr[data-backup-file="' + fileName + '"]');
+                    // Используем CSS.escape для безопасного экранирования имени файла
+                    const escapedFileName = CSS.escape ? CSS.escape(fileName) : fileName.replace(/["\\]/g, '\\$&');
+                    const row = document.querySelector('tr[data-backup-file="' + escapedFileName + '"]');
                     if (row) {
                         row.style.transition = 'opacity 0.3s ease';
                         row.style.opacity = '0';
@@ -433,17 +480,19 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                         }, 300);
                     }
                     
-                    // Показываем сообщение об успехе
-                    alert(data.message);
+                    // Показываем toast-уведомление об успехе
+                    showToast(data.message, 'success');
                 } else {
-                    alert('Ошибка: ' + data.message);
+                    // Показываем toast-уведомление об ошибке
+                    showToast('Ошибка: ' + data.message, 'danger');
                     // Восстанавливаем кнопку при ошибке
                     deleteButton.disabled = false;
                     deleteButton.innerHTML = originalContent;
                 }
             })
             .catch(error => {
-                alert('Ошибка при удалении файла: ' + error);
+                // Показываем toast-уведомление об ошибке
+                showToast('Ошибка при удалении файла: ' + error, 'danger');
                 // Восстанавливаем кнопку при ошибке
                 deleteButton.disabled = false;
                 deleteButton.innerHTML = originalContent;

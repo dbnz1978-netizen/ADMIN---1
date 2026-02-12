@@ -215,9 +215,11 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                 <div class="alert alert-success" data-backup-created-alert>
                     <i class="bi bi-check-circle"></i>
                     Резервная копия успешно создана!
+                    <?php if ($userDataAdmin['author'] == 'admin'): ?>
                     <a href="download_backup.php?file=<?= escape(urlencode($backupFile)) ?>" class="btn btn-sm btn-success ms-3">
                         <i class="bi bi-download"></i> Скачать архив
                     </a>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
 
@@ -251,6 +253,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                         <?= formatFileSize($backup['size']) ?>
                                     </td>
                                     <td class="text-end">
+                                        <?php if ($userDataAdmin['author'] == 'admin'): ?>
                                         <a href="download_backup.php?file=<?= escape(urlencode($backup['name'])) ?>" 
                                            class="btn btn-sm btn-outline-primary"
                                            title="Скачать">
@@ -262,6 +265,9 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                                                 title="Удалить">
                                             <i class="bi bi-trash"></i> 
                                         </button>
+                                        <?php else: ?>
+                                        <span class="text-muted small">Только для администраторов</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>

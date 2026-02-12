@@ -130,9 +130,11 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         // Проверяем существование и права на запись директории резервных копий
         if (!is_dir($backupDir)) {
             if (!@mkdir($backupDir, 0755, true)) {
+                $lastError = error_get_last();
+                $errorMsg = $lastError ? $lastError['message'] : 'неизвестная ошибка';
                 return [
                     'success' => false,
-                    'message' => 'Не удалось создать директорию для резервных копий. Проверьте права доступа к директории admin.'
+                    'message' => "Не удалось создать директорию для резервных копий ($errorMsg). Проверьте права доступа к директории admin."
                 ];
             }
         }
@@ -150,9 +152,11 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         $tempDir = $backupDir . '/' . $backupName;
         
         if (!@mkdir($tempDir, 0755, true)) {
+            $lastError = error_get_last();
+            $errorMsg = $lastError ? $lastError['message'] : 'неизвестная ошибка';
             return [
                 'success' => false,
-                'message' => 'Не удалось создать временную директорию для резервной копии. Проверьте права доступа к директории ' . $backupDir
+                'message' => "Не удалось создать временную директорию для резервной копии ($errorMsg). Проверьте права доступа к директории $backupDir"
             ];
         }
         
@@ -557,8 +561,10 @@ function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
                 
                 // SECURITY FIX: Add error handling for copy operations
                 if (!@copy($sourcePath, $destPath)) {
+                    $lastError = error_get_last();
+                    $errorMsg = $lastError ? $lastError['message'] : 'неизвестная ошибка';
                     // Log warning but continue with other files
-                    error_log("Warning: Failed to copy file: $sourcePath to $destPath");
+                    error_log("Warning: Failed to copy file: $sourcePath to $destPath ($errorMsg)");
                 }
             }
         }
@@ -688,20 +694,21 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'POST\') {
             }
             
             // SECURITY FIX: Properly escape credentials before writing to PHP file
-            // Use addslashes to prevent code injection via quotes
-            $escapedHost = addslashes($dbHost);
-            $escapedDbName = addslashes($dbName);
-            $escapedUser = addslashes($dbUser);
-            $escapedPass = addslashes($dbPass);
+            // Use var_export for complete protection against code injection
+            // var_export ensures values are properly escaped for PHP context
+            $escapedHost = var_export($dbHost, true);
+            $escapedDbName = var_export($dbName, true);
+            $escapedUser = var_export($dbUser, true);
+            $escapedPass = var_export($dbPass, true);
             
             // Обновление файла конфигурации базы данных
             $configFile = __DIR__ . \'/../connect/db.php\';
             if (file_exists($configFile)) {
                 $configContent = file_get_contents($configFile);
-                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$host = \'$escapedHost\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$dbName = \'$escapedDbName\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$userName = \'$escapedUser\';\", $configContent);
-                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[\\\'\\"][^\\\'\\"]*[\\\'\\"];/\', "private static \\\$password = \'$escapedPass\';\", $configContent);
+                $configContent = preg_replace(\'/private static \\\$host\\s*=\\s*[^;]+;/\', "private static \\\$host = $escapedHost;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$dbName\\s*=\\s*[^;]+;/\', "private static \\\$dbName = $escapedDbName;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$userName\\s*=\\s*[^;]+;/\', "private static \\\$userName = $escapedUser;", $configContent);
+                $configContent = preg_replace(\'/private static \\\$password\\s*=\\s*[^;]+;/\', "private static \\\$password = $escapedPass;", $configContent);
                 file_put_contents($configFile, $configContent);
             }
             

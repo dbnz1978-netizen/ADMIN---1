@@ -6,6 +6,11 @@
       "title": "Создать резервную копию",
       "icon": "bi-database-add",
       "url": "/plugins/backup-plugin/pages/backup.php"
+    },
+    {
+      "title": "Настройки",
+      "icon": "bi-gear",
+      "url": "/plugins/backup-plugin/pages/settings/access.php"
     }
   ]
 }

@@ -6,5 +6,5 @@
   "description": "Система резервного копирования базы данных и файлов сайта с возможностью создания установщика",
   "requires_php": "7.4",
   "requires_db": false,
-  "has_settings_page": false
+  "has_settings_page": true
 }

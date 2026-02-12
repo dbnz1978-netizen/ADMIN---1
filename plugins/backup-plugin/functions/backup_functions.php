@@ -17,6 +17,48 @@ if (!defined('APP_ACCESS')) {
     exit('Доступ запрещён');
 }
 
+// ========================================
+// КОНФИГУРАЦИЯ РЕЗЕРВНОГО КОПИРОВАНИЯ
+// ========================================
+
+// Максимальный размер резервной копии в байтах (500 МБ по умолчанию)
+// Можно изменить в зависимости от размера сайта и доступных ресурсов сервера
+if (!defined('MAX_BACKUP_SIZE')) {
+    define('MAX_BACKUP_SIZE', 500 * 1024 * 1024); // 500 MB
+}
+
+/**
+ * Получение размера директории
+ *
+ * @param string $path Путь к директории
+ * @return int Размер в байтах
+ */
+function getDirectorySize($path)
+{
+    $totalSize = 0;
+    
+    if (!is_dir($path)) {
+        return 0;
+    }
+    
+    try {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $totalSize += $file->getSize();
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error calculating directory size for $path: " . $e->getMessage());
+    }
+    
+    return $totalSize;
+}
+
 /**
  * Валидация имени файла резервной копии
  *
@@ -232,6 +274,28 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         if (!$zipResult['success']) {
             rrmdir($tempDir);
             return $zipResult;
+        }
+        
+        // IMPROVEMENT: Validate backup size after creation
+        $backupSize = filesize($zipFile);
+        if ($backupSize === false) {
+            rrmdir($tempDir);
+            @unlink($zipFile);
+            return [
+                'success' => false,
+                'message' => 'Не удалось определить размер резервной копии'
+            ];
+        }
+        
+        if ($backupSize > MAX_BACKUP_SIZE) {
+            rrmdir($tempDir);
+            @unlink($zipFile);
+            $maxSizeMB = round(MAX_BACKUP_SIZE / (1024 * 1024), 2);
+            $actualSizeMB = round($backupSize / (1024 * 1024), 2);
+            return [
+                'success' => false,
+                'message' => "Размер резервной копии ($actualSizeMB МБ) превышает максимально допустимый ($maxSizeMB МБ). Попробуйте выбрать меньше папок или таблиц."
+            ];
         }
         
         // 6. Удаляем временную директорию
@@ -507,6 +571,7 @@ function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
  * Рекурсивное удаление директории
  *
  * @param string $dir Путь к директории
+ * @throws Exception Если произошла ошибка при удалении
  */
 function rrmdir($dir)
 {
@@ -514,7 +579,11 @@ function rrmdir($dir)
         return;
     }
     
-    $objects = scandir($dir);
+    // SECURITY FIX: Add error handling for scandir
+    $objects = @scandir($dir);
+    if ($objects === false) {
+        throw new Exception("Не удалось прочитать директорию: $dir");
+    }
     
     foreach ($objects as $object) {
         if ($object === '.' || $object === '..') {
@@ -526,11 +595,15 @@ function rrmdir($dir)
         if (is_dir($path)) {
             rrmdir($path);
         } else {
-            unlink($path);
+            if (!@unlink($path)) {
+                error_log("Warning: Failed to delete file: $path");
+            }
         }
     }
     
-    rmdir($dir);
+    if (!@rmdir($dir)) {
+        throw new Exception("Не удалось удалить директорию: $dir");
+    }
 }
 
 /**

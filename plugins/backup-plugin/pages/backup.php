@@ -212,7 +212,7 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                 ); ?>
 
                 <?php if (isset($backupFile)): ?>
-                <div class="alert alert-success">
+                <div class="alert alert-success" data-backup-created-alert>
                     <i class="bi bi-check-circle"></i>
                     Резервная копия успешно создана!
                     <a href="download_backup.php?file=<?= escape(urlencode($backupFile)) ?>" class="btn btn-sm btn-success ms-3">
@@ -479,14 +479,12 @@ $logoProfile = getFileVersionFromList($pdo, $adminData['profile_logo'] ?? '', 't
                     window.history.replaceState({}, '', url);
                     
                     // Скрываем alert о успешном создании резервной копии, если он есть
-                    const alerts = document.querySelectorAll('.alert-success');
-                    alerts.forEach(alert => {
-                        if (alert.textContent.includes('Резервная копия успешно создана!')) {
-                            alert.style.transition = 'opacity 0.3s ease';
-                            alert.style.opacity = '0';
-                            setTimeout(() => alert.remove(), 300);
-                        }
-                    });
+                    const backupCreatedAlert = document.querySelector('[data-backup-created-alert]');
+                    if (backupCreatedAlert) {
+                        backupCreatedAlert.style.transition = 'opacity 0.3s ease';
+                        backupCreatedAlert.style.opacity = '0';
+                        setTimeout(() => backupCreatedAlert.remove(), 300);
+                    }
                     
                     // Находим строку таблицы и удаляем её с анимацией
                     // Используем CSS.escape для безопасного экранирования имени файла

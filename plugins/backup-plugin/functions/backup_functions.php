@@ -139,32 +139,60 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
             $backupDirToExclude = $backupDir;
         }
         
+        $skippedFolders = []; // Массив пропущенных папок для отчета
+        $copiedFolders = []; // Массив скопированных папок
+        
         foreach ($selectedFolders as $folder) {
             // Валидация: проверяем что имя папки не содержит недопустимые символы
             if (preg_match('/[\/\\\\\.]{2,}/', $folder) || strpos($folder, '..') !== false) {
+                $skippedFolders[] = "$folder (содержит недопустимые символы)";
                 continue; // Пропускаем папки с путями траверсала
             }
             
             // Удаляем возможные слеши в начале и конце
             $folder = trim($folder, '/\\');
             
+            // Проверяем что папка не пустая после trim
+            if (empty($folder)) {
+                continue;
+            }
+            
             // Проверяем что папка не содержит путь (только имя папки)
             if (strpos($folder, '/') !== false || strpos($folder, '\\') !== false) {
+                $skippedFolders[] = "$folder (путь вместо имени папки)";
                 continue; // Пропускаем если это путь, а не имя папки
             }
             
             $sourcePath = $rootPath . '/' . $folder;
             $destPath = $filesDir . '/' . $folder;
             
-            // Проверяем что путь действительно внутри корневой директории
+            // Проверяем что директория существует
+            if (!is_dir($sourcePath)) {
+                $skippedFolders[] = "$folder (директория не найдена)";
+                continue;
+            }
+            
+            // Проверяем что директория доступна для чтения
+            if (!is_readable($sourcePath)) {
+                $skippedFolders[] = "$folder (нет прав на чтение)";
+                continue;
+            }
+            
+            // Получаем реальный путь и проверяем что он внутри корневой директории
             $realSourcePath = realpath($sourcePath);
-            if ($realSourcePath === false || strpos($realSourcePath, $rootPath) !== 0) {
+            if ($realSourcePath === false) {
+                $skippedFolders[] = "$folder (ошибка определения реального пути)";
+                continue;
+            }
+            
+            if (strpos($realSourcePath, $rootPath) !== 0) {
+                $skippedFolders[] = "$folder (вне корневой директории)";
                 continue; // Пропускаем если путь вне корневой директории
             }
             
-            if (is_dir($sourcePath)) {
-                recursiveCopy($sourcePath, $destPath, $backupDirToExclude);
-            }
+            // Копируем директорию
+            recursiveCopy($sourcePath, $destPath, $backupDirToExclude);
+            $copiedFolders[] = $folder;
         }
         
         // 3. Создаём установщик
@@ -192,10 +220,18 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         // 6. Удаляем временную директорию
         rrmdir($tempDir);
         
-        // 7. Возвращаем результат с именем файла для скачивания
+        // 7. Возвращаем результат с именем файла для скачивания и информацией о папках
+        $message = 'Резервная копия успешно создана';
+        if (!empty($copiedFolders)) {
+            $message .= '. Скопировано папок: ' . count($copiedFolders);
+        }
+        if (!empty($skippedFolders)) {
+            $message .= '. ВНИМАНИЕ: Некоторые папки не были включены в архив: ' . implode(', ', $skippedFolders);
+        }
+        
         return [
             'success' => true,
-            'message' => 'Резервная копия успешно создана',
+            'message' => $message,
             'backup_file' => $backupName . '.zip'
         ];
         

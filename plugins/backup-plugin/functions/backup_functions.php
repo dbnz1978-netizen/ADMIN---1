@@ -81,11 +81,25 @@ function getPluginNameFromPath($path = null)
 function createBackup($pdo, $selectedTables, $selectedFolders)
 {
     try {
-        // Создаём директорию для хранения резервных копий (вне корня сайта)
+        // Создаём директорию для хранения резервных копий в admin/backups
         $rootPath = realpath(__DIR__ . '/../../../..');
-        $backupDir = dirname($rootPath) . '/backups';
+        $backupDir = $rootPath . '/admin/backups';
+        
+        // Проверяем существование и права на запись директории резервных копий
         if (!is_dir($backupDir)) {
-            mkdir($backupDir, 0755, true);
+            if (!@mkdir($backupDir, 0755, true)) {
+                return [
+                    'success' => false,
+                    'message' => 'Не удалось создать директорию для резервных копий. Проверьте права доступа к директории admin.'
+                ];
+            }
+        }
+        
+        if (!is_writable($backupDir)) {
+            return [
+                'success' => false,
+                'message' => 'Директория резервных копий не доступна для записи. Установите права 0755 или 0777 на директорию ' . $backupDir
+            ];
         }
         
         // Генерируем уникальное имя для резервной копии
@@ -93,10 +107,10 @@ function createBackup($pdo, $selectedTables, $selectedFolders)
         $backupName = 'backup_' . $timestamp;
         $tempDir = $backupDir . '/' . $backupName;
         
-        if (!mkdir($tempDir, 0755, true)) {
+        if (!@mkdir($tempDir, 0755, true)) {
             return [
                 'success' => false,
-                'message' => 'Не удалось создать временную директорию для резервной копии'
+                'message' => 'Не удалось создать временную директорию для резервной копии. Проверьте права доступа к директории ' . $backupDir
             ];
         }
         
@@ -699,9 +713,9 @@ function createZipArchive($sourceDir, $zipFile)
  */
 function getBackupsList()
 {
-    // Определяем путь к директории с резервными копиями (вне корня сайта)
+    // Определяем путь к директории с резервными копиями в admin/backups
     $rootPath = realpath(__DIR__ . '/../../../..');
-    $backupDir = dirname($rootPath) . '/backups';
+    $backupDir = $rootPath . '/admin/backups';
     
     $backups = [];
     

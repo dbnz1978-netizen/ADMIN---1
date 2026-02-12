@@ -35,6 +35,28 @@ function plugin_install($pdo)
             mkdir($backupDir, 0755, true);
         }
         
+        // Устанавливаем права доступа к плагину: только для администраторов
+        // Загружаем функции управления доступом к плагинам
+        $pluginAccessPath = __DIR__ . '/../../admin/functions/plugin_access.php';
+        if (file_exists($pluginAccessPath)) {
+            require_once $pluginAccessPath;
+            
+            // Получаем текущие настройки доступа
+            $accessSettings = getPluginAccessSettings($pdo);
+            if ($accessSettings === false) {
+                $accessSettings = [];
+            }
+            
+            // Устанавливаем доступ только для администраторов
+            $accessSettings['backup-plugin'] = [
+                'user'  => false,  // запрещаем доступ для обычных пользователей
+                'admin' => true    // разрешаем доступ только для администраторов
+            ];
+            
+            // Сохраняем настройки
+            savePluginAccessSettings($pdo, $accessSettings);
+        }
+        
         return [
             'success' => true,
             'message' => 'Плагин "Система резервного копирования" успешно установлен.'

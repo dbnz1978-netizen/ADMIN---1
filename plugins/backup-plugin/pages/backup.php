@@ -73,6 +73,12 @@ $userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
 
 // ========================================
+// ПОДКЛЮЧЕНИЕ ФУНКЦИЙ РЕЗЕРВНОГО КОПИРОВАНИЯ
+// ========================================
+
+require_once __DIR__ . '/../functions/backup_functions.php';
+
+// ========================================
 // ОБРАБОТКА СОЗДАНИЯ РЕЗЕРВНОЙ КОПИИ
 // ========================================
 
@@ -85,9 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Получаем выбранные таблицы и папки
         $selectedTables = $_POST['tables'] ?? [];
         $selectedFolders = $_POST['folders'] ?? [];
-        
-        // Подключаем функцию создания резервной копии
-        require_once __DIR__ . '/../functions/backup_functions.php';
         
         $result = createBackup($pdo, $selectedTables, $selectedFolders);
         
@@ -115,7 +118,6 @@ if (isset($_GET['backup_created']) && !empty($_GET['backup_created'])) {
 // ПОЛУЧЕНИЕ СПИСКА СУЩЕСТВУЮЩИХ РЕЗЕРВНЫХ КОПИЙ
 // ========================================
 
-require_once __DIR__ . '/../functions/backup_functions.php';
 $backupsList = getBackupsList();
 
 // ========================================

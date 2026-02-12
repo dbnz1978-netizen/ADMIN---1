@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Обработка успешного создания резервной копии после редиректа
 if (isset($_GET['backup_created']) && !empty($_GET['backup_created'])) {
-    $backupFile = basename($_GET['backup_created']); // безопасность
+    $backupFile = basename($_GET['backup_created']); // basename() предотвращает атаки обхода директорий, удаляя путь из имени файла
     if (isValidBackupFileName($backupFile)) {
         $successMessages[] = 'Резервная копия успешно создана!';
     }

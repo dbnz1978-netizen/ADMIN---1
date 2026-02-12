@@ -395,38 +395,48 @@ function recursiveCopy($source, $dest, $excludePath = null, $rootPath = null)
                 $realSourcePath = realpath($sourcePath);
                 $realRootPath = realpath($rootPath);
                 if ($realSourcePath !== false && $realRootPath !== false) {
-                    $relativePath = str_replace($realRootPath, '', $realSourcePath);
-                    $relativePath = trim(str_replace('\\', '/', $relativePath), '/');
-                    
-                    if ($relativePath === 'connect/db.php') {
-                        // Читаем файл и очищаем учетные данные
-                        $content = file_get_contents($sourcePath);
+                    // Безопасное получение относительного пути с проверкой длины
+                    $rootLength = strlen($realRootPath);
+                    if (substr($realSourcePath, 0, $rootLength) === $realRootPath) {
+                        $relativePath = substr($realSourcePath, $rootLength);
+                        $relativePath = trim(str_replace('\\', '/', $relativePath), '/');
                         
-                        // Заменяем значения учетных данных на пустые строки
-                        $content = preg_replace(
-                            '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
-                            "private static \$host = 'localhost';",
-                            $content
-                        );
-                        $content = preg_replace(
-                            '/private static \$dbName\s*=\s*[\'"][^\'";]*[\'"];/',
-                            "private static \$dbName = '';",
-                            $content
-                        );
-                        $content = preg_replace(
-                            '/private static \$userName\s*=\s*[\'"][^\'";]*[\'"];/',
-                            "private static \$userName = '';",
-                            $content
-                        );
-                        $content = preg_replace(
-                            '/private static \$password\s*=\s*[\'"][^\'";]*[\'"];/',
-                            "private static \$password = '';",
-                            $content
-                        );
-                        
-                        // Сохраняем модифицированное содержимое
-                        file_put_contents($destPath, $content);
-                        continue;
+                        if ($relativePath === 'connect/db.php') {
+                            // Читаем файл и очищаем учетные данные
+                            $content = file_get_contents($sourcePath);
+                            
+                            // Заменяем значения учетных данных на пустые строки
+                            // Примечание: Эти регулярные выражения работают для стандартного формата PHP
+                            // и предполагают, что значения не содержат экранированных кавычек
+                            $content = preg_replace(
+                                '/private static \$host\s*=\s*[\'"][^\'";]*[\'"];/',
+                                "private static \$host = 'localhost';",
+                                $content
+                            );
+                            $content = preg_replace(
+                                '/private static \$dbName\s*=\s*[\'"][^\'";]*[\'"];/',
+                                "private static \$dbName = '';",
+                                $content
+                            );
+                            $content = preg_replace(
+                                '/private static \$userName\s*=\s*[\'"][^\'";]*[\'"];/',
+                                "private static \$userName = '';",
+                                $content
+                            );
+                            $content = preg_replace(
+                                '/private static \$password\s*=\s*[\'"][^\'";]*[\'"];/',
+                                "private static \$password = '';",
+                                $content
+                            );
+                            
+                            // Сохраняем модифицированное содержимое с проверкой ошибок
+                            if (file_put_contents($destPath, $content) === false) {
+                                // Если не удалось записать модифицированный файл, копируем оригинал
+                                // чтобы не потерять важный файл конфигурации
+                                copy($sourcePath, $destPath);
+                            }
+                            continue;
+                        }
                     }
                 }
             }

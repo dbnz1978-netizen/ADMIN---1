@@ -53,6 +53,12 @@ define('LOG_INFO_ENABLED',  ($adminData['log_info_enabled']  ?? false) === true)
 define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true);
 
 // ========================================
+// ПОДКЛЮЧЕНИЕ ФУНКЦИЙ РЕЗЕРВНОГО КОПИРОВАНИЯ
+// ========================================
+
+require_once __DIR__ . '/../functions/backup_functions.php';
+
+// ========================================
 // ПРОВЕРКА ДОСТУПА К ПЛАГИНУ
 // ========================================
 
@@ -60,12 +66,6 @@ define('LOG_ERROR_ENABLED', ($adminData['log_error_enabled'] ?? false) === true)
 $pluginName = getPluginNameFromPath(__DIR__);
 $userDataAdmin = pluginAccessGuard($pdo, $pluginName);
 $currentData = json_decode($userDataAdmin['data'] ?? '{}', true) ?? [];
-
-// ========================================
-// ПОДКЛЮЧЕНИЕ ФУНКЦИЙ РЕЗЕРВНОГО КОПИРОВАНИЯ
-// ========================================
-
-require_once __DIR__ . '/../functions/backup_functions.php';
 
 // ========================================
 // ОБРАБОТКА СОЗДАНИЯ РЕЗЕРВНОЙ КОПИИ
